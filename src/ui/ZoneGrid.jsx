@@ -1,9 +1,11 @@
-export function ZoneGrid({ zones, turnZone }) {
+export function ZoneGrid({ zones, turnZone, cardNames }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
       {zones.map((uid, i) => {
         const zoneNr = i + 1;
         const isTurn = turnZone === zoneNr;
+
+        const cardName = uid ? (cardNames?.[i] ?? "(unmapped)") : "(empty)";
 
         return (
           <div
@@ -19,7 +21,11 @@ export function ZoneGrid({ zones, turnZone }) {
               <strong>Zone {zoneNr}</strong>
               {isTurn ? <span>🎯 Turn</span> : null}
             </div>
-            <div style={{ marginTop: 8 }}>UID: {uid ?? "(empty)"}</div>
+
+            <div style={{ marginTop: 8 }}>
+              <div>UID: {uid ?? "-"}</div>
+              <div><b>Card:</b> {cardName}</div>
+            </div>
           </div>
         );
       })}
