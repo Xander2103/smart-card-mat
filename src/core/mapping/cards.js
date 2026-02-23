@@ -1,22 +1,6 @@
-export const CARD_OPTIONS = [
-  "Schoppen Aas",
-  "Schoppen Heer",
-  "Schoppen Dame",
-  "Schoppen Boer",
-  "Schoppen 10",
-  "Harten Aas",
-  "Harten Heer",
-  "Harten Dame",
-  "Harten Boer",
-  "Harten 10",
-  "Ruiten Aas",
-  "Ruiten Heer",
-  "Ruiten Dame",
-  "Ruiten Boer",
-  "Ruiten 10",
-  "Klaveren Aas",
-  "Klaveren Heer",
-  "Klaveren Dame",
-  "Klaveren Boer",
-  "Klaveren 10",
-];
+const SUITS = ["Schoppen", "Harten", "Ruiten", "Klaveren"];
+const RANKS = ["Aas", "Heer", "Dame", "Boer", "10", "9", "8", "7", "6", "5", "4", "3", "2"];
+
+export const CARD_OPTIONS = SUITS.flatMap((suit) =>
+  RANKS.map((rank) => `${suit} ${rank}`)
+);
