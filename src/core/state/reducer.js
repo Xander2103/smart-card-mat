@@ -24,6 +24,12 @@ export function applyEvent(state, ev) {
     // zone-overwrite
     next.zones[zoneIndex] = ev.uid;
 
+    // ✅ turn-flow v1: als je in de turnZone iets plaatst, turnCard verandert mogelijk
+    // → reset confirm snapshot
+    if (next.turnZone === ev.zone) {
+      next.confirmedTurnCard = null;
+    }
+
     next.selectedUid = ev.uid;
     return next;
   }
@@ -35,6 +41,11 @@ export function applyEvent(state, ev) {
     if (next.zones[zoneIndex] === ev.uid) {
       next.zones[zoneIndex] = null;
 
+      // ✅ turn-flow v1: als de confirmed kaart weggaat, reset confirm snapshot
+      if (next.confirmedTurnCard?.uid === ev.uid) {
+        next.confirmedTurnCard = null;
+      }
+
       // game rule: turn reset als je turn-zone leegmaakt
       if (next.turnZone === ev.zone) next.turnZone = null;
     }
@@ -45,13 +56,15 @@ export function applyEvent(state, ev) {
     const zoneIndex = ev.zone - 1;
     if (zoneIndex < 0 || zoneIndex >= next.zones.length) return next;
 
+    // ✅ optioneel maar logisch: nieuwe turn gekozen → reset confirm snapshot
+    next.confirmedTurnCard = null;
+
     next.turnZone = ev.zone;
     return next;
   }
 
   return next;
 }
-
 export function applyAction(state, action) {
   if (action.type === "select_uid") {
     return { ...state, selectedUid: action.uid };
@@ -72,6 +85,33 @@ export function applyAction(state, action) {
     };
   }
 
+  // ✅ nieuw: confirm turn snapshot
+  if (action.type === "confirm_turn") {
+    const turnCard = action.turnCard;
+    if (!turnCard) return state;
+
+    // zelfde kaart niet 2x na elkaar bevestigen
+    if (state.confirmedTurnCard?.uid === turnCard.uid) return state;
+
+    return {
+      ...state,
+      confirmedTurnCard: turnCard,
+      pile: [...(state.pile ?? []), turnCard],
+      log: pushLog(
+        state.log,
+        `CONFIRM|${turnCard.zone}|${turnCard.uid}|${turnCard.card}`
+      ),
+    };
+  }
+
+  if (action.type === "reset_pile") {
+    return {
+      ...state,
+      pile: [],
+      confirmedTurnCard: null,
+      log: pushLog(state.log, "PILE|RESET"),
+    };
+  }
   // onbekende actions: state behouden
   return state;
 }

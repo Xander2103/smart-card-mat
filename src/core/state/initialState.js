@@ -7,6 +7,10 @@ export function createInitialState({ zonesCount = 4 } = {}) {
     turnZone: null,
     log: [],
     selectedUid: null,
-    mapping: loadMapping(), // ✅ dit is de enige load die je nodig hebt
+    mapping: loadMapping(),
+
+    // ✅ nieuw
+    confirmedTurnCard: null,
+    pile: [],
   };
 }

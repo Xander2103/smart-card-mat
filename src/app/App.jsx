@@ -13,7 +13,6 @@ import { DebugLog } from "../ui/DebugLog";
 import { connectSerial } from "../transport/serialTransport";
 import { CARD_OPTIONS } from "../core/mapping/cards";
 
-import { getCardsOnTable, getTurnCard } from "../core/game/selectors";
 import { computeGameState } from "../core/game/engine";
 
 export default function App() {
@@ -95,6 +94,15 @@ export default function App() {
   function clearMapping() {
     setAppState((prev) => ({ ...prev, mapping: {} }));
     saveMapping({}); // meteen localStorage ook leeg
+  }
+
+  function confirmTurn() {
+    setAppState((prev) =>
+      applyAction(prev, {
+        type: "confirm_turn",
+        turnCard: gameState.turnCard, // snapshot
+      })
+    );
   }
 
   return (
@@ -183,7 +191,13 @@ export default function App() {
 
       <h2 style={{ marginTop: 24 }}>Game state</h2>
       <div>
-        <div>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <button onClick={confirmTurn} disabled={!gameState.canConfirm}>
+            Confirm turn
+          </button>
+          <button onClick={() => setAppState(prev => applyAction(prev, { type: "reset_pile" }))}>
+            Reset pile
+          </button>
           Can play: <b>{gameState.canPlay ? "YES" : "NO"}</b>
         </div>
 
@@ -203,6 +217,15 @@ export default function App() {
 
         Turn card:
         <pre>{JSON.stringify(gameState.turnCard, null, 2)}</pre>
+
+        Confirmed turn card:
+        <pre>{JSON.stringify(appState.confirmedTurnCard, null, 2)}</pre>
+
+        Pile count: <b>{gameState.pileCount}</b>
+        <pre>{JSON.stringify(appState.pile, null, 2)}</pre>
+        Top card:
+        <pre>{JSON.stringify(gameState.topCard, null, 2)}</pre>
+
       </div>
     </div>
   );

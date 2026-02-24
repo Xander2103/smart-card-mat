@@ -1,31 +1,31 @@
 // src/core/game/engine.js
-import { getMappedCardsOnTable, getTurnCard } from "./selectors";
+import { getCardsOnTable, getTurnCard } from "./selectors";
 
 /**
- * 1 centrale plek voor "game state" (derived state)
- * - puur
- * - geen side effects
+ * Central derived "game snapshot"
+ * - pure
+ * - no side effects
+ * - UI can render this directly
  */
-export function computeGameState(appState) {
-  const cardsOnTable = getMappedCardsOnTable(appState);
-  const turnCard = getTurnCard(appState);
+export function computeGameState(state) {
+  const cardsOnTable = getCardsOnTable(state); // mapped cards only
+  const turnCard = getTurnCard(state); // {zone, uid, card} or null
+  const pileCount = state.pile?.length ?? 0;
+  const topCard = pileCount > 0 ? state.pile[pileCount - 1] : null;
 
   const warnings = [];
 
-  if (appState.turnZone != null) {
-    const zoneIdx = appState.turnZone - 1;
-    const uid = appState.zones?.[zoneIdx] ?? null;
-
-    if (!uid) warnings.push("TurnZone is leeg (geen UID in die zone).");
-    else if (!appState.mapping?.[uid]) warnings.push("TurnZone heeft UID maar is unmapped.");
+  // Turn set, but not playable
+  if (state.turnZone != null && turnCard == null) {
+    warnings.push("TurnZone is leeg of unmapped → turnCard = null.");
   }
 
-  const canPlay = turnCard !== null;
+  // 1 simpele rule: je mag spelen als turnCard bestaat
+  const canPlay = turnCard != null;
 
-  return {
-    cardsOnTable, // enkel mapped cards
-    turnCard,     // {zoneNr, uid, cardName} of null
-    canPlay,      // simpele rule: mag spelen als turnCard bestaat
-    warnings,
-  };
+  // ✅ extra rule: confirm alleen als er een turnCard is én niet dezelfde als confirmed
+  const canConfirm =
+    turnCard != null && state.confirmedTurnCard?.uid !== turnCard.uid;
+
+  return { cardsOnTable, turnCard, canPlay, canConfirm, warnings, pileCount, topCard };
 }
