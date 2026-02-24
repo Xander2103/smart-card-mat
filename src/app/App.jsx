@@ -2,34 +2,32 @@ import { useEffect, useMemo, useState } from "react";
 import "../styles/app.css";
 
 import { parseEvent } from "../core/protocol/parseEvent";
+import { applyAction, applyEvent } from "../core/state/reducer";
+import { createInitialState } from "../core/state/initialState";
+import { saveMapping } from "../core/mapping/mappingStore";
+import { EventStudio } from "../ui/EventStudio";
 import { ZoneGrid } from "../ui/ZoneGrid";
 import { DebugLog } from "../ui/DebugLog";
 
 import { connectSerial } from "../transport/serialTransport";
-
 import { CARD_OPTIONS } from "../core/mapping/cards";
-import { loadMapping, saveMapping, setMappingValue } from "../core/mapping/mappingStore";
 
 export default function App() {
   const ZONES = 4;
 
   const [serialStatus, setSerialStatus] = useState("disconnected");
   const [serialConn, setSerialConn] = useState(null);
-  const [zones, setZones] = useState(Array.from({ length: ZONES }, () => null));
-  const [log, setLog] = useState([]);
-  const [turnZone, setTurnZone] = useState(null);
 
-  // UID -> "Schoppen Aas"
-  const [mapping, setMapping] = useState(() => loadMapping());
+  const [appState, setAppState] = useState(() =>
+    createInitialState({ zonesCount: ZONES })
+  );
 
-  // “laatst gescande” UID om te registreren
-  const [selectedUid, setSelectedUid] = useState(null);
-  const [selectedCard, setSelectedCard] = useState(CARD_OPTIONS[0]);
-
-  // auto-save mapping
+  const { zones, log, turnZone, selectedUid, mapping } = appState;
   useEffect(() => {
     saveMapping(mapping);
   }, [mapping]);
+
+  const [selectedCard, setSelectedCard] = useState(CARD_OPTIONS[0]);
 
   const cardNames = useMemo(() => {
     return zones.map((uid) => (uid ? mapping[uid] : null));
@@ -61,53 +59,28 @@ export default function App() {
   function handleLine(line) {
     const ev = parseEvent(line);
     if (!ev) return;
-
-    setLog((prev) => [ev.raw, ...prev].slice(0, 50));
-
-    if (ev.type === "placed") {
-      if (!Number.isInteger(ev.zone) || ev.zone < 1 || ev.zone > ZONES) return;
-
-      setZones((prev) => {
-        const next = [...prev];
-        next[ev.zone - 1] = ev.uid;
-        return next;
-      });
-
-      // onthoud deze UID als kandidaat om te mappen
-      setSelectedUid(ev.uid);
-    }
-
-    if (ev.type === "removed") {
-      if (!Number.isInteger(ev.zone) || ev.zone < 1 || ev.zone > ZONES) return;
-      setZones((prev) => {
-        const next = [...prev];
-        if (next[ev.zone - 1] === ev.uid) next[ev.zone - 1] = null;
-        return next;
-      });
-    }
-
-    if (ev.type === "turn") {
-      if (!Number.isInteger(ev.zone) || ev.zone < 1 || ev.zone > ZONES) return;
-      setTurnZone(ev.zone);
-    }
+    setAppState((prev) => applyEvent(prev, ev));
   }
 
   function registerSelectedUid() {
     if (!selectedUid) return;
-    setMapping((prev) => setMappingValue(prev, selectedUid, selectedCard));
+    setAppState((prev) =>
+      applyAction(prev, { type: "register_mapping", uid: selectedUid, card: selectedCard })
+    );
   }
 
   function handleZoneClick(zoneNr) {
     const uid = zones[zoneNr - 1];
     if (!uid) return;
-    setSelectedUid(uid);
+    setAppState((prev) => applyAction(prev, { type: "select_uid", uid }));
   }
 
   function clearMapping() {
-    setMapping({});
+    setAppState((prev) => applyAction(prev, { type: "clear_mapping" }));
   }
 
   return (
+
     <div style={{ fontFamily: "system-ui", padding: 16, maxWidth: 900, margin: "0 auto" }}>
       <h1>Smart Card Mat – Vertical Slice</h1>
 
@@ -127,9 +100,14 @@ export default function App() {
         <span>Status: {serialStatus}</span>
       </div>
 
+      <EventStudio
+        zonesCount={ZONES}
+        onLine={handleLine}
+        onReset={() => setAppState(createInitialState({ zonesCount: ZONES }))}
+      />
+      
       {/* Event simulator */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-
         <button onClick={() => handleLine("P|1|UID_A")}>Place z1</button>
         <button onClick={() => handleLine("P|2|UID_B")}>Place z2</button>
         <button onClick={() => handleLine("P|3|UID_C")}>Place z3</button>
@@ -142,6 +120,7 @@ export default function App() {
       {/* Mapping panel */}
       <div style={{ border: "1px solid #ddd", borderRadius: 12, padding: 12, marginBottom: 16 }}>
         <b>Mapping (UID → kaart)</b>
+
         <div style={{ marginTop: 8 }}>
           <div>
             Selected UID:{" "}
@@ -163,20 +142,19 @@ export default function App() {
               Register selected UID
             </button>
 
-            <button onClick={clearMapping}>
-              Clear mapping
-            </button>
+            <button onClick={clearMapping}>Clear mapping</button>
           </div>
         </div>
       </div>
+
       <div style={{ marginTop: 8, fontSize: 14 }}>
         Mapped cards: {Object.keys(mapping).length} / 52
       </div>
+
       <ZoneGrid zones={zones} turnZone={turnZone} cardNames={cardNames} onZoneClick={handleZoneClick} />
 
       <h2 style={{ marginTop: 24 }}>Debug log</h2>
       <DebugLog lines={log} />
     </div>
-
   );
 }
