@@ -5,6 +5,9 @@ export function getCardsInZones(state) {
     card: uid ? state.mapping?.[uid] ?? null : null,
   }));
 }
+export function getMappedCardsOnTable(state) {
+    return getCardsOnTable(state).filter((z) => z.uid && z.card != null);
+  }
 
 export function getCardsOnTable(state) {
   return getCardsInZones(state).filter((z) => z.card !== null);

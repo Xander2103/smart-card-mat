@@ -14,6 +14,7 @@ import { connectSerial } from "../transport/serialTransport";
 import { CARD_OPTIONS } from "../core/mapping/cards";
 
 import { getCardsOnTable, getTurnCard } from "../core/game/selectors";
+import { computeGameState } from "../core/game/engine";
 
 export default function App() {
   const ZONES = 4;
@@ -21,12 +22,10 @@ export default function App() {
   const [serialStatus, setSerialStatus] = useState("disconnected");
   const [serialConn, setSerialConn] = useState(null);
 
-  // ✅ appState MOET vóór je selectors staan
   const [appState, setAppState] = useState(() =>
     createInitialState({ zonesCount: ZONES })
   );
 
-  // ✅ nu pas mag je destructuren
   const { zones, log, turnZone, selectedUid, mapping } = appState;
 
   // ✅ save mapping naar localStorage wanneer mapping wijzigt
@@ -34,15 +33,14 @@ export default function App() {
     saveMapping(mapping);
   }, [mapping]);
 
+  // ✅ selectedCard is gewoon een cardName string
   const [selectedCard, setSelectedCard] = useState(CARD_OPTIONS[0]);
 
   const cardNames = useMemo(() => {
-    return zones.map((uid) => (uid ? mapping[uid] : null));
+    return zones.map((uid) => (uid ? mapping[uid] ?? null : null));
   }, [zones, mapping]);
 
-  // ✅ selectors: pas nadat appState bestaat
-  const cardsOnTable = useMemo(() => getCardsOnTable(appState), [appState]);
-  const turnCard = useMemo(() => getTurnCard(appState), [appState]);
+  const gameState = useMemo(() => computeGameState(appState), [appState]);
 
   async function connectUsb() {
     try {
@@ -75,11 +73,13 @@ export default function App() {
 
   function registerSelectedUid() {
     if (!selectedUid) return;
+
+    // ✅ reducer verwacht cardName (niet "card")
     setAppState((prev) =>
       applyAction(prev, {
         type: "register_mapping",
         uid: selectedUid,
-        card: selectedCard,
+        cardName: selectedCard,
       })
     );
   }
@@ -90,8 +90,11 @@ export default function App() {
     setAppState((prev) => applyAction(prev, { type: "select_uid", uid }));
   }
 
+  // ✅ Als je "clear mapping" wil: ofwel reducer implementeren,
+  // ofwel hier rechtstreeks state resetten (simpel).
   function clearMapping() {
-    setAppState((prev) => applyAction(prev, { type: "clear_mapping" }));
+    setAppState((prev) => ({ ...prev, mapping: {} }));
+    saveMapping({}); // meteen localStorage ook leeg
   }
 
   return (
@@ -144,7 +147,10 @@ export default function App() {
           </div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8, alignItems: "center" }}>
-            <select value={selectedCard} onChange={(e) => setSelectedCard(e.target.value)}>
+            <select
+              value={selectedCard}
+              onChange={(e) => setSelectedCard(e.target.value)}
+            >
               {CARD_OPTIONS.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -177,11 +183,26 @@ export default function App() {
 
       <h2 style={{ marginTop: 24 }}>Game state</h2>
       <div>
+        <div>
+          Can play: <b>{gameState.canPlay ? "YES" : "NO"}</b>
+        </div>
+
+        {gameState.warnings.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <b>Warnings:</b>
+            <ul>
+              {gameState.warnings.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         Cards on table:
-        <pre>{JSON.stringify(cardsOnTable, null, 2)}</pre>
+        <pre>{JSON.stringify(gameState.cardsOnTable, null, 2)}</pre>
 
         Turn card:
-        <pre>{JSON.stringify(turnCard, null, 2)}</pre>
+        <pre>{JSON.stringify(gameState.turnCard, null, 2)}</pre>
       </div>
     </div>
   );

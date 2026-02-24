@@ -1,5 +1,5 @@
 // src/core/state/reducer.js
-import { setMappingValue } from "../mapping/mappingStore";
+import { setUniqueMappingOverwrite } from "../mapping/uniqueMapping";
 
 function pushLog(prevLog, raw) {
   return [raw, ...prevLog].slice(0, 50);
@@ -16,12 +16,14 @@ export function applyEvent(state, ev) {
     const zoneIndex = ev.zone - 1;
     if (zoneIndex < 0 || zoneIndex >= next.zones.length) return next;
 
-    // 1 UID kan maar in 1 zone zitten
+    // 1 UID kan maar in 1 zone tegelijk zitten
     for (let i = 0; i < next.zones.length; i++) {
       if (next.zones[i] === ev.uid) next.zones[i] = null;
     }
 
+    // zone-overwrite
     next.zones[zoneIndex] = ev.uid;
+
     next.selectedUid = ev.uid;
     return next;
   }
@@ -30,7 +32,12 @@ export function applyEvent(state, ev) {
     const zoneIndex = ev.zone - 1;
     if (zoneIndex < 0 || zoneIndex >= next.zones.length) return next;
 
-    if (next.zones[zoneIndex] === ev.uid) next.zones[zoneIndex] = null;
+    if (next.zones[zoneIndex] === ev.uid) {
+      next.zones[zoneIndex] = null;
+
+      // game rule: turn reset als je turn-zone leegmaakt
+      if (next.turnZone === ev.zone) next.turnZone = null;
+    }
     return next;
   }
 
@@ -50,25 +57,21 @@ export function applyAction(state, action) {
     return { ...state, selectedUid: action.uid };
   }
 
-if (action.type === "register_mapping") {
+  if (action.type === "register_mapping") {
+    const uid = action.uid ?? state.selectedUid;
+    const cardName = action.cardName;
 
-  const { uid, card } = action;
+    if (!uid || !cardName) return state;
 
-  const nextMapping = { ...state.mapping };
+    const nextMapping = setUniqueMappingOverwrite(state.mapping, uid, cardName);
 
-  // verwijder deze kaart van andere UID's
-  for (const existingUid in nextMapping) {
-    if (nextMapping[existingUid] === card) {
-      delete nextMapping[existingUid];
-    }
+    return {
+      ...state,
+      mapping: nextMapping,
+      log: pushLog(state.log, `MAP|${uid}|${cardName}`),
+    };
   }
 
-  // set nieuwe mapping
-  nextMapping[uid] = card;
-
-  return {
-    ...state,
-    mapping: nextMapping
-  };
-}
+  // onbekende actions: state behouden
+  return state;
 }
