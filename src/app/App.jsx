@@ -5,6 +5,7 @@ import { parseEvent } from "../core/protocol/parseEvent";
 import { applyAction, applyEvent } from "../core/state/reducer";
 import { createInitialState } from "../core/state/initialState";
 import { saveMapping } from "../core/mapping/mappingStore";
+
 import { EventStudio } from "../ui/EventStudio";
 import { ZoneGrid } from "../ui/ZoneGrid";
 import { DebugLog } from "../ui/DebugLog";
@@ -12,17 +13,23 @@ import { DebugLog } from "../ui/DebugLog";
 import { connectSerial } from "../transport/serialTransport";
 import { CARD_OPTIONS } from "../core/mapping/cards";
 
+import { getCardsOnTable, getTurnCard } from "../core/game/selectors";
+
 export default function App() {
   const ZONES = 4;
 
   const [serialStatus, setSerialStatus] = useState("disconnected");
   const [serialConn, setSerialConn] = useState(null);
 
+  // ✅ appState MOET vóór je selectors staan
   const [appState, setAppState] = useState(() =>
     createInitialState({ zonesCount: ZONES })
   );
 
+  // ✅ nu pas mag je destructuren
   const { zones, log, turnZone, selectedUid, mapping } = appState;
+
+  // ✅ save mapping naar localStorage wanneer mapping wijzigt
   useEffect(() => {
     saveMapping(mapping);
   }, [mapping]);
@@ -32,6 +39,10 @@ export default function App() {
   const cardNames = useMemo(() => {
     return zones.map((uid) => (uid ? mapping[uid] : null));
   }, [zones, mapping]);
+
+  // ✅ selectors: pas nadat appState bestaat
+  const cardsOnTable = useMemo(() => getCardsOnTable(appState), [appState]);
+  const turnCard = useMemo(() => getTurnCard(appState), [appState]);
 
   async function connectUsb() {
     try {
@@ -65,7 +76,11 @@ export default function App() {
   function registerSelectedUid() {
     if (!selectedUid) return;
     setAppState((prev) =>
-      applyAction(prev, { type: "register_mapping", uid: selectedUid, card: selectedCard })
+      applyAction(prev, {
+        type: "register_mapping",
+        uid: selectedUid,
+        card: selectedCard,
+      })
     );
   }
 
@@ -80,7 +95,6 @@ export default function App() {
   }
 
   return (
-
     <div style={{ fontFamily: "system-ui", padding: 16, maxWidth: 900, margin: "0 auto" }}>
       <h1>Smart Card Mat – Vertical Slice</h1>
 
@@ -105,7 +119,7 @@ export default function App() {
         onLine={handleLine}
         onReset={() => setAppState(createInitialState({ zonesCount: ZONES }))}
       />
-      
+
       {/* Event simulator */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
         <button onClick={() => handleLine("P|1|UID_A")}>Place z1</button>
@@ -151,10 +165,25 @@ export default function App() {
         Mapped cards: {Object.keys(mapping).length} / 52
       </div>
 
-      <ZoneGrid zones={zones} turnZone={turnZone} cardNames={cardNames} onZoneClick={handleZoneClick} />
+      <ZoneGrid
+        zones={zones}
+        turnZone={turnZone}
+        cardNames={cardNames}
+        onZoneClick={handleZoneClick}
+      />
 
       <h2 style={{ marginTop: 24 }}>Debug log</h2>
       <DebugLog lines={log} />
+
+      <h2 style={{ marginTop: 24 }}>Game state</h2>
+      <div>
+        Cards on table:
+        <pre>{JSON.stringify(cardsOnTable, null, 2)}</pre>
+
+        Turn card:
+        <pre>{JSON.stringify(turnCard, null, 2)}</pre>
+      </div>
     </div>
   );
 }
+

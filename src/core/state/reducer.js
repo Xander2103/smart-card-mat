@@ -50,17 +50,25 @@ export function applyAction(state, action) {
     return { ...state, selectedUid: action.uid };
   }
 
-  if (action.type === "register_mapping") {
-    const { uid, card } = action;
-    if (!uid || !card) return state;
+if (action.type === "register_mapping") {
 
-    const mapping = setMappingValue(state.mapping, uid, card);
-    return { ...state, mapping };
+  const { uid, card } = action;
+
+  const nextMapping = { ...state.mapping };
+
+  // verwijder deze kaart van andere UID's
+  for (const existingUid in nextMapping) {
+    if (nextMapping[existingUid] === card) {
+      delete nextMapping[existingUid];
+    }
   }
 
-  if (action.type === "clear_mapping") {
-    return { ...state, mapping: {} };
-  }
+  // set nieuwe mapping
+  nextMapping[uid] = card;
 
-  return state;
+  return {
+    ...state,
+    mapping: nextMapping
+  };
+}
 }
