@@ -86,65 +86,73 @@ export function applyAction(state, action) {
     };
   }
 
- if (action.type === "confirm_turn") {
-  const turnCard = action.turnCard;
-  if (!turnCard) return state;
+  if (action.type === "confirm_turn") {
+    const turnCard = action.turnCard;
+    if (!turnCard) return state;
 
-  if (state.confirmedTurnCard?.uid === turnCard.uid) return state;
+    if (state.confirmedTurnCard?.uid === turnCard.uid) return state;
 
-  const playersCount = state.players?.length ?? 4;
+    const playersCount = state.players?.length ?? 4;
 
-  const played = { playerIndex: state.currentPlayerIndex, ...turnCard };
-  const nextTrick = [...(state.currentTrick ?? []), played];
+    const alreadyPlayedThisTrick =
+      (state.currentTrick ?? []).some(
+        (p) => p.playerIndex === state.currentPlayerIndex
+      );
 
-  let nextLog = pushLog(
-    state.log,
-    `CONFIRM|${turnCard.zone}|${turnCard.uid}|${turnCard.card}|P${state.currentPlayerIndex}`
-  );
+    if (alreadyPlayedThisTrick) return state; // gelegd is gelegd
 
-  let nextPlayerIndex = (state.currentPlayerIndex + 1) % playersCount;
+    const played = { playerIndex: state.currentPlayerIndex, ...turnCard };
+    const nextTrick = [...(state.currentTrick ?? []), played];
 
-  if (nextTrick.length === playersCount) {
-    const winner = determineTrickWinner(nextTrick, state.gameMode);
-    if (!winner) return state;
+    let nextLog = pushLog(
+      state.log,
+      `CONFIRM|${turnCard.zone}|${turnCard.uid}|${turnCard.card}|P${state.currentPlayerIndex}`
+    );
 
-    if (state.gameMode === "NEXT_TURN") {
-      nextPlayerIndex = (state.currentPlayerIndex + 1) % playersCount;
-    } else {
-      nextPlayerIndex = winner.playerIndex;
+    let nextPlayerIndex = (state.currentPlayerIndex + 1) % playersCount;
+
+    if (nextTrick.length === playersCount) {
+      const winner = determineTrickWinner(nextTrick, state.gameMode);
+      if (!winner) return state;
+
+      if (state.gameMode === "NEXT_TURN") {
+        nextPlayerIndex = (state.currentPlayerIndex + 1) % playersCount;
+      } else {
+        nextPlayerIndex = winner.playerIndex;
+      }
+
+      const trickResult = {
+        id: (state.trickHistory?.length ?? 0) + 1,
+        gameMode: state.gameMode,
+        plays: nextTrick,
+        winnerIndex: winner.playerIndex,
+        timestamp: Date.now(),
+      };
+
+      nextLog = pushLog(nextLog, `TRICK_WIN|P${winner.playerIndex}`);
+
+      return {
+        ...state,
+        confirmedTurnCard: played,
+        pile: [...(state.pile ?? []), played],
+        currentTrick: [],
+        currentPlayerIndex: nextPlayerIndex,
+        trickHistory: [...(state.trickHistory ?? []), trickResult],
+        lastTrick: trickResult,
+        lastTrickWinnerIndex: winner.playerIndex,
+        log: nextLog,
+      };
     }
-
-    const trickResult = {
-      id: (state.trickHistory?.length ?? 0) + 1,
-      gameMode: state.gameMode,
-      plays: nextTrick,
-      winnerIndex: winner.playerIndex,
-      timestamp: Date.now(),
-    };
-
-    nextLog = pushLog(nextLog, `TRICK_WIN|P${winner.playerIndex}`);
 
     return {
       ...state,
       confirmedTurnCard: played,
       pile: [...(state.pile ?? []), played],
-      currentTrick: [],
+      currentTrick: nextTrick,
       currentPlayerIndex: nextPlayerIndex,
-      trickHistory: [...(state.trickHistory ?? []), trickResult],
-      lastTrick: trickResult,
-      lastTrickWinnerIndex: winner.playerIndex,
       log: nextLog,
     };
   }
-  return {
-    ...state,
-    confirmedTurnCard: played,
-    pile: [...(state.pile ?? []), played],
-    currentTrick: nextTrick,
-    currentPlayerIndex: nextPlayerIndex,
-    log: nextLog,
-  };
-}
   if (action.type === "reset_pile") {
     return {
       ...state,
