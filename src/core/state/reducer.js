@@ -1,5 +1,6 @@
 // src/core/state/reducer.js
 import { setUniqueMappingOverwrite } from "../mapping/uniqueMapping";
+import { determineTrickWinner } from "../game/trickLogic";
 
 function pushLog(prevLog, raw) {
   return [raw, ...prevLog].slice(0, 50);
@@ -85,25 +86,65 @@ export function applyAction(state, action) {
     };
   }
 
-  // ✅ nieuw: confirm turn snapshot
-  if (action.type === "confirm_turn") {
-    const turnCard = action.turnCard;
-    if (!turnCard) return state;
+ if (action.type === "confirm_turn") {
+  const turnCard = action.turnCard;
+  if (!turnCard) return state;
 
-    // zelfde kaart niet 2x na elkaar bevestigen
-    if (state.confirmedTurnCard?.uid === turnCard.uid) return state;
+  if (state.confirmedTurnCard?.uid === turnCard.uid) return state;
+
+  const playersCount = state.players?.length ?? 4;
+
+  const played = { playerIndex: state.currentPlayerIndex, ...turnCard };
+  const nextTrick = [...(state.currentTrick ?? []), played];
+
+  let nextLog = pushLog(
+    state.log,
+    `CONFIRM|${turnCard.zone}|${turnCard.uid}|${turnCard.card}|P${state.currentPlayerIndex}`
+  );
+
+  let nextPlayerIndex = (state.currentPlayerIndex + 1) % playersCount;
+
+  if (nextTrick.length === playersCount) {
+    const winner = determineTrickWinner(nextTrick, state.gameMode);
+    if (!winner) return state;
+
+    if (state.gameMode === "NEXT_TURN") {
+      nextPlayerIndex = (state.currentPlayerIndex + 1) % playersCount;
+    } else {
+      nextPlayerIndex = winner.playerIndex;
+    }
+
+    const trickResult = {
+      id: (state.trickHistory?.length ?? 0) + 1,
+      gameMode: state.gameMode,
+      plays: nextTrick,
+      winnerIndex: winner.playerIndex,
+      timestamp: Date.now(),
+    };
+
+    nextLog = pushLog(nextLog, `TRICK_WIN|P${winner.playerIndex}`);
 
     return {
       ...state,
-      confirmedTurnCard: turnCard,
-      pile: [...(state.pile ?? []), turnCard],
-      log: pushLog(
-        state.log,
-        `CONFIRM|${turnCard.zone}|${turnCard.uid}|${turnCard.card}`
-      ),
+      confirmedTurnCard: played,
+      pile: [...(state.pile ?? []), played],
+      currentTrick: [],
+      currentPlayerIndex: nextPlayerIndex,
+      trickHistory: [...(state.trickHistory ?? []), trickResult],
+      lastTrick: trickResult,
+      lastTrickWinnerIndex: winner.playerIndex,
+      log: nextLog,
     };
   }
-
+  return {
+    ...state,
+    confirmedTurnCard: played,
+    pile: [...(state.pile ?? []), played],
+    currentTrick: nextTrick,
+    currentPlayerIndex: nextPlayerIndex,
+    log: nextLog,
+  };
+}
   if (action.type === "reset_pile") {
     return {
       ...state,

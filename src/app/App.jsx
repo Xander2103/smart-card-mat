@@ -190,21 +190,51 @@ export default function App() {
       <DebugLog lines={log} />
 
       <h2 style={{ marginTop: 24 }}>Game state</h2>
-      <div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+
+      <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
+        {/* Controls */}
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <button onClick={confirmTurn} disabled={!gameState.canConfirm}>
             Confirm turn
           </button>
-          <button onClick={() => setAppState(prev => applyAction(prev, { type: "reset_pile" }))}>
+
+          <button onClick={() => setAppState((prev) => applyAction(prev, { type: "reset_pile" }))}>
             Reset pile
           </button>
-          Can play: <b>{gameState.canPlay ? "YES" : "NO"}</b>
+
+          <div>
+            Can play: <b>{gameState.canPlay ? "YES" : "NO"}</b>
+          </div>
         </div>
 
+        {/* Meta */}
+        <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <div>
+            Game mode: <b>{appState.gameMode}</b>
+          </div>
+
+          <div>
+            Players: <b>{appState.players?.length ?? 0}</b>
+          </div>
+
+          <div>
+            Current player index: <b>{appState.currentPlayerIndex}</b>
+          </div>
+
+          <div>
+            Current player:{" "}
+            <b>
+              {appState.players?.[appState.currentPlayerIndex]?.name ??
+                `P${appState.currentPlayerIndex}`}
+            </b>
+          </div>
+        </div>
+
+        {/* Warnings */}
         {gameState.warnings.length > 0 && (
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 10 }}>
             <b>Warnings:</b>
-            <ul>
+            <ul style={{ marginTop: 6 }}>
               {gameState.warnings.map((w) => (
                 <li key={w}>{w}</li>
               ))}
@@ -212,22 +242,51 @@ export default function App() {
           </div>
         )}
 
-        Cards on table:
-        <pre>{JSON.stringify(gameState.cardsOnTable, null, 2)}</pre>
+        {/* Trick */}
+        <div style={{ marginTop: 12 }}>
+          <div style={{ marginBottom: 6 }}>
+            Current trick: <b>{appState.currentTrick?.length ?? 0}</b> / <b>{appState.players?.length ?? 0}</b>
+          </div>
+          <pre>{JSON.stringify(appState.currentTrick, null, 2)}</pre>
+        </div>
 
-        Turn card:
-        <pre>{JSON.stringify(gameState.turnCard, null, 2)}</pre>
+        {/* Cards */}
+        <div style={{ marginTop: 12 }}>
+          <div style={{ marginBottom: 6 }}>Cards on table:</div>
+          <pre>{JSON.stringify(gameState.cardsOnTable, null, 2)}</pre>
+        </div>
 
-        Confirmed turn card:
-        <pre>{JSON.stringify(appState.confirmedTurnCard, null, 2)}</pre>
+        <div style={{ marginTop: 12 }}>
+          <div style={{ marginBottom: 6 }}>Turn card:</div>
+          <pre>{JSON.stringify(gameState.turnCard, null, 2)}</pre>
+        </div>
 
-        Pile count: <b>{gameState.pileCount}</b>
-        <pre>{JSON.stringify(appState.pile, null, 2)}</pre>
-        Top card:
-        <pre>{JSON.stringify(gameState.topCard, null, 2)}</pre>
+        <div style={{ marginTop: 12 }}>
+          <div style={{ marginBottom: 6 }}>Confirmed turn card:</div>
+          <pre>{JSON.stringify(appState.confirmedTurnCard, null, 2)}</pre>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          Scores (derived): <pre>{JSON.stringify(gameState.scores, null, 2)}</pre>
+        </div>
+        {/* Pile */}
+        <div style={{ marginTop: 12 }}>
+          <div style={{ marginBottom: 6 }}>
+            Pile count: <b>{gameState.pileCount}</b>
+          </div>
+          <pre>{JSON.stringify(appState.pile, null, 2)}</pre>
 
-      </div>
-    </div>
+          <div style={{ marginTop: 10, marginBottom: 6 }}>Top card:</div>
+          <pre>{JSON.stringify(gameState.topCard, null, 2)}</pre>
+
+          <div style={{ marginTop: 12 }}>
+            Trick history count: <b>{appState.trickHistory?.length ?? 0}</b>
+            <pre>{JSON.stringify(appState.lastTrick, null, 2)}</pre>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            Scores (derived):
+            <pre>{JSON.stringify(gameState.scores, null, 2)}</pre>
+          </div>
+        </div>
+      </div> </div>
   );
 }
-
