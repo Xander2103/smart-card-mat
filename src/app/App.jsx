@@ -9,6 +9,7 @@ import { saveMapping } from "../core/mapping/mappingStore";
 import { EventStudio } from "../ui/EventStudio";
 import { ZoneGrid } from "../ui/ZoneGrid";
 import { DebugLog } from "../ui/DebugLog";
+import { Scoreboard } from "../ui/Scoreboard";
 
 import { connectSerial } from "../transport/serialTransport";
 import { CARD_OPTIONS } from "../core/mapping/cards";
@@ -27,12 +28,12 @@ export default function App() {
 
   const { zones, log, turnZone, selectedUid, mapping } = appState;
 
-  // ✅ save mapping naar localStorage wanneer mapping wijzigt
+  // save mapping naar localStorage wanneer mapping wijzigt
   useEffect(() => {
     saveMapping(mapping);
   }, [mapping]);
 
-  // ✅ selectedCard is gewoon een cardName string
+  // selectedCard is gewoon een cardName string
   const [selectedCard, setSelectedCard] = useState(CARD_OPTIONS[0]);
 
   const cardNames = useMemo(() => {
@@ -73,7 +74,6 @@ export default function App() {
   function registerSelectedUid() {
     if (!selectedUid) return;
 
-    // ✅ reducer verwacht cardName (niet "card")
     setAppState((prev) =>
       applyAction(prev, {
         type: "register_mapping",
@@ -89,11 +89,9 @@ export default function App() {
     setAppState((prev) => applyAction(prev, { type: "select_uid", uid }));
   }
 
-  // ✅ Als je "clear mapping" wil: ofwel reducer implementeren,
-  // ofwel hier rechtstreeks state resetten (simpel).
   function clearMapping() {
     setAppState((prev) => ({ ...prev, mapping: {} }));
-    saveMapping({}); // meteen localStorage ook leeg
+    saveMapping({});
   }
 
   function confirmTurn() {
@@ -105,8 +103,19 @@ export default function App() {
     );
   }
 
+  function resetPile() {
+    setAppState((prev) => applyAction(prev, { type: "reset_pile" }));
+  }
+
   return (
-    <div style={{ fontFamily: "system-ui", padding: 16, maxWidth: 900, margin: "0 auto" }}>
+    <div
+      style={{
+        fontFamily: "system-ui",
+        padding: 16,
+        maxWidth: 900,
+        margin: "0 auto",
+      }}
+    >
       <h1>Smart Card Mat – Vertical Slice</h1>
 
       {/* USB Serial */}
@@ -154,11 +163,16 @@ export default function App() {
             </span>
           </div>
 
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8, alignItems: "center" }}>
-            <select
-              value={selectedCard}
-              onChange={(e) => setSelectedCard(e.target.value)}
-            >
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              marginTop: 8,
+              alignItems: "center",
+            }}
+          >
+            <select value={selectedCard} onChange={(e) => setSelectedCard(e.target.value)}>
               {CARD_OPTIONS.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -179,12 +193,7 @@ export default function App() {
         Mapped cards: {Object.keys(mapping).length} / 52
       </div>
 
-      <ZoneGrid
-        zones={zones}
-        turnZone={turnZone}
-        cardNames={cardNames}
-        onZoneClick={handleZoneClick}
-      />
+      <ZoneGrid zones={zones} turnZone={turnZone} cardNames={cardNames} onZoneClick={handleZoneClick} />
 
       <h2 style={{ marginTop: 24 }}>Debug log</h2>
       <DebugLog lines={log} />
@@ -198,9 +207,7 @@ export default function App() {
             Confirm turn
           </button>
 
-          <button onClick={() => setAppState((prev) => applyAction(prev, { type: "reset_pile" }))}>
-            Reset pile
-          </button>
+          <button onClick={resetPile}>Reset pile</button>
 
           <div>
             Can play: <b>{gameState.canPlay ? "YES" : "NO"}</b>
@@ -208,7 +215,14 @@ export default function App() {
         </div>
 
         {/* Meta */}
-        <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div
+          style={{
+            marginTop: 10,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 8,
+          }}
+        >
           <div>
             Game mode: <b>{appState.gameMode}</b>
           </div>
@@ -230,63 +244,77 @@ export default function App() {
           </div>
         </div>
 
-        {/* Warnings */}
-        {gameState.warnings.length > 0 && (
-          <div style={{ marginTop: 10 }}>
-            <b>Warnings:</b>
-            <ul style={{ marginTop: 6 }}>
-              {gameState.warnings.map((w) => (
-                <li key={w}>{w}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {/* ✅ Scoreboard moet BUITEN de grid div staan */}
+        <Scoreboard
+          players={appState.players}
+          scores={gameState.scores}
+          currentPlayerIndex={appState.currentPlayerIndex}
+        />
 
-        {/* Trick */}
-        <div style={{ marginTop: 12 }}>
-          <div style={{ marginBottom: 6 }}>
-            Current trick: <b>{appState.currentTrick?.length ?? 0}</b> / <b>{appState.players?.length ?? 0}</b>
-          </div>
-          <pre>{JSON.stringify(appState.currentTrick, null, 2)}</pre>
+        {/* optional raw */}
+        <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>
+          raw: {JSON.stringify(gameState.scores ?? [])}
         </div>
+      </div>
 
-        {/* Cards */}
-        <div style={{ marginTop: 12 }}>
-          <div style={{ marginBottom: 6 }}>Cards on table:</div>
-          <pre>{JSON.stringify(gameState.cardsOnTable, null, 2)}</pre>
+      {/* Warnings */}
+      {gameState.warnings?.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <b>Warnings:</b>
+          <ul style={{ marginTop: 6 }}>
+            {gameState.warnings.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
         </div>
+      )}
+
+      {/* Trick */}
+      <div style={{ marginTop: 12 }}>
+        <div style={{ marginBottom: 6 }}>
+          Current trick: <b>{appState.currentTrick?.length ?? 0}</b> /{" "}
+          <b>{appState.players?.length ?? 0}</b>
+        </div>
+        <pre style={{ margin: 0 }}>{JSON.stringify(appState.currentTrick ?? [], null, 2)}</pre>
+      </div>
+
+      {/* Cards */}
+      <div style={{ marginTop: 12 }}>
+        <div style={{ marginBottom: 6 }}>Cards on table:</div>
+        <pre style={{ margin: 0 }}>{JSON.stringify(gameState.cardsOnTable ?? [], null, 2)}</pre>
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <div style={{ marginBottom: 6 }}>Turn card:</div>
+        <pre style={{ margin: 0 }}>{JSON.stringify(gameState.turnCard ?? null, null, 2)}</pre>
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <div style={{ marginBottom: 6 }}>Confirmed turn card:</div>
+        <pre style={{ margin: 0 }}>{JSON.stringify(appState.confirmedTurnCard ?? null, null, 2)}</pre>
+      </div>
+
+      {/* Scores */}
+      <div style={{ marginTop: 12 }}>
+        <div style={{ marginBottom: 6 }}>Scores (derived):</div>
+        <pre style={{ margin: 0 }}>{JSON.stringify(gameState.scores ?? [], null, 2)}</pre>
+      </div>
+
+      {/* Pile */}
+      <div style={{ marginTop: 12 }}>
+        <div style={{ marginBottom: 6 }}>
+          Pile count: <b>{gameState.pileCount ?? 0}</b>
+        </div>
+        <pre style={{ margin: 0 }}>{JSON.stringify(appState.pile ?? [], null, 2)}</pre>
+
+        <div style={{ marginTop: 10, marginBottom: 6 }}>Top card:</div>
+        <pre style={{ margin: 0 }}>{JSON.stringify(gameState.topCard ?? null, null, 2)}</pre>
 
         <div style={{ marginTop: 12 }}>
-          <div style={{ marginBottom: 6 }}>Turn card:</div>
-          <pre>{JSON.stringify(gameState.turnCard, null, 2)}</pre>
+          Trick history count: <b>{appState.trickHistory?.length ?? 0}</b>
+          <pre style={{ margin: 0 }}>{JSON.stringify(appState.lastTrick ?? null, null, 2)}</pre>
         </div>
-
-        <div style={{ marginTop: 12 }}>
-          <div style={{ marginBottom: 6 }}>Confirmed turn card:</div>
-          <pre>{JSON.stringify(appState.confirmedTurnCard, null, 2)}</pre>
-        </div>
-        <div style={{ marginTop: 12 }}>
-          Scores (derived): <pre>{JSON.stringify(gameState.scores, null, 2)}</pre>
-        </div>
-        {/* Pile */}
-        <div style={{ marginTop: 12 }}>
-          <div style={{ marginBottom: 6 }}>
-            Pile count: <b>{gameState.pileCount}</b>
-          </div>
-          <pre>{JSON.stringify(appState.pile, null, 2)}</pre>
-
-          <div style={{ marginTop: 10, marginBottom: 6 }}>Top card:</div>
-          <pre>{JSON.stringify(gameState.topCard, null, 2)}</pre>
-
-          <div style={{ marginTop: 12 }}>
-            Trick history count: <b>{appState.trickHistory?.length ?? 0}</b>
-            <pre>{JSON.stringify(appState.lastTrick, null, 2)}</pre>
-          </div>
-          <div style={{ marginTop: 12 }}>
-            Scores (derived):
-            <pre>{JSON.stringify(gameState.scores, null, 2)}</pre>
-          </div>
-        </div>
-      </div> </div>
+      </div>
+    </div>
   );
 }
