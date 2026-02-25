@@ -6,7 +6,7 @@ export function computeScoresFromTrickHistory(trickHistory, playersCount) {
   for (const t of trickHistory ?? []) {
     const w = t?.winnerIndex;
     if (typeof w === "number" && w >= 0 && w < playersCount) {
-      scores[w] += 1; // MS: 1 punt per slag
+      scores[w] -= 1; // MS: 1 punt per slag
     }
   }
 
