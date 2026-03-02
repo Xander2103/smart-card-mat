@@ -1,5 +1,5 @@
 export const DECK52 = [
-  // Spades (Schoppen)
+  // ♠ Schoppen
   { code: "AS", label: "A♠", name: "Schoppen Aas" },
   { code: "KS", label: "K♠", name: "Schoppen Koning" },
   { code: "QS", label: "Q♠", name: "Schoppen Vrouw" },
@@ -14,7 +14,7 @@ export const DECK52 = [
   { code: "3S", label: "3♠", name: "Schoppen 3" },
   { code: "2S", label: "2♠", name: "Schoppen 2" },
 
-  // Hearts (Harten)
+  // ♥ Harten
   { code: "AH", label: "A♥", name: "Harten Aas" },
   { code: "KH", label: "K♥", name: "Harten Koning" },
   { code: "QH", label: "Q♥", name: "Harten Vrouw" },
@@ -29,7 +29,7 @@ export const DECK52 = [
   { code: "3H", label: "3♥", name: "Harten 3" },
   { code: "2H", label: "2♥", name: "Harten 2" },
 
-  // Diamonds (Koeken)
+  // ♦ Koeken
   { code: "AD", label: "A♦", name: "Koeken Aas" },
   { code: "KD", label: "K♦", name: "Koeken Koning" },
   { code: "QD", label: "Q♦", name: "Koeken Vrouw" },
@@ -44,7 +44,7 @@ export const DECK52 = [
   { code: "3D", label: "3♦", name: "Koeken 3" },
   { code: "2D", label: "2♦", name: "Koeken 2" },
 
-  // Clubs (Klaver)
+  // ♣ Klaver
   { code: "AC", label: "A♣", name: "Klaver Aas" },
   { code: "KC", label: "K♣", name: "Klaver Koning" },
   { code: "QC", label: "Q♣", name: "Klaver Vrouw" },
@@ -59,3 +59,5 @@ export const DECK52 = [
   { code: "3C", label: "3♣", name: "Klaver 3" },
   { code: "2C", label: "2♣", name: "Klaver 2" },
 ];
+
+export const CARD_BY_CODE = Object.fromEntries(DECK52.map((c) => [c.code, c]));
