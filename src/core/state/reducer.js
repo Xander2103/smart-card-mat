@@ -48,11 +48,6 @@ export function applyEvent(state, ev) {
       selectedUid: ev.uid,
     };
 
-    // turn-flow: als je in de turnZone iets plaatst, turnCard kan veranderen
-    if (next.turnZone === ev.zone) {
-      next.confirmedTurnCard = null;
-    }
-
     return next;
   }
 
@@ -282,6 +277,113 @@ export function applyAction(state, action) {
     };
   }
 
+  if (action.type === "set_auto_confirm") {
+    return { ...state, autoConfirm: !!action.value };
+  }
+
+  if (action.type === "set_deck_index") {
+    const max = action.maxIndex ?? 51;
+    const i = Math.max(0, Math.min(max, action.index ?? 0));
+    return { ...state, deckIndex: i };
+  }
+
+  if (action.type === "assign_uid_to_card") {
+    const { uid, cardName } = action;
+    if (!uid || !cardName) return state;
+
+    const nextMapping = setUniqueMappingOverwrite(state.mapping, uid, cardName);
+
+    return {
+      ...state,
+      mapping: nextMapping,
+      log: pushLog(state.log, `MAP|${uid}|${cardName}`),
+    };
+  }
+  // --- TURN CONTROLS (Optie C) ---
+
+  if (action.type === "start_turn") {
+    // Als al gestart: niets doen
+    if (state.turnZone) return state;
+
+    // Start: eerste niet-lege zone, anders zone 1
+    const zones = state.zones ?? [];
+    const idx = zones.findIndex((uid) => uid != null);
+    const startZone = idx >= 0 ? idx + 1 : 1;
+
+    // Sync player index met zone (v1 mapping: zone1->P0, zone2->P1,...)
+    const playersCount = state.players?.length ?? 4;
+    const startPlayerIndex = Math.max(0, Math.min(playersCount - 1, startZone - 1));
+
+    return {
+      ...state,
+      turnZone: startZone,
+      currentPlayerIndex: startPlayerIndex,
+      log: pushLog(state.log, `TURN|START|Z${startZone}|P${startPlayerIndex}`),
+    };
+  }
+
+  if (action.type === "set_turn_zone") {
+    const z = Number(action.zone);
+    const zonesCount = state.zones?.length ?? state.zonesCount ?? 4;
+    if (!(z >= 1 && z <= zonesCount)) return state;
+
+    const playersCount = state.players?.length ?? 4;
+    const nextPlayerIndex = Math.max(0, Math.min(playersCount - 1, z - 1));
+
+    return {
+      ...state,
+      turnZone: z,
+      currentPlayerIndex: nextPlayerIndex,
+      log: pushLog(state.log, `TURN|SET|Z${z}|P${nextPlayerIndex}`),
+    };
+  }
+
+  if (action.type === "next_turn") {
+    const zonesCount = state.zones?.length ?? state.zonesCount ?? 4;
+    const playersCount = state.players?.length ?? 4;
+
+    const skipEmpty = !!action.skipEmpty;
+
+    // Als nog niet gestart: start meteen
+    if (!state.turnZone) {
+      const idx = (state.zones ?? []).findIndex((uid) => uid != null);
+      const startZone = idx >= 0 ? idx + 1 : 1;
+      const startPlayerIndex = Math.max(0, Math.min(playersCount - 1, startZone - 1));
+
+      return {
+        ...state,
+        turnZone: startZone,
+        currentPlayerIndex: startPlayerIndex,
+        log: pushLog(state.log, `TURN|START|Z${startZone}|P${startPlayerIndex}`),
+      };
+    }
+
+    // next player/zone
+    let nextPlayerIndex = (state.currentPlayerIndex + 1) % playersCount;
+    let nextTurnZone = nextPlayerIndex + 1;
+
+    // Safety clamp naar zonesCount
+    if (nextTurnZone < 1 || nextTurnZone > zonesCount) nextTurnZone = 1;
+
+    if (skipEmpty) {
+      // probeer max één rondje om een niet-lege zone te vinden
+      for (let i = 0; i < zonesCount; i++) {
+        const uid = state.zones?.[nextTurnZone - 1] ?? null;
+        if (uid != null) break;
+
+        nextPlayerIndex = (nextPlayerIndex + 1) % playersCount;
+        nextTurnZone = nextPlayerIndex + 1;
+        if (nextTurnZone < 1 || nextTurnZone > zonesCount) nextTurnZone = 1;
+      }
+    }
+
+    return {
+      ...state,
+      currentPlayerIndex: nextPlayerIndex,
+      turnZone: nextTurnZone,
+      log: pushLog(state.log, `TURN|NEXT|Z${nextTurnZone}|P${nextPlayerIndex}`),
+    };
+  }
   // onbekende actions: state behouden
   return state;
 }
