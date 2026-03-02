@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+// src/pages/App.jsx (of waar je App.jsx staat)
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "../styles/app.css";
 
 import { parseEvent } from "../core/protocol/parseEvent";
@@ -13,28 +14,30 @@ import { Scoreboard } from "../ui/Scoreboard";
 
 import { connectSerial } from "../transport/serialTransport";
 import { CARD_OPTIONS } from "../core/mapping/cards";
+
 import { computeGameState } from "../core/game/engine";
 
 const ZONES = 4;
+const AUTO_CONFIRM_MS = 800;
 
 export default function App() {
-  // Serial
-  const [serialStatus, setSerialStatus] = useState("disconnected"); // disconnected | connecting... | connected | error
+  // --- Serial ---
+  const [serialStatus, setSerialStatus] = useState("disconnected");
   const [serialConn, setSerialConn] = useState(null);
 
-  // App state
+  // --- App state ---
   const [appState, setAppState] = useState(() =>
     createInitialState({ zonesCount: ZONES })
   );
 
   const { zones, log, turnZone, selectedUid, mapping } = appState;
 
-  // Persist mapping
+  // save mapping naar localStorage wanneer mapping wijzigt
   useEffect(() => {
     saveMapping(mapping);
   }, [mapping]);
 
-  // UI state
+  // selectedCard is gewoon een cardName string
   const [selectedCard, setSelectedCard] = useState(CARD_OPTIONS[0]);
 
   const cardNames = useMemo(() => {
@@ -64,22 +67,15 @@ export default function App() {
 
   // --- USB Serial ---
   const connectUsb = useCallback(async () => {
-    if (serialConn) return;
-
     try {
       setSerialStatus("connecting...");
-
       const conn = await connectSerial({
-        baudRate: 115200,
         onLine: (line) => dispatchLine(line),
         onStatus: (s) => {
-          // optioneel: als jouw serialTransport status doorgeeft
-          // bv "connected"/"disconnected"/...
-          // we houden het simpel en mappen enkel bekende waardes
           if (typeof s === "string") setSerialStatus(s);
         },
+        baudRate: 115200,
       });
-
       setSerialConn(conn);
       setSerialStatus("connected");
     } catch (e) {
@@ -87,27 +83,25 @@ export default function App() {
       setSerialStatus("error");
       alert(e?.message ?? "Failed to connect serial");
     }
-  }, [serialConn, dispatchLine]);
+  }, [dispatchLine]);
 
   const disconnectUsb = useCallback(async () => {
     if (!serialConn) return;
-    try {
-      await serialConn.disconnect();
-    } finally {
-      setSerialConn(null);
-      setSerialStatus("disconnected");
-    }
+    await serialConn.disconnect();
+    setSerialConn(null);
+    setSerialStatus("disconnected");
   }, [serialConn]);
 
   // --- UI actions ---
   const registerSelectedUid = useCallback(() => {
     if (!selectedUid) return;
+
     dispatchAction({
       type: "register_mapping",
       uid: selectedUid,
       cardName: selectedCard,
     });
-  }, [selectedUid, selectedCard, dispatchAction]);
+  }, [dispatchAction, selectedUid, selectedCard]);
 
   const handleZoneClick = useCallback(
     (zoneNr) => {
@@ -123,12 +117,15 @@ export default function App() {
     saveMapping({});
   }, []);
 
-  const confirmTurn = useCallback(() => {
-    dispatchAction({
-      type: "confirm_turn",
-      turnCard: gameState.turnCard, // snapshot
-    });
-  }, [dispatchAction, gameState.turnCard]);
+  // ✅ TDZ-safe confirm: function declaration (hoisted) + always-fresh turnCard
+  function confirmTurnNow() {
+    setAppState((prev) =>
+      applyAction(prev, {
+        type: "confirm_turn",
+        turnCard: computeGameState(prev).turnCard,
+      })
+    );
+  }
 
   const resetPile = useCallback(() => {
     dispatchAction({ type: "reset_pile" });
@@ -138,7 +135,62 @@ export default function App() {
     setAppState(createInitialState({ zonesCount: ZONES }));
   }, []);
 
-  // --- Render ---
+  // --- Auto confirm (no backsies) ---
+  const autoConfirmTimerRef = useRef(null);
+  const lastAutoConfirmKeyRef = useRef(null);
+
+  useEffect(() => {
+    // ✅ GUARD: autoConfirm moet aan staan + confirm moet mogelijk zijn
+    if (
+      !appState.autoConfirm ||
+      !gameState.canConfirm ||
+      !gameState.turnCard ||
+      !appState.turnZone
+    ) {
+      if (autoConfirmTimerRef.current) {
+        clearTimeout(autoConfirmTimerRef.current);
+        autoConfirmTimerRef.current = null;
+      }
+      lastAutoConfirmKeyRef.current = null;
+      return;
+    }
+
+    // Unieke key voor “deze exacte kaart in deze turnZone”
+    const key = `${gameState.turnCard.zone}|${gameState.turnCard.uid}`;
+
+    // Als dezelfde key al gepland is, niks doen
+    if (lastAutoConfirmKeyRef.current === key && autoConfirmTimerRef.current) {
+      return;
+    }
+
+    // Cancel vorige timer en schedule nieuwe
+    if (autoConfirmTimerRef.current) {
+      clearTimeout(autoConfirmTimerRef.current);
+      autoConfirmTimerRef.current = null;
+    }
+
+    lastAutoConfirmKeyRef.current = key;
+
+    autoConfirmTimerRef.current = setTimeout(() => {
+      confirmTurnNow();
+      autoConfirmTimerRef.current = null;
+    }, AUTO_CONFIRM_MS);
+
+    // Cleanup bij change/unmount
+    return () => {
+      if (autoConfirmTimerRef.current) {
+        clearTimeout(autoConfirmTimerRef.current);
+        autoConfirmTimerRef.current = null;
+      }
+    };
+  }, [
+    appState.autoConfirm,
+    appState.turnZone,
+    gameState.canConfirm,
+    gameState.turnCard?.zone,
+    gameState.turnCard?.uid,
+  ]);
+
   return (
     <div
       style={{
@@ -164,13 +216,16 @@ export default function App() {
         </button>
 
         <span>Status: {serialStatus}</span>
+
+        <button
+          onClick={() => setAppState((prev) => ({ ...prev, autoConfirm: !prev.autoConfirm }))}
+          style={{ marginLeft: 12 }}
+        >
+          Auto confirm: {appState.autoConfirm ? "ON" : "OFF"}
+        </button>
       </div>
 
-      <EventStudio
-        zonesCount={ZONES}
-        onLine={dispatchLine}
-        onReset={resetAll}
-      />
+      <EventStudio zonesCount={ZONES} onLine={dispatchLine} onReset={resetAll} />
 
       {/* Event simulator */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
@@ -180,7 +235,10 @@ export default function App() {
         <button onClick={() => dispatchLine("P|4|UID_D")}>Place z4</button>
         <button onClick={() => dispatchLine("R|1|UID_A")}>Remove z1</button>
         <button onClick={() => dispatchLine("R|2|UID_B")}>Remove z2</button>
+        <button onClick={() => dispatchLine("T|1")}>Turn z1</button>
+        <button onClick={() => dispatchLine("T|2")}>Turn z2</button>
         <button onClick={() => dispatchLine("T|3")}>Turn z3</button>
+        <button onClick={() => dispatchLine("T|4")}>Turn z4</button>
       </div>
 
       {/* Mapping panel */}
@@ -225,12 +283,7 @@ export default function App() {
         Mapped cards: {Object.keys(mapping).length} / 52
       </div>
 
-      <ZoneGrid
-        zones={zones}
-        turnZone={turnZone}
-        cardNames={cardNames}
-        onZoneClick={handleZoneClick}
-      />
+      <ZoneGrid zones={zones} turnZone={turnZone} cardNames={cardNames} onZoneClick={handleZoneClick} />
 
       <h2 style={{ marginTop: 24 }}>Debug log</h2>
       <DebugLog lines={log} />
@@ -240,8 +293,13 @@ export default function App() {
       <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
         {/* Controls */}
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          <button onClick={confirmTurn} disabled={!gameState.canConfirm}>
-            Confirm turn
+          {/* Manual confirm blijft als fallback (maar auto-confirm doet het meestal) */}
+          <button onClick={confirmTurnNow} disabled={!gameState.canConfirm}>
+            Confirm turn (manual)
+          </button>
+
+          <button onClick={() => dispatchAction({ type: "undo_last_play" })}>
+            Undo last play
           </button>
 
           <button onClick={resetPile}>Reset pile</button>
@@ -278,6 +336,10 @@ export default function App() {
               {appState.players?.[appState.currentPlayerIndex]?.name ??
                 `P${appState.currentPlayerIndex}`}
             </b>
+          </div>
+
+          <div>
+            Turn zone: <b>{appState.turnZone ?? "-"}</b>
           </div>
         </div>
 

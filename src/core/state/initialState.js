@@ -8,6 +8,7 @@ export function createInitialState({ zonesCount = 4 } = {}) {
     log: [],
     selectedUid: null,
     mapping: loadMapping(),
+    autoConfirm: true,
 
     // ✅ nieuw
     confirmedTurnCard: null,

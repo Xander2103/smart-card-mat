@@ -2,70 +2,106 @@
 import { setUniqueMappingOverwrite } from "../mapping/uniqueMapping";
 import { determineTrickWinner } from "../game/trickLogic";
 
+const LOG_MAX = 200;
+
 function pushLog(prevLog, raw) {
-  return [raw, ...prevLog].slice(0, 50);
+  const next = [raw, ...(prevLog ?? [])];
+  return next.length > LOG_MAX ? next.slice(0, LOG_MAX) : next;
+}
+
+function clampTurnZone(zone, zonesCount) {
+  if (!zonesCount || zonesCount <= 0) return null;
+  if (!zone || zone < 1) return 1;
+  if (zone > zonesCount) return 1;
+  return zone;
+}
+
+function playerIndexToZone(playerIndex) {
+  return playerIndex + 1; // v1 mapping: P0->Z1, P1->Z2, ...
 }
 
 export function applyEvent(state, ev) {
-  const next = {
-    ...state,
-    zones: [...state.zones],
-    log: pushLog(state.log, ev.raw),
-  };
+  // werk op copies, maar log pas op het einde als er change is
+  const nextZones = [...state.zones];
 
   if (ev.type === "placed") {
     const zoneIndex = ev.zone - 1;
-    if (zoneIndex < 0 || zoneIndex >= next.zones.length) return next;
+    if (zoneIndex < 0 || zoneIndex >= nextZones.length) return state;
+
+    // ✅ echte anti-duplicate: exact dezelfde UID zit al in dezelfde zone
+    if (nextZones[zoneIndex] === ev.uid) {
+      return state; // geen log, geen side-effects
+    }
 
     // 1 UID kan maar in 1 zone tegelijk zitten
-    for (let i = 0; i < next.zones.length; i++) {
-      if (next.zones[i] === ev.uid) next.zones[i] = null;
+    for (let i = 0; i < nextZones.length; i++) {
+      if (nextZones[i] === ev.uid) nextZones[i] = null;
     }
 
     // zone-overwrite
-    next.zones[zoneIndex] = ev.uid;
+    nextZones[zoneIndex] = ev.uid;
 
-    // ✅ turn-flow v1: als je in de turnZone iets plaatst, turnCard verandert mogelijk
-    // → reset confirm snapshot
+    const next = {
+      ...state,
+      zones: nextZones,
+      log: pushLog(state.log, ev.raw),
+      selectedUid: ev.uid,
+    };
+
+    // turn-flow: als je in de turnZone iets plaatst, turnCard kan veranderen
     if (next.turnZone === ev.zone) {
       next.confirmedTurnCard = null;
     }
 
-    next.selectedUid = ev.uid;
     return next;
   }
 
   if (ev.type === "removed") {
     const zoneIndex = ev.zone - 1;
-    if (zoneIndex < 0 || zoneIndex >= next.zones.length) return next;
+    if (zoneIndex < 0 || zoneIndex >= nextZones.length) return state;
 
-    if (next.zones[zoneIndex] === ev.uid) {
-      next.zones[zoneIndex] = null;
-
-      // ✅ turn-flow v1: als de confirmed kaart weggaat, reset confirm snapshot
-      if (next.confirmedTurnCard?.uid === ev.uid) {
-        next.confirmedTurnCard = null;
-      }
-
-      // game rule: turn reset als je turn-zone leegmaakt
-      if (next.turnZone === ev.zone) next.turnZone = null;
+    // ✅ anti-duplicate: als deze UID daar niet zit -> ignore (geen log)
+    if (nextZones[zoneIndex] !== ev.uid) {
+      return state;
     }
+
+    nextZones[zoneIndex] = null;
+
+    const next = {
+      ...state,
+      zones: nextZones,
+      log: pushLog(state.log, ev.raw),
+    };
+
+    // turn-flow: confirmed kaart weg -> reset snapshot
+    if (next.confirmedTurnCard?.uid === ev.uid) {
+      next.confirmedTurnCard = null;
+    }
+
+    // game rule: turn reset als je turn-zone leegmaakt
+    if (next.turnZone === ev.zone) next.turnZone = null;
+
     return next;
   }
 
   if (ev.type === "turn") {
     const zoneIndex = ev.zone - 1;
-    if (zoneIndex < 0 || zoneIndex >= next.zones.length) return next;
+    if (zoneIndex < 0 || zoneIndex >= nextZones.length) return state;
 
-    // ✅ optioneel maar logisch: nieuwe turn gekozen → reset confirm snapshot
-    next.confirmedTurnCard = null;
+    // ✅ anti-duplicate: dezelfde turn opnieuw -> ignore (geen log)
+    if (state.turnZone === ev.zone) return state;
 
-    next.turnZone = ev.zone;
-    return next;
+    return {
+      ...state,
+      confirmedTurnCard: null,
+      turnZone: ev.zone,
+      log: pushLog(state.log, ev.raw),
+    };
   }
 
-  return next;
+  return state;
 }
+
 export function applyAction(state, action) {
   if (action.type === "select_uid") {
     return { ...state, selectedUid: action.uid };
@@ -90,15 +126,25 @@ export function applyAction(state, action) {
     const turnCard = action.turnCard;
     if (!turnCard) return state;
 
+    // ✅ guard 1: er moet een turnZone gekozen zijn
+    if (!state.turnZone) return state;
+
+    // ✅ guard 2: alleen kaart uit de huidige turnZone mag bevestigd worden
+    if (turnCard.zone !== state.turnZone) return state;
+
+    // ✅ guard 3: zone moet effectief die UID bevatten op dit moment
+    const zoneIndex = state.turnZone - 1;
+    const uidInZone = state.zones?.[zoneIndex] ?? null;
+    if (!uidInZone || uidInZone !== turnCard.uid) return state;
+
+    // ✅ duplicate confirm guard
     if (state.confirmedTurnCard?.uid === turnCard.uid) return state;
 
     const playersCount = state.players?.length ?? 4;
 
-    const alreadyPlayedThisTrick =
-      (state.currentTrick ?? []).some(
-        (p) => p.playerIndex === state.currentPlayerIndex
-      );
-
+    const alreadyPlayedThisTrick = (state.currentTrick ?? []).some(
+      (p) => p.playerIndex === state.currentPlayerIndex
+    );
     if (alreadyPlayedThisTrick) return state; // gelegd is gelegd
 
     const played = { playerIndex: state.currentPlayerIndex, ...turnCard };
@@ -109,8 +155,14 @@ export function applyAction(state, action) {
       `CONFIRM|${turnCard.zone}|${turnCard.uid}|${turnCard.card}|P${state.currentPlayerIndex}`
     );
 
+    // default next player
     let nextPlayerIndex = (state.currentPlayerIndex + 1) % playersCount;
 
+    // ✅ auto-advance turnZone (v1 mapping: spelerIndex 0->zone1, 1->zone2, ...)
+    let nextTurnZone = nextPlayerIndex + 1;
+    if (nextTurnZone < 1 || nextTurnZone > (state.zones?.length ?? 4)) nextTurnZone = 1;
+
+    // Trick complete?
     if (nextTrick.length === playersCount) {
       const winner = determineTrickWinner(nextTrick, state.gameMode);
       if (!winner) return state;
@@ -120,6 +172,10 @@ export function applyAction(state, action) {
       } else {
         nextPlayerIndex = winner.playerIndex;
       }
+
+      // ✅ turn naar startspeler volgende trick
+      nextTurnZone = nextPlayerIndex + 1;
+      if (nextTurnZone < 1 || nextTurnZone > (state.zones?.length ?? 4)) nextTurnZone = 1;
 
       const trickResult = {
         id: (state.trickHistory?.length ?? 0) + 1,
@@ -137,6 +193,7 @@ export function applyAction(state, action) {
         pile: [...(state.pile ?? []), played],
         currentTrick: [],
         currentPlayerIndex: nextPlayerIndex,
+        turnZone: nextTurnZone,
         trickHistory: [...(state.trickHistory ?? []), trickResult],
         lastTrick: trickResult,
         lastTrickWinnerIndex: winner.playerIndex,
@@ -144,15 +201,56 @@ export function applyAction(state, action) {
       };
     }
 
+    // Trick nog bezig
     return {
       ...state,
       confirmedTurnCard: played,
       pile: [...(state.pile ?? []), played],
       currentTrick: nextTrick,
       currentPlayerIndex: nextPlayerIndex,
+      turnZone: nextTurnZone,
       log: nextLog,
     };
   }
+
+  if (action.type === "undo_last_play") {
+    const pile = state.pile ?? [];
+    if (pile.length === 0) return state;
+
+    const last = pile[pile.length - 1];
+
+    // remove from pile
+    const nextPile = pile.slice(0, -1);
+
+    // remove from currentTrick (laatste play)
+    const nextTrick = (state.currentTrick ?? []).filter(
+      (p) =>
+        !(
+          p.uid === last.uid &&
+          p.zone === last.zone &&
+          p.playerIndex === last.playerIndex
+        )
+    );
+
+    // player terugzetten naar degene die net speelde
+    const playersCount = state.players?.length ?? 4;
+    const prevPlayerIndex =
+      (state.currentPlayerIndex - 1 + playersCount) % playersCount;
+
+    // turnZone terug naar die speler
+    const prevTurnZone = prevPlayerIndex + 1;
+
+    return {
+      ...state,
+      pile: nextPile,
+      currentTrick: nextTrick,
+      currentPlayerIndex: prevPlayerIndex,
+      turnZone: prevTurnZone,
+      confirmedTurnCard: null, // zodat je opnieuw kan leggen
+      log: pushLog(state.log, `UNDO|${last.zone}|${last.uid}|P${last.playerIndex}`),
+    };
+  }
+
   if (action.type === "reset_pile") {
     return {
       ...state,
@@ -161,6 +259,7 @@ export function applyAction(state, action) {
       log: pushLog(state.log, "PILE|RESET"),
     };
   }
+
   // onbekende actions: state behouden
   return state;
 }
