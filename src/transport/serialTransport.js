@@ -1,48 +1,59 @@
-// Web Serial transport: leest lijnen van een serial device (ESP32/Arduino)
-// en roept onLine(line) op per complete regel.
-
-export async function connectSerial({ onLine, baudRate = 115200 } = {}) {
+// src/transport/serialTransport.js
+export async function connectSerial({ baudRate = 115200, onLine, onStatus } = {}) {
   if (!("serial" in navigator)) {
-    throw new Error("Web Serial is not supported in this browser. Use Chrome/Edge.");
+    throw new Error("Web Serial not supported in this browser (use Chrome/Edge).");
   }
 
+  onStatus?.("requesting_port");
   const port = await navigator.serial.requestPort();
+
+  onStatus?.("opening");
   await port.open({ baudRate });
 
-  const decoder = new TextDecoderStream();
-  const readableStreamClosed = port.readable.pipeTo(decoder.writable);
-  const reader = decoder.readable.getReader();
+  onStatus?.("connected");
+
+  const textDecoder = new TextDecoderStream();
+  const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+  const reader = textDecoder.readable.getReader();
 
   let buffer = "";
 
-  async function readLoop() {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += value;
+  let cancelled = false;
 
-      let idx;
-      while ((idx = buffer.indexOf("\n")) >= 0) {
-        const line = buffer.slice(0, idx).replace("\r", "");
-        buffer = buffer.slice(idx + 1);
-        if (line.trim()) onLine?.(line.trim());
+  async function readLoop() {
+    try {
+      while (!cancelled) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (!value) continue;
+
+        buffer += value;
+        let idx;
+
+        while ((idx = buffer.indexOf("\n")) >= 0) {
+          const line = buffer.slice(0, idx).trim();
+          buffer = buffer.slice(idx + 1);
+
+          if (line.length > 0) onLine?.(line);
+        }
       }
+    } finally {
+      try { reader.releaseLock(); } catch {}
     }
   }
 
   readLoop();
 
-  return {
-    async disconnect() {
-      try {
-        reader.releaseLock();
-      } catch {}
-      try {
-        await readableStreamClosed;
-      } catch {}
-      try {
-        await port.close();
-      } catch {}
-    },
-  };
+  async function disconnect() {
+    cancelled = true;
+    onStatus?.("closing");
+
+    try { await reader.cancel(); } catch {}
+    try { await readableStreamClosed; } catch {}
+    try { await port.close(); } catch {}
+
+    onStatus?.("disconnected");
+  }
+
+  return { port, disconnect };
 }

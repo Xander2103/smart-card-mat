@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import "../styles/app.css";
 
 import { parseEvent } from "../core/protocol/parseEvent";
@@ -13,27 +13,28 @@ import { Scoreboard } from "../ui/Scoreboard";
 
 import { connectSerial } from "../transport/serialTransport";
 import { CARD_OPTIONS } from "../core/mapping/cards";
-
 import { computeGameState } from "../core/game/engine";
 
-export default function App() {
-  const ZONES = 4;
+const ZONES = 4;
 
-  const [serialStatus, setSerialStatus] = useState("disconnected");
+export default function App() {
+  // Serial
+  const [serialStatus, setSerialStatus] = useState("disconnected"); // disconnected | connecting... | connected | error
   const [serialConn, setSerialConn] = useState(null);
 
+  // App state
   const [appState, setAppState] = useState(() =>
     createInitialState({ zonesCount: ZONES })
   );
 
   const { zones, log, turnZone, selectedUid, mapping } = appState;
 
-  // save mapping naar localStorage wanneer mapping wijzigt
+  // Persist mapping
   useEffect(() => {
     saveMapping(mapping);
   }, [mapping]);
 
-  // selectedCard is gewoon een cardName string
+  // UI state
   const [selectedCard, setSelectedCard] = useState(CARD_OPTIONS[0]);
 
   const cardNames = useMemo(() => {
@@ -42,13 +43,43 @@ export default function App() {
 
   const gameState = useMemo(() => computeGameState(appState), [appState]);
 
-  async function connectUsb() {
+  // --- Dispatch helpers ---
+  const dispatchEvent = useCallback((ev) => {
+    if (!ev) return;
+    setAppState((prev) => applyEvent(prev, ev));
+  }, []);
+
+  const dispatchLine = useCallback(
+    (line) => {
+      const ev = parseEvent(line);
+      if (!ev) return;
+      dispatchEvent(ev);
+    },
+    [dispatchEvent]
+  );
+
+  const dispatchAction = useCallback((action) => {
+    setAppState((prev) => applyAction(prev, action));
+  }, []);
+
+  // --- USB Serial ---
+  const connectUsb = useCallback(async () => {
+    if (serialConn) return;
+
     try {
       setSerialStatus("connecting...");
+
       const conn = await connectSerial({
-        onLine: (line) => handleLine(line),
         baudRate: 115200,
+        onLine: (line) => dispatchLine(line),
+        onStatus: (s) => {
+          // optioneel: als jouw serialTransport status doorgeeft
+          // bv "connected"/"disconnected"/...
+          // we houden het simpel en mappen enkel bekende waardes
+          if (typeof s === "string") setSerialStatus(s);
+        },
       });
+
       setSerialConn(conn);
       setSerialStatus("connected");
     } catch (e) {
@@ -56,57 +87,58 @@ export default function App() {
       setSerialStatus("error");
       alert(e?.message ?? "Failed to connect serial");
     }
-  }
+  }, [serialConn, dispatchLine]);
 
-  async function disconnectUsb() {
+  const disconnectUsb = useCallback(async () => {
     if (!serialConn) return;
-    await serialConn.disconnect();
-    setSerialConn(null);
-    setSerialStatus("disconnected");
-  }
+    try {
+      await serialConn.disconnect();
+    } finally {
+      setSerialConn(null);
+      setSerialStatus("disconnected");
+    }
+  }, [serialConn]);
 
-  function handleLine(line) {
-    const ev = parseEvent(line);
-    if (!ev) return;
-    setAppState((prev) => applyEvent(prev, ev));
-  }
-
-  function registerSelectedUid() {
+  // --- UI actions ---
+  const registerSelectedUid = useCallback(() => {
     if (!selectedUid) return;
+    dispatchAction({
+      type: "register_mapping",
+      uid: selectedUid,
+      cardName: selectedCard,
+    });
+  }, [selectedUid, selectedCard, dispatchAction]);
 
-    setAppState((prev) =>
-      applyAction(prev, {
-        type: "register_mapping",
-        uid: selectedUid,
-        cardName: selectedCard,
-      })
-    );
-  }
+  const handleZoneClick = useCallback(
+    (zoneNr) => {
+      const uid = zones[zoneNr - 1];
+      if (!uid) return;
+      dispatchAction({ type: "select_uid", uid });
+    },
+    [zones, dispatchAction]
+  );
 
-  function handleZoneClick(zoneNr) {
-    const uid = zones[zoneNr - 1];
-    if (!uid) return;
-    setAppState((prev) => applyAction(prev, { type: "select_uid", uid }));
-  }
-
-  function clearMapping() {
+  const clearMapping = useCallback(() => {
     setAppState((prev) => ({ ...prev, mapping: {} }));
     saveMapping({});
-  }
+  }, []);
 
-  function confirmTurn() {
-    setAppState((prev) =>
-      applyAction(prev, {
-        type: "confirm_turn",
-        turnCard: gameState.turnCard, // snapshot
-      })
-    );
-  }
+  const confirmTurn = useCallback(() => {
+    dispatchAction({
+      type: "confirm_turn",
+      turnCard: gameState.turnCard, // snapshot
+    });
+  }, [dispatchAction, gameState.turnCard]);
 
-  function resetPile() {
-    setAppState((prev) => applyAction(prev, { type: "reset_pile" }));
-  }
+  const resetPile = useCallback(() => {
+    dispatchAction({ type: "reset_pile" });
+  }, [dispatchAction]);
 
+  const resetAll = useCallback(() => {
+    setAppState(createInitialState({ zonesCount: ZONES }));
+  }, []);
+
+  // --- Render ---
   return (
     <div
       style={{
@@ -136,19 +168,19 @@ export default function App() {
 
       <EventStudio
         zonesCount={ZONES}
-        onLine={handleLine}
-        onReset={() => setAppState(createInitialState({ zonesCount: ZONES }))}
+        onLine={dispatchLine}
+        onReset={resetAll}
       />
 
       {/* Event simulator */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-        <button onClick={() => handleLine("P|1|UID_A")}>Place z1</button>
-        <button onClick={() => handleLine("P|2|UID_B")}>Place z2</button>
-        <button onClick={() => handleLine("P|3|UID_C")}>Place z3</button>
-        <button onClick={() => handleLine("P|4|UID_D")}>Place z4</button>
-        <button onClick={() => handleLine("R|1|UID_A")}>Remove z1</button>
-        <button onClick={() => handleLine("R|2|UID_B")}>Remove z2</button>
-        <button onClick={() => handleLine("T|3")}>Turn z3</button>
+        <button onClick={() => dispatchLine("P|1|UID_A")}>Place z1</button>
+        <button onClick={() => dispatchLine("P|2|UID_B")}>Place z2</button>
+        <button onClick={() => dispatchLine("P|3|UID_C")}>Place z3</button>
+        <button onClick={() => dispatchLine("P|4|UID_D")}>Place z4</button>
+        <button onClick={() => dispatchLine("R|1|UID_A")}>Remove z1</button>
+        <button onClick={() => dispatchLine("R|2|UID_B")}>Remove z2</button>
+        <button onClick={() => dispatchLine("T|3")}>Turn z3</button>
       </div>
 
       {/* Mapping panel */}
@@ -193,7 +225,12 @@ export default function App() {
         Mapped cards: {Object.keys(mapping).length} / 52
       </div>
 
-      <ZoneGrid zones={zones} turnZone={turnZone} cardNames={cardNames} onZoneClick={handleZoneClick} />
+      <ZoneGrid
+        zones={zones}
+        turnZone={turnZone}
+        cardNames={cardNames}
+        onZoneClick={handleZoneClick}
+      />
 
       <h2 style={{ marginTop: 24 }}>Debug log</h2>
       <DebugLog lines={log} />
@@ -244,14 +281,12 @@ export default function App() {
           </div>
         </div>
 
-        {/* ✅ Scoreboard moet BUITEN de grid div staan */}
         <Scoreboard
           players={appState.players}
           scores={gameState.scores}
           currentPlayerIndex={appState.currentPlayerIndex}
         />
 
-        {/* optional raw */}
         <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>
           raw: {JSON.stringify(gameState.scores ?? [])}
         </div>
@@ -291,7 +326,9 @@ export default function App() {
 
       <div style={{ marginTop: 12 }}>
         <div style={{ marginBottom: 6 }}>Confirmed turn card:</div>
-        <pre style={{ margin: 0 }}>{JSON.stringify(appState.confirmedTurnCard ?? null, null, 2)}</pre>
+        <pre style={{ margin: 0 }}>
+          {JSON.stringify(appState.confirmedTurnCard ?? null, null, 2)}
+        </pre>
       </div>
 
       {/* Scores */}
