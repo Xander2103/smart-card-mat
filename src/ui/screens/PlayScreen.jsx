@@ -13,6 +13,7 @@ export function PlayScreen({
   onConfirmTurn,
   onUndo,
   onResetPile,
+  onStartDobbelkingen,
   showDebug = true,
 }) {
   return (
@@ -25,6 +26,19 @@ export function PlayScreen({
 
           <button onClick={onUndo}>Undo last play</button>
           <button onClick={onResetPile}>Reset pile</button>
+          <button
+            onClick={() => {
+              console.log("CLICK dobbelkingen", typeof onStartDobbelkingen);
+              onStartDobbelkingen?.();
+            }}
+          >
+            Start Dobbelkingen
+          </button>
+
+          <div style={{ marginLeft: "auto" }}>
+            Mode: <b>{appState.gameMode ?? "-"}</b> • Current Player:{" "}
+            <b>{appState.players?.[appState.currentPlayerIndex]?.name ?? "-"}</b>
+          </div>
 
           <div style={{ marginLeft: "auto" }}>
             TurnZone: <b>{turnZone ?? "-"}</b> • Current Player:{" "}

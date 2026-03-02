@@ -31,6 +31,10 @@ export default function App() {
     createInitialState({ zonesCount: ZONES })
   );
 
+  const dispatch = (action) => {
+    setAppState((prev) => applyAction(prev, action));
+  };
+
   const { zones, log, turnZone, selectedUid, mapping } = appState;
 
   // persist mapping
@@ -206,6 +210,8 @@ export default function App() {
           onUndo={undoLastPlay}
           onResetPile={resetPile}
           showDebug={true}
+          onStartDobbelkingen={() => dispatch({ type: "start_dobbelkingen" })}
+          onChooseContract={(c) => dispatch({ type: "choose_contract", contract: c })}
         />
       )}
 
