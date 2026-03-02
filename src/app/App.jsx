@@ -16,6 +16,7 @@ import { connectSerial } from "../transport/serialTransport";
 import { CARD_OPTIONS } from "../core/mapping/cards";
 
 import { computeGameState } from "../core/game/engine";
+import { DECK52 } from "../core/mapping/deck52";
 
 const ZONES = 4;
 const AUTO_CONFIRM_MS = 800;

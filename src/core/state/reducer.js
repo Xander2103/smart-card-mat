@@ -260,6 +260,28 @@ export function applyAction(state, action) {
     };
   }
 
+  if (action.type === "set_deck_setup") {
+    return { ...state, deckSetup: !!action.value };
+  }
+
+  if (action.type === "set_deck_index") {
+    const i = Math.max(0, Math.min(action.maxIndex ?? 51, action.index ?? 0));
+    return { ...state, deckIndex: i };
+  }
+
+  if (action.type === "assign_uid_to_card") {
+    const { uid, cardName } = action;
+    if (!uid || !cardName) return state;
+
+    const nextMapping = setUniqueMappingOverwrite(state.mapping, uid, cardName);
+
+    return {
+      ...state,
+      mapping: nextMapping,
+      log: pushLog(state.log, `MAP|${uid}|${cardName}`),
+    };
+  }
+
   // onbekende actions: state behouden
   return state;
 }

@@ -9,7 +9,8 @@ export function createInitialState({ zonesCount = 4 } = {}) {
     selectedUid: null,
     mapping: loadMapping(),
     autoConfirm: true,
-
+    deckSetup: false,
+    deckIndex: 0,
     // ✅ nieuw
     confirmedTurnCard: null,
     pile: [],
