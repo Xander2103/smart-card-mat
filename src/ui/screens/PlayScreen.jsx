@@ -50,18 +50,40 @@ export function PlayScreen({
       {/* C) IN-GAME UI: pas tonen als spel echt gestart is */}
       {showGameUi && (
         <>
+          {/* C) !!ERROR ALS GE KAART AL GEPLAYED HEBT!! */}
+          {appState.lastError && (
+            <div
+              style={{
+                border: "2px solid #ff4d4f",
+                background: "#fff1f0",
+                color: "#a8071a",
+                borderRadius: 14,
+                padding: "14px 16px",
+                fontWeight: 800,
+                fontSize: 18,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              <div>🚫 {appState.lastError}</div>
 
-          <div style={{ fontSize: 12, opacity: 0.7 }}>
-            dbg: phase={appState.phase} • CPI={appState.currentPlayerIndex} • expected={gameState.expectedZone} •
-            uid={String(appState.zones?.[gameState.expectedZone - 1] ?? "-")} •
-            code={String((appState.mapping?.[appState.zones?.[gameState.expectedZone - 1] ?? ""] ?? "-"))} •
-            trickLen={(appState.currentTrick ?? []).length} •
-            alreadyPlayed={String((appState.currentTrick ?? []).some(p => p.playerIndex === appState.currentPlayerIndex))}
-            autoConfirm={String(appState.autoConfirm)}
-          </div>
-          <div style={{ fontSize: 12, opacity: 0.7 }}>
-            trick={JSON.stringify(appState.currentTrick)}
-          </div>
+              <button
+                onClick={() => onClearError?.()}
+                style={{
+                  border: "1px solid #ff4d4f",
+                  background: "white",
+                  borderRadius: 10,
+                  padding: "8px 12px",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                }}
+              >
+                OK
+              </button>
+            </div>
+          )}
 
           {/* controls bar */}
           <div
@@ -114,6 +136,13 @@ export function PlayScreen({
             scores={gameState.scores}
             currentPlayerIndex={appState.currentPlayerIndex}
           />
+
+          <div style={{ fontSize: 12, opacity: 0.8, marginTop: 6 }}>
+            <b>Played cards:</b>{" "}
+            <span style={{ fontFamily: "ui-monospace, Menlo, monospace" }}>
+              {(appState.usedCardCodes ?? []).slice(-20).join(" • ") || "-"}
+            </span>
+          </div>
 
           {/* debug */}
           {showDebug && (

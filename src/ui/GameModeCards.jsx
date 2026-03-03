@@ -26,7 +26,10 @@ export function GameModeCards({ onOpenDobbelkingen }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
         <Card
           title="Dobbelkingen"
-          desc="Contractspel: minste slagen, minste harten, geen harten koning, …"
+          desc="Dobbelkingen is een strategisch kaartspel voor vier spelers
+           waarbij je in verschillende rondes soms zo weinig mogelijk strafpunten probeert te verzamelen
+            en in troefrondes net zoveel mogelijk slagen wil halen, waarna op het einde de positieve 
+            en negatieve punten worden verrekend om de winnaar te bepalen."
           onClick={onOpenDobbelkingen}
         />
       </div>

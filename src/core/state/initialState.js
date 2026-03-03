@@ -13,7 +13,7 @@ export function createInitialState({ zonesCount = 4 } = {}) {
     // zones / mat
     zonesCount,
     zones: Array.from({ length: zonesCount }, () => null),
-    turnZone: null, // zolang confirm_turn hierop steunt
+    turnZone: null,
 
     // ui/debug/mapping
     log: [],
@@ -21,13 +21,36 @@ export function createInitialState({ zonesCount = 4 } = {}) {
     mapping: loadMapping(),
 
     // game mode flow
-    activeMode: null, // "DOBBELKINGEN" (UI selection)
-    gameMode: null,   // idem, maar je kan dit later splitten indien nodig
-    phase: "HOME",    // "HOME" | "DOBBELKINGEN_READY" | "CHOOSING_CONTRACT" | "PLAYING_TRICK"
+    activeMode: null, // "DOBBELKINGEN"
+    gameMode: null,
+    phase: "HOME", // "HOME" | "DOBBELKINGEN_READY" | "CHOOSING_CONTRACT" | "PLAYING_TRICK" | "DOBBELKINGEN_DONE"
     chooserIndex: 0,
     leaderIndex: 0,
     currentPlayerIndex: 0,
-    contract: null, // bv "MINSTE_SLAGEN"
+    contract: null,
+
+    // error
+    lastError: null,
+
+    // dobbelkingen contract loop
+    contracts: [
+      "MINSTE_SLAGEN",
+      "MINSTE_HARTEN",
+      "GEEN_HARTEN_KONING",
+      "MINSTE_BOEREN_KONINGEN",
+      "GEEN_SLAG_7_13",
+      "MINSTE_QUEENS",
+    ],
+    contractPlays: {}, // { CONTRACT: countPlayed } max 2
+    lastContract: null,
+
+    // per-contract run (1 handje = 13 slagen)
+    tricksPlayedInContract: 0,
+    usedCardSet: {},   // { "AC": true } duplicate detect (per contract)
+    usedCardCodes: [], // debug lijst
+
+    // last result / tussenstand
+    lastResult: null, // { contract, winnerIndex, timestamp, scores:[..], penalties:[..] }
 
     // settings
     autoConfirm: true,
@@ -39,10 +62,11 @@ export function createInitialState({ zonesCount = 4 } = {}) {
     // gameplay runtime
     confirmedTurnCard: null,
     pile: [],
-    players,
     currentTrick: [],
     trickHistory: [],
     lastTrick: null,
     lastTrickWinnerIndex: null,
+
+    players,
   };
 }

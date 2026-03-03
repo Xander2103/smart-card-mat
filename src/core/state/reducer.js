@@ -14,6 +14,48 @@ function clampIndex(i, max) {
   return ((i % max) + max) % max;
 }
 
+function inc(obj, key) {
+  return { ...(obj ?? {}), [key]: ((obj?.[key] ?? 0) + 1) };
+}
+
+function hasPlayedContractTwice(state, contract) {
+  return (state.contractPlays?.[contract] ?? 0) >= 2;
+}
+
+function canPickContract(state, contract) {
+  if (!contract) return false;
+  if (state.lastContract === contract) return false; // niet 2x na elkaar
+  if (hasPlayedContractTwice(state, contract)) return false; // max 2x
+  return true;
+}
+
+function anyContractLeft(state) {
+  const list = state.contracts ?? [];
+  return list.some((c) => canPickContract(state, c));
+}
+
+function clearHandRuntimeFields() {
+  // reset alles dat hoort bij 1 contract-handje (13 slagen)
+  return {
+    confirmedTurnCard: null,
+    pile: [],
+    currentTrick: [],
+    trickHistory: [],
+    lastTrick: null,
+    lastTrickWinnerIndex: null,
+    usedCardCodes: [],
+    usedCardSet: {},
+    tricksPlayedInContract: 0,
+  };
+}
+
+function applyMinsteSlagenScore(players, winnerIndex) {
+  return (players ?? []).map((p, i) => {
+    if (i !== winnerIndex) return p;
+    return { ...p, score: (p.score ?? 0) - 1 };
+  });
+}
+
 // -------------------- EVENTS --------------------
 
 export function applyEvent(state, ev) {
@@ -23,8 +65,10 @@ export function applyEvent(state, ev) {
     const zoneIndex = ev.zone - 1;
     if (zoneIndex < 0 || zoneIndex >= nextZones.length) return state;
 
+    // exact duplicate in zelfde zone -> ignore
     if (nextZones[zoneIndex] === ev.uid) return state;
 
+    // 1 UID kan maar in 1 zone tegelijk
     for (let i = 0; i < nextZones.length; i++) {
       if (nextZones[i] === ev.uid) nextZones[i] = null;
     }
@@ -35,6 +79,7 @@ export function applyEvent(state, ev) {
       ...state,
       zones: nextZones,
       selectedUid: ev.uid,
+      lastError: null,
       log: pushLog(state.log, ev.raw),
     };
   }
@@ -59,15 +104,14 @@ export function applyEvent(state, ev) {
   }
 
   if (ev.type === "turn") {
-    const zoneIndex = ev.zone - 1;
-    if (zoneIndex < 0 || zoneIndex >= nextZones.length) return state;
-
+    // jij gebruikt turnZone niet meer als waarheid, maar laat dit gerust bestaan
     if (state.turnZone === ev.zone) return state;
 
     return {
       ...state,
       confirmedTurnCard: null,
       turnZone: ev.zone,
+      lastError: null,
       log: pushLog(state.log, ev.raw),
     };
   }
@@ -91,8 +135,8 @@ export function applyAction(state, action) {
         phase: "HOME",
         contract: null,
         turnZone: null,
-        currentTrick: [],
-        confirmedTurnCard: null,
+        lastError: null,
+        ...clearHandRuntimeFields(),
         log: pushLog(state.log, "MODE|CLOSE"),
       };
     }
@@ -102,11 +146,11 @@ export function applyAction(state, action) {
         ...state,
         activeMode: "DOBBELKINGEN",
         gameMode: "DOBBELKINGEN",
-        phase: "DOBBELKINGEN_READY", // lobby
+        phase: "DOBBELKINGEN_READY",
         contract: null,
         turnZone: null,
-        currentTrick: [],
-        confirmedTurnCard: null,
+        lastError: null,
+        ...clearHandRuntimeFields(),
         log: pushLog(state.log, "MODE|OPEN|DOBBELKINGEN"),
       };
     }
@@ -114,9 +158,7 @@ export function applyAction(state, action) {
     return state;
   }
 
-  // Start Dobbelkingen: chooser moet contract kiezen
   if (action.type === "start_dobbelkingen") {
-    const playersCount = state.players?.length ?? 4;
     const chooser = state.chooserIndex ?? 0;
 
     return {
@@ -126,19 +168,26 @@ export function applyAction(state, action) {
       phase: "CHOOSING_CONTRACT",
       contract: null,
       turnZone: null,
-      currentTrick: [],
-      confirmedTurnCard: null,
+      lastError: null,
+      ...clearHandRuntimeFields(),
       log: pushLog(state.log, `DOBBELKINGEN|START|CHOOSER=P${chooser}`),
     };
   }
 
-  // Chooser kiest contract -> leader = chooser+1 start
   if (action.type === "choose_contract") {
     if (state.gameMode !== "DOBBELKINGEN") return state;
     if (state.phase !== "CHOOSING_CONTRACT") return state;
 
     const contract = action.contract;
     if (!contract) return state;
+
+    if (!canPickContract(state, contract)) {
+      return {
+        ...state,
+        lastError: `Contract kan niet: ${contract}`,
+        log: pushLog(state.log, `ERROR|CONTRACT_BLOCKED|${contract}`),
+      };
+    }
 
     const playersCount = state.players?.length ?? 4;
     const chooser = clampIndex(state.chooserIndex ?? 0, playersCount);
@@ -150,9 +199,9 @@ export function applyAction(state, action) {
       contract,
       leaderIndex: leader,
       currentPlayerIndex: leader,
-      turnZone: leader + 1, // ✅ nodig voor jouw confirm_turn guards
-      confirmedTurnCard: null,
-      currentTrick: [],
+      turnZone: leader + 1,
+      lastError: null,
+      ...clearHandRuntimeFields(),
       log: pushLog(state.log, `DOBBELKINGEN|CONTRACT|${contract}|LEADER=P${leader}`),
     };
   }
@@ -169,7 +218,6 @@ export function applyAction(state, action) {
     if (!uid || !cardName) return state;
 
     const nextMapping = setUniqueMappingOverwrite(state.mapping, uid, cardName);
-
     return {
       ...state,
       mapping: nextMapping,
@@ -182,7 +230,6 @@ export function applyAction(state, action) {
     if (!uid || !cardName) return state;
 
     const nextMapping = setUniqueMappingOverwrite(state.mapping, uid, cardName);
-
     return {
       ...state,
       mapping: nextMapping,
@@ -209,20 +256,31 @@ export function applyAction(state, action) {
   // ---------- gameplay ----------
 
   if (action.type === "confirm_turn") {
+    if (state.phase !== "PLAYING_TRICK") return state;
+
     const playersCount = state.players?.length ?? 4;
     const zonesLen = state.zones?.length ?? state.zonesCount ?? 4;
 
-    // verwachtte zone = current player
+    // expected zone = current player
     const expectedZone = (state.currentPlayerIndex ?? 0) + 1;
     const zoneIndex = expectedZone - 1;
 
     const uid = state.zones?.[zoneIndex] ?? null;
     if (!uid) return state;
 
-    const card = state.mapping?.[uid] ?? null;
+    const card = state.mapping?.[uid] ?? null; // code zoals "AC"
     if (!card) return state;
 
-    // al gespeeld in deze trick?
+    // DUPLICATE check (per contract-hand)
+    if (state.usedCardSet?.[card]) {
+      return {
+        ...state,
+        lastError: `Kaart ${card} is al gebruikt in dit contract!`,
+        log: pushLog(state.log, `ERROR|DUPLICATE_CARD|${card}|P${state.currentPlayerIndex}`),
+      };
+    }
+
+    // player al gespeeld in deze trick?
     const alreadyPlayedThisTrick = (state.currentTrick ?? []).some(
       (p) => p.playerIndex === state.currentPlayerIndex
     );
@@ -233,10 +291,14 @@ export function applyAction(state, action) {
 
     let nextLog = pushLog(state.log, `CONFIRM|${expectedZone}|${uid}|${card}|P${state.currentPlayerIndex}`);
 
+    // mark card as used (per contract)
+    const nextUsedCodes = [...(state.usedCardCodes ?? []), card];
+    const nextUsedSet = { ...(state.usedCardSet ?? {}), [card]: true };
+
     // default next player
     let nextPlayerIndex = (state.currentPlayerIndex + 1) % playersCount;
 
-    // default next turnZone volgt player (voor UI)
+    // UI turnzone
     let nextTurnZone = nextPlayerIndex + 1;
     if (nextTurnZone < 1 || nextTurnZone > zonesLen) nextTurnZone = 1;
 
@@ -245,23 +307,37 @@ export function applyAction(state, action) {
       const winner = determineTrickWinner(nextTrick, state.contract ?? state.gameMode);
       if (!winner) return state;
 
-      nextPlayerIndex = winner.playerIndex;
-      nextTurnZone = nextPlayerIndex + 1;
-      if (nextTurnZone < 1 || nextTurnZone > zonesLen) nextTurnZone = 1;
+      const winnerIndex = winner.playerIndex;
+
+      // score update
+      let nextPlayers = state.players;
+      if (state.contract === "MINSTE_SLAGEN") {
+        nextPlayers = applyMinsteSlagenScore(state.players, winnerIndex);
+        nextLog = pushLog(nextLog, `SCORE|-1|P${winnerIndex}|MINSTE_SLAGEN`);
+      }
+
+      const nextTricksPlayed = (state.tricksPlayedInContract ?? 0) + 1;
+      nextLog = pushLog(nextLog, `TRICK_WIN|P${winnerIndex}`);
+      nextLog = pushLog(nextLog, `TRICKS_IN_CONTRACT|${nextTricksPlayed}/13`);
 
       const trickResult = {
         id: (state.trickHistory?.length ?? 0) + 1,
         gameMode: state.gameMode,
         contract: state.contract,
         plays: nextTrick,
-        winnerIndex: winner.playerIndex,
+        winnerIndex,
         timestamp: Date.now(),
       };
 
-      nextLog = pushLog(nextLog, `TRICK_WIN|P${winner.playerIndex}`);
+      // winner comes out
+      nextPlayerIndex = winnerIndex;
+      nextTurnZone = nextPlayerIndex + 1;
+      if (nextTurnZone < 1 || nextTurnZone > zonesLen) nextTurnZone = 1;
 
-      return {
+      // base after trick (hand still ongoing)
+      const baseAfterTrick = {
         ...state,
+        players: nextPlayers,
         confirmedTurnCard: played,
         pile: [...(state.pile ?? []), played],
         currentTrick: [],
@@ -269,11 +345,58 @@ export function applyAction(state, action) {
         turnZone: nextTurnZone,
         trickHistory: [...(state.trickHistory ?? []), trickResult],
         lastTrick: trickResult,
-        lastTrickWinnerIndex: winner.playerIndex,
+        lastTrickWinnerIndex: winnerIndex,
+        usedCardCodes: nextUsedCodes,
+        usedCardSet: nextUsedSet,
+        tricksPlayedInContract: nextTricksPlayed,
+        lastError: null,
         log: nextLog,
       };
+
+      // END condition: 13 slagen => contract gedaan
+      if (nextTricksPlayed >= 13) {
+        const playersCount2 = nextPlayers?.length ?? 4;
+        const nextChooser = clampIndex((state.chooserIndex ?? 0) + 1, playersCount2);
+
+        const scoresSnapshot = (nextPlayers ?? []).map((p) => p.score ?? 0);
+
+        const lastResult = {
+          contract: state.contract,
+          penalties: null,
+          scores: scoresSnapshot,
+          timestamp: Date.now(),
+        };
+
+        const nextPhase = anyContractLeft(baseAfterTrick)
+          ? "CHOOSING_CONTRACT"
+          : "DOBBELKINGEN_DONE";
+
+        return {
+          ...baseAfterTrick,
+          phase: nextPhase,
+
+          // contract loop bookkeeping
+          contractPlays: inc(state.contractPlays, state.contract),
+          lastContract: state.contract,
+          contract: null,
+
+          chooserIndex: nextChooser,
+          currentPlayerIndex: nextChooser,
+          turnZone: null,
+
+          lastResult,
+
+          // reset runtime for next contract
+          ...clearHandRuntimeFields(),
+
+          log: pushLog(baseAfterTrick.log, `CONTRACT_END|TRICKS=13|NEXT_CHOOSER=P${nextChooser}`),
+        };
+      }
+
+      return baseAfterTrick;
     }
 
+    // trick nog bezig
     return {
       ...state,
       confirmedTurnCard: played,
@@ -281,6 +404,9 @@ export function applyAction(state, action) {
       currentTrick: nextTrick,
       currentPlayerIndex: nextPlayerIndex,
       turnZone: nextTurnZone,
+      usedCardCodes: nextUsedCodes,
+      usedCardSet: nextUsedSet,
+      lastError: null,
       log: nextLog,
     };
   }
@@ -293,27 +419,31 @@ export function applyAction(state, action) {
     const nextPile = pile.slice(0, -1);
 
     const nextTrick = (state.currentTrick ?? []).filter(
-      (p) =>
-        !(
-          p.uid === last.uid &&
-          p.zone === last.zone &&
-          p.playerIndex === last.playerIndex
-        )
+      (p) => !(p.uid === last.uid && p.zone === last.zone && p.playerIndex === last.playerIndex)
     );
 
     const playersCount = state.players?.length ?? 4;
-    const prevPlayerIndex =
-      (state.currentPlayerIndex - 1 + playersCount) % playersCount;
+    const prevPlayerIndex = (state.currentPlayerIndex - 1 + playersCount) % playersCount;
 
-    const prevTurnZone = prevPlayerIndex + 1;
+    // rebuild usedCardSet from nextPile
+    const rebuiltUsedSet = {};
+    const rebuiltUsedCodes = [];
+    for (const p of nextPile) {
+      if (!p?.card) continue;
+      if (!rebuiltUsedSet[p.card]) rebuiltUsedCodes.push(p.card);
+      rebuiltUsedSet[p.card] = true;
+    }
 
     return {
       ...state,
       pile: nextPile,
       currentTrick: nextTrick,
       currentPlayerIndex: prevPlayerIndex,
-      turnZone: prevTurnZone,
+      turnZone: prevPlayerIndex + 1,
       confirmedTurnCard: null,
+      usedCardCodes: rebuiltUsedCodes,
+      usedCardSet: rebuiltUsedSet,
+      lastError: null,
       log: pushLog(state.log, `UNDO|${last.zone}|${last.uid}|P${last.playerIndex}`),
     };
   }
@@ -323,6 +453,11 @@ export function applyAction(state, action) {
       ...state,
       pile: [],
       confirmedTurnCard: null,
+      currentTrick: [],
+      usedCardCodes: [],
+      usedCardSet: {},
+      tricksPlayedInContract: 0,
+      lastError: null,
       log: pushLog(state.log, "PILE|RESET"),
     };
   }
