@@ -1,3 +1,4 @@
+// src/core/state/initialState.js
 import { loadMapping } from "../mapping/mappingStore";
 
 export function createInitialState({ zonesCount = 4 } = {}) {
@@ -9,24 +10,24 @@ export function createInitialState({ zonesCount = 4 } = {}) {
   ];
 
   return {
-    // zones
+    // zones / mat
     zonesCount,
     zones: Array.from({ length: zonesCount }, () => null),
-    turnZone: null,
+    turnZone: null, // zolang confirm_turn hierop steunt
 
     // ui/debug/mapping
     log: [],
     selectedUid: null,
     mapping: loadMapping(),
 
-    // game meta
-    gameMode: null,                // "DOBBELKINGEN" of andere later
-    phase: "IDLE",                 // "IDLE" | "CHOOSING_CONTRACT" | "PLAYING_TRICK"
-    chooserIndex: 0,               // wie kiest contract
-    contract: null,                // bv "MINSTE_SLAGEN"
+    // game mode flow
+    activeMode: null, // "DOBBELKINGEN" (UI selection)
+    gameMode: null,   // idem, maar je kan dit later splitten indien nodig
+    phase: "HOME",    // "HOME" | "DOBBELKINGEN_READY" | "CHOOSING_CONTRACT" | "PLAYING_TRICK"
+    chooserIndex: 0,
     leaderIndex: 0,
     currentPlayerIndex: 0,
-    turnZone: null,                // zolang confirm_turn dit nodig heeft
+    contract: null, // bv "MINSTE_SLAGEN"
 
     // settings
     autoConfirm: true,

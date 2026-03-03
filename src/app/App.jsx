@@ -1,3 +1,4 @@
+// src/app/App.jsx
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import "../styles/app.css";
 
@@ -31,17 +32,19 @@ export default function App() {
     createInitialState({ zonesCount: ZONES })
   );
 
-  const dispatch = (action) => {
+  // single dispatcher
+  const dispatchAction = useCallback((action) => {
     setAppState((prev) => applyAction(prev, action));
-  };
+  }, []);
 
-  const { zones, log, turnZone, selectedUid, mapping } = appState;
+  const { zones, selectedUid, mapping } = appState;
 
   // persist mapping
   useEffect(() => {
     saveMapping(mapping);
   }, [mapping]);
 
+  // derived game state
   const gameState = useMemo(() => computeGameState(appState), [appState]);
 
   // cardNames shown in ZoneGrid
@@ -54,10 +57,6 @@ export default function App() {
       return card ? `${card.label} (${card.name})` : code;
     });
   }, [zones, mapping]);
-
-  function dispatchAction(action) {
-    setAppState((prev) => applyAction(prev, action));
-  }
 
   // serial connect/disconnect
   async function connectUsb() {
@@ -100,72 +99,75 @@ export default function App() {
     dispatchAction({ type: "select_uid", uid });
   }
 
-  // manual confirm
+  // manual confirm (optional)
   const confirmTurnNow = useCallback(() => {
-    dispatchAction({
-      type: "confirm_turn",
-      turnCard: gameState.turnCard, // snapshot
-    });
-  }, [gameState.turnCard]);
+    dispatchAction({ type: "confirm_turn" }); // ✅ no snapshot
+  }, [dispatchAction]);
 
   const resetPile = useCallback(() => {
     dispatchAction({ type: "reset_pile" });
-  }, []);
+  }, [dispatchAction]);
 
   const undoLastPlay = useCallback(() => {
     dispatchAction({ type: "undo_last_play" });
-  }, []);
+  }, [dispatchAction]);
 
-  // auto confirm effect
-  const AUTO_CONFIRM_MS = 800;
-  const autoConfirmTimerRef = useRef(null);
-  const lastAutoConfirmKeyRef = useRef(null);
+  // -------------------------
+  // -------------------------
+  // AUTO CONFIRM (stable, ignores other zones changes)
+  const AUTO_CONFIRM_MS = 650;
+  const timerRef = useRef(null);
+  const armedKeyRef = useRef(null);
+
+  function clearAutoTimer() {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }
+
+  const cpi = appState.currentPlayerIndex ?? 0;
+  const expectedZone = cpi + 1;
+  const uidInExpected = appState.zones?.[expectedZone - 1] ?? null;
+  const cardInExpected = uidInExpected ? (appState.mapping?.[uidInExpected] ?? null) : null;
+  const alreadyPlayed = (appState.currentTrick ?? []).some((p) => p.playerIndex === cpi);
 
   useEffect(() => {
-    // guard: only if enabled and confirm possible
-    if (
-      !appState.autoConfirm ||
-      !gameState.canConfirm ||
-      !gameState.turnCard ||
-      !appState.turnZone
-    ) {
-      if (autoConfirmTimerRef.current) {
-        clearTimeout(autoConfirmTimerRef.current);
-        autoConfirmTimerRef.current = null;
-      }
-      lastAutoConfirmKeyRef.current = null;
+    if (!appState.autoConfirm) {
+      clearAutoTimer();
+      armedKeyRef.current = null;
       return;
     }
 
-    const key = `${gameState.turnCard.zone}|${gameState.turnCard.uid}`;
-
-    if (lastAutoConfirmKeyRef.current === key && autoConfirmTimerRef.current) return;
-
-    if (autoConfirmTimerRef.current) {
-      clearTimeout(autoConfirmTimerRef.current);
-      autoConfirmTimerRef.current = null;
+    // moet klaar zijn om te bevestigen
+    if (!uidInExpected || !cardInExpected || alreadyPlayed) {
+      clearAutoTimer();
+      armedKeyRef.current = null;
+      return;
     }
 
-    lastAutoConfirmKeyRef.current = key;
+    // key = “wat moet bevestigd worden”
+    const key = `${cpi}|${uidInExpected}`;
 
-    autoConfirmTimerRef.current = setTimeout(() => {
-      confirmTurnNow();
-      autoConfirmTimerRef.current = null;
+    // als al armed voor dezelfde key en timer loopt -> niets doen
+    if (armedKeyRef.current === key && timerRef.current) return;
+
+    // nieuw key: arm opnieuw
+    armedKeyRef.current = key;
+    clearAutoTimer();
+
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+
+      // confirm met meest recente state
+      setAppState((prev) => applyAction(prev, { type: "confirm_turn" }));
     }, AUTO_CONFIRM_MS);
-
-    return () => {
-      if (autoConfirmTimerRef.current) {
-        clearTimeout(autoConfirmTimerRef.current);
-        autoConfirmTimerRef.current = null;
-      }
-    };
   }, [
     appState.autoConfirm,
-    appState.turnZone,
-    gameState.canConfirm,
-    gameState.turnCard?.zone,
-    gameState.turnCard?.uid,
-    confirmTurnNow,
+    cpi,
+    uidInExpected,
+    cardInExpected,
+    alreadyPlayed,
   ]);
 
   return (
@@ -203,15 +205,21 @@ export default function App() {
           appState={appState}
           gameState={gameState}
           zones={zones}
-          turnZone={turnZone}
+          // ✅ UI should follow expectedZone (not stored turnZone)
+          turnZone={gameState.expectedZone}
           cardNames={cardNames}
           onZoneClick={handleZoneClick}
           onConfirmTurn={confirmTurnNow}
           onUndo={undoLastPlay}
           onResetPile={resetPile}
           showDebug={true}
-          onStartDobbelkingen={() => dispatch({ type: "start_dobbelkingen" })}
-          onChooseContract={(c) => dispatch({ type: "choose_contract", contract: c })}
+          // mode flow
+          onOpenDobbelkingen={() => dispatchAction({ type: "open_mode", mode: "DOBBELKINGEN" })}
+          onCloseMode={() => dispatchAction({ type: "open_mode", mode: null })}
+          onStartDobbelkingen={() => dispatchAction({ type: "start_dobbelkingen" })}
+          onChooseDobbelkingenContract={(c) =>
+            dispatchAction({ type: "choose_contract", contract: c })
+          }
         />
       )}
 

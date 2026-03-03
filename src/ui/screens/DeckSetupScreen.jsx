@@ -27,7 +27,8 @@ export function DeckSetupScreen({ appState, mapping, selectedUid, dispatchAction
   function assign() {
     if (!uid) return;
     dispatchAction({ type: "assign_uid_to_card", uid, cardName: card.code });
-    next(); // auto-next
+    // auto-next (maar niet voorbij het einde)
+    if (idx < DECK52.length - 1) next();
   }
 
   return (
@@ -75,6 +76,29 @@ export function DeckSetupScreen({ appState, mapping, selectedUid, dispatchAction
 
         <div style={{ fontSize: 12, opacity: 0.7 }}>
           Leg de juiste kaart op eender welke zone → klik Assign → hij springt automatisch naar de volgende kaart.
+        </div>
+
+        {/* ✅ helemaal onderaan: dropdown om direct te springen */}
+        <div style={{ marginTop: 8, borderTop: "1px solid #eee", paddingTop: 10 }}>
+          <label style={{ display: "grid", gap: 6, maxWidth: 520 }}>
+            <div style={{ fontSize: 12, opacity: 0.7 }}>Jump to card</div>
+            <select
+              value={idx}
+              onChange={(e) =>
+                dispatchAction({
+                  type: "set_deck_index",
+                  index: Number(e.target.value),
+                  maxIndex: DECK52.length - 1,
+                })
+              }
+            >
+              {DECK52.map((c, i) => (
+                <option key={c.code} value={i}>
+                  {String(i + 1).padStart(2, "0")} / {DECK52.length} — {c.label} ({c.code})
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </div>
     </div>

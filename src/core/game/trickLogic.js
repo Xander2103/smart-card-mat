@@ -1,80 +1,50 @@
 // src/core/game/trickLogic.js
 
-const RANK_VALUE = {
-  "2": 2,
-  "3": 3,
-  "4": 4,
-  "5": 5,
-  "6": 6,
-  "7": 7,
-  "8": 8,
-  "9": 9,
-  "10": 10,
-  Boer: 11,
-  Dame: 12,
-  Heer: 13,
-  Aas: 14,
-};
+function parseCardCode(code) {
+  if (typeof code !== "string" || code.length < 2) return null;
 
-const SUITS = new Set(["Schoppen", "Harten", "Ruiten", "Klaver"]);
+  const suit = code.slice(-1).toUpperCase(); // C/D/H/S
+  const rankStr = code.slice(0, -1).toUpperCase(); // A, K, Q, J, 10, 9...
 
-/**
- * cardName: "Schoppen Aas", "Harten 10", ...
- * returns: { suit, rank, value } or null
- */
-export function parseCardName(cardName) {
-  if (!cardName || typeof cardName !== "string") return null;
+  const rankMap = { A: 14, K: 13, Q: 12, J: 11 };
+  const rank = rankMap[rankStr] ?? Number(rankStr);
 
-  const parts = cardName.trim().split(/\s+/);
-  if (parts.length < 2) return null;
+  if (!["C", "D", "H", "S"].includes(suit)) return null;
+  if (!Number.isFinite(rank)) return null;
 
-  const suit = parts[0];
-  const rank = parts.slice(1).join(" ");
-
-  if (!SUITS.has(suit)) return null;
-
-  const value = RANK_VALUE[rank];
-  if (!value) return null;
-
-  return { suit, rank, value };
+  return { suit, rank };
 }
 
 /**
- * Winner = hoogste kaart van de "lead suit" (kleur van eerste kaart)
- * trick items: { playerIndex, zone, uid, card }
+ * Winner = hoogste kaart in lead suit (suit van eerste play)
+ * @param {Array<{playerIndex:number, card:string}>} plays
+ * @param {string|null} modeOrContract
  */
-export function determineTrickWinnerLeadSuitHighest(trick) {
-  if (!Array.isArray(trick) || trick.length === 0) return null;
+export function determineTrickWinner(plays, modeOrContract) {
+  if (!Array.isArray(plays) || plays.length === 0) return null;
 
-  const firstParsed = parseCardName(trick[0]?.card);
-  if (!firstParsed) return trick[0] ?? null;
+  const firstMeta = parseCardCode(plays[0]?.card);
+  if (!firstMeta) {
+    // als er ooit rommel binnenkomt: pak 1ste zodat reducer niet vastloopt
+    return plays[0] ?? null;
+  }
 
-  const leadSuit = firstParsed.suit;
+  const leadSuit = firstMeta.suit;
 
-  let best = null; // { play, value }
+  let best = plays[0];
+  let bestRank = firstMeta.rank;
 
-  for (const play of trick) {
-    const parsed = parseCardName(play?.card);
-    if (!parsed) continue;
-    if (parsed.suit !== leadSuit) continue;
+  for (let i = 1; i < plays.length; i++) {
+    const p = plays[i];
+    const meta = parseCardCode(p?.card);
+    if (!meta) continue;
+    if (meta.suit !== leadSuit) continue;
 
-    if (!best || parsed.value > best.value) {
-      best = { play, value: parsed.value };
+    if (meta.rank > bestRank) {
+      bestRank = meta.rank;
+      best = p;
     }
   }
 
-  return best?.play ?? (trick[0] ?? null);
-}
-
-/**
- * Main router (gameMode)
- * Later: troef / speciale regels toevoegen zonder reducer te wijzigen.
- */
-export function determineTrickWinner(trick, gameMode) {
-  switch (gameMode) {
-    case "MS":
-      return determineTrickWinnerLeadSuitHighest(trick); // moet dit zijn
-    default:
-      return determineTrickWinnerLeadSuitHighest(trick);
-  }
+  return best;
 }
