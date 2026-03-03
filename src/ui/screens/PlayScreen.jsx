@@ -16,6 +16,7 @@ export function PlayScreen({
   onUndo,
   onResetPile,
   showDebug = true,
+  onBackFromContract,
 
   // mode flow
   onOpenDobbelkingen,
@@ -27,8 +28,29 @@ export function PlayScreen({
   const showLobby =
     appState.phase === "DOBBELKINGEN_READY" ||
     appState.phase === "CHOOSING_CONTRACT";
-
   const showGameUi = appState.phase === "PLAYING_TRICK";
+
+  // ✅ Mat layout:
+  // 1 = linksboven, 2 = rechtsboven, 3 = rechtsonder, 4 = linksonder
+  // Grid is [TL, TR, BL, BR] -> dus we tonen zones in volgorde [1,2,4,3]
+  const DISPLAY_ZONES = [1, 2, 4, 3];
+
+  const zonesForGrid = DISPLAY_ZONES.map((z) => zones?.[z - 1] ?? null);
+  const cardNamesForGrid = DISPLAY_ZONES.map((z) => cardNames?.[z - 1] ?? null);
+
+  // ZoneGrid verwacht turnZone als "grid positie" (1..4)
+  // gameState.expectedZone is "echte zone" (1..4)
+  const turnZoneForGrid = (() => {
+    const real = gameState?.expectedZone ?? null;
+    const idx = DISPLAY_ZONES.indexOf(real);
+    return idx >= 0 ? idx + 1 : null;
+  })();
+
+  function handleGridClick(gridPos) {
+    const realZone = DISPLAY_ZONES[gridPos - 1];
+    if (!realZone) return;
+    onZoneClick?.(realZone);
+  }
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -47,10 +69,10 @@ export function PlayScreen({
         />
       )}
 
-      {/* C) IN-GAME UI: pas tonen als spel echt gestart is */}
+      {/* C) IN-GAME UI */}
       {showGameUi && (
         <>
-          {/* C) !!ERROR ALS GE KAART AL GEPLAYED HEBT!! */}
+          {/* ERROR */}
           {appState.lastError && (
             <div
               style={{
@@ -69,8 +91,11 @@ export function PlayScreen({
             >
               <div>🚫 {appState.lastError}</div>
 
+              {/* (optioneel) als je later onClearError toevoegt */}
               <button
-                onClick={() => onClearError?.()}
+                onClick={() => {
+                  // je kan hier later dispatchAction({type:"clear_error"}) aan hangen
+                }}
                 style={{
                   border: "1px solid #ff4d4f",
                   background: "white",
@@ -86,13 +111,7 @@ export function PlayScreen({
           )}
 
           {/* controls bar */}
-          <div
-            style={{
-              border: "1px solid #eee",
-              borderRadius: 12,
-              padding: 12,
-            }}
-          >
+          <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
             <div
               style={{
                 display: "flex",
@@ -103,7 +122,7 @@ export function PlayScreen({
             >
               <button
                 onClick={onConfirmTurn}
-                disabled={!gameState.canConfirm || appState.autoConfirm}
+                disabled={!gameState?.canConfirm || appState.autoConfirm}
               >
                 Confirm turn (manual)
               </button>
@@ -111,23 +130,33 @@ export function PlayScreen({
               <button onClick={onUndo}>Undo last play</button>
               <button onClick={onResetPile}>Reset pile</button>
 
+              <button
+                onClick={() => {
+                  const ok = window.confirm(
+                    "Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen."
+                  );
+                  if (ok) onBackFromContract?.();
+                }}
+              >
+                ← Terug
+              </button>
+
               <div style={{ marginLeft: "auto" }}>
                 Mode: <b>{appState.gameMode ?? "-"}</b> • Contract:{" "}
                 <b>{appState.contract ?? "-"}</b> • TurnZone:{" "}
                 <b>{turnZone ?? "-"}</b> • Current Player:{" "}
-                <b>
-                  {appState.players?.[appState.currentPlayerIndex]?.name ?? "-"}
-                </b>
+                <b>{appState.players?.[appState.currentPlayerIndex]?.name ?? "-"}</b>
               </div>
             </div>
           </div>
 
-          {/* zones */}
+          {/* zones (met 3/4 swap voor mat layout) */}
           <ZoneGrid
-            zones={zones}
-            turnZone={gameState.expectedZone}
-            cardNames={cardNames}
-            onZoneClick={onZoneClick}
+            zones={zonesForGrid}
+            zoneNumbers={DISPLAY_ZONES}     // ✅ dit maakt Zone 4 linksonder en Zone 3 rechtsonder
+            turnZone={turnZoneForGrid}
+            cardNames={cardNamesForGrid}
+            onZoneClick={handleGridClick}
           />
 
           {/* scores */}
@@ -146,13 +175,7 @@ export function PlayScreen({
 
           {/* debug */}
           {showDebug && (
-            <div
-              style={{
-                border: "1px solid #eee",
-                borderRadius: 12,
-                padding: 12,
-              }}
-            >
+            <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
               <h3 style={{ marginTop: 0 }}>Debug log</h3>
               <DebugLog lines={appState.log} />
             </div>

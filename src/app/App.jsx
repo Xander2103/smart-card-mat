@@ -8,7 +8,7 @@ import { createInitialState } from "../core/state/initialState";
 import { saveMapping } from "../core/mapping/mappingStore";
 
 import { connectSerial } from "../transport/serialTransport";
-import { computeGameState } from "../core/game/engine";
+import { computeGameState } from "../core/game/computeGameState";
 
 import { Tabs } from "../ui/tabs";
 import { PlayScreen } from "../ui/screens/PlayScreen";
@@ -220,6 +220,7 @@ export default function App() {
           onChooseDobbelkingenContract={(c) =>
             dispatchAction({ type: "choose_contract", contract: c })
           }
+          onBackFromContract={() => dispatchAction({ type: "abort_contract" })}
         />
       )}
 

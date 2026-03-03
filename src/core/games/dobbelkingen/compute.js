@@ -1,7 +1,6 @@
-// src/core/game/engine.js
-import { computeScoresFromTrickHistory } from "./dobbelkingen";
+import { computeContractScoresFromTrickHistory } from "./scoring";
 
-export function computeGameState(appState) {
+export function computeDobbelkingenState(appState) {
   const zones = appState.zones ?? [];
   const mapping = appState.mapping ?? {};
   const playersCount = appState.players?.length ?? 4;
@@ -15,7 +14,10 @@ export function computeGameState(appState) {
   const turnCard = uid && card ? { zone: expectedZone, uid, card } : null;
   const canConfirm = !!turnCard;
 
-  const scores = computeScoresFromTrickHistory(appState.trickHistory ?? [], playersCount);
+  const contractScores = computeContractScoresFromTrickHistory(appState.trickHistory ?? [], playersCount);
+  const total = appState.totalScores ?? Array(playersCount).fill(0);
+
+  const scores = Array.from({ length: playersCount }, (_, i) => (total[i] ?? 0) + (contractScores[i] ?? 0));
 
   return { playersCount, expectedZone, turnCard, canConfirm, scores };
 }

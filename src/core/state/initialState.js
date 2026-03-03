@@ -1,12 +1,11 @@
-// src/core/state/initialState.js
 import { loadMapping } from "../mapping/mappingStore";
 
 export function createInitialState({ zonesCount = 4 } = {}) {
   const players = [
-    { id: 0, name: "Player 1", score: 0 },
-    { id: 1, name: "Player 2", score: 0 },
-    { id: 2, name: "Player 3", score: 0 },
-    { id: 3, name: "Player 4", score: 0 },
+    { id: 0, name: "Player 1" },
+    { id: 1, name: "Player 2" },
+    { id: 2, name: "Player 3" },
+    { id: 3, name: "Player 4" },
   ];
 
   return {
@@ -23,7 +22,7 @@ export function createInitialState({ zonesCount = 4 } = {}) {
     // game mode flow
     activeMode: null, // "DOBBELKINGEN"
     gameMode: null,
-    phase: "HOME", // "HOME" | "DOBBELKINGEN_READY" | "CHOOSING_CONTRACT" | "PLAYING_TRICK" | "DOBBELKINGEN_DONE"
+    phase: "HOME",
     chooserIndex: 0,
     leaderIndex: 0,
     currentPlayerIndex: 0,
@@ -41,16 +40,19 @@ export function createInitialState({ zonesCount = 4 } = {}) {
       "GEEN_SLAG_7_13",
       "MINSTE_QUEENS",
     ],
-    contractPlays: {}, // { CONTRACT: countPlayed } max 2
+    contractPlays: {},
     lastContract: null,
+
+    // ✅ totale score over alle contracten (blijft bestaan over contract resets)
+    totalScores: Array.from({ length: players.length }, () => 0),
 
     // per-contract run (1 handje = 13 slagen)
     tricksPlayedInContract: 0,
-    usedCardSet: {},   // { "AC": true } duplicate detect (per contract)
-    usedCardCodes: [], // debug lijst
+    usedCardSet: {},
+    usedCardCodes: [],
 
     // last result / tussenstand
-    lastResult: null, // { contract, winnerIndex, timestamp, scores:[..], penalties:[..] }
+    lastResult: null,
 
     // settings
     autoConfirm: true,
@@ -59,7 +61,7 @@ export function createInitialState({ zonesCount = 4 } = {}) {
     deckSetup: false,
     deckIndex: 0,
 
-    // gameplay runtime
+    // gameplay runtime (per contract)
     confirmedTurnCard: null,
     pile: [],
     currentTrick: [],
