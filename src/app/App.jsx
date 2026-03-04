@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import "../styles/app.css";
 
 import { parseEvent } from "../core/protocol/parseEvent";
-import { applyAction, applyEvent } from "../core/state/reducer";
+import { rootReducer } from "../core/state/rootReducer";
+import { applyRootEvent } from "../core/state/rootEvents";
 import { createInitialState } from "../core/state/initialState";
 import { saveMapping } from "../core/mapping/mappingStore";
 
@@ -20,24 +21,24 @@ import { CARD_BY_CODE } from "../core/mapping/deck52";
 export default function App() {
   const ZONES = 4;
 
-  // tabs
   const [tab, setTab] = useState("play");
 
-  // serial
   const [serialStatus, setSerialStatus] = useState("disconnected");
   const [serialConn, setSerialConn] = useState(null);
 
-  // app state
   const [appState, setAppState] = useState(() =>
     createInitialState({ zonesCount: ZONES })
   );
 
-  // single dispatcher
+  // ✅ single dispatcher
   const dispatchAction = useCallback((action) => {
-    setAppState((prev) => applyAction(prev, action));
+    setAppState((prev) => rootReducer(prev, action));
   }, []);
 
-  const { zones, selectedUid, mapping } = appState;
+  // ✅ SAFE reads (no more crashes)
+  const zones = appState?.zones ?? Array.from({ length: ZONES }, () => null);
+  const selectedUid = appState?.selectedUid ?? null;
+  const mapping = appState?.mapping ?? {};
 
   // persist mapping
   useEffect(() => {
@@ -53,12 +54,11 @@ export default function App() {
       if (!uid) return null;
       const code = mapping[uid] ?? null;
       if (!code) return null;
-      const card = CARD_BY_CODE[code];
+      const card = CARD_BY_CODE?.[code];
       return card ? `${card.label} (${card.name})` : code;
     });
   }, [zones, mapping]);
 
-  // serial connect/disconnect
   async function connectUsb() {
     try {
       setSerialStatus("connecting...");
@@ -82,6 +82,7 @@ export default function App() {
     setSerialStatus("disconnected");
   }
 
+  // ✅ serial line -> applyRootEvent + optional auto-confirm delay
   function handleLine(line) {
     const cleaned = (line ?? "").trim();
     if (!cleaned) return;
@@ -89,19 +90,28 @@ export default function App() {
     const ev = parseEvent(cleaned);
     if (!ev) return;
 
-    setAppState((prev) => applyEvent(prev, ev));
+    setAppState((prev) => {
+      const s = applyRootEvent(prev, ev);
+
+      // ✅ auto-confirm: alleen tijdens spelen, enkel op "placed"
+      if (s.phase === "PLAYING_TRICK" && s.autoConfirm && ev.type === "placed") {
+        window.setTimeout(() => {
+          setAppState((p2) => rootReducer(p2, { type: "confirm_turn" }));
+        }, 250); // kleine delay zodat scan "zichtbaar" is
+      }
+
+      return s;
+    });
   }
 
-  // click on zone selects uid
-  function handleZoneClick(zoneNr) {
-    const uid = zones[zoneNr - 1];
+  function handleZoneClick(realZoneNumber) {
+    const uid = zones?.[realZoneNumber - 1] ?? null;
     if (!uid) return;
     dispatchAction({ type: "select_uid", uid });
   }
 
-  // manual confirm (optional)
   const confirmTurnNow = useCallback(() => {
-    dispatchAction({ type: "confirm_turn" }); // ✅ no snapshot
+    dispatchAction({ type: "confirm_turn" });
   }, [dispatchAction]);
 
   const resetPile = useCallback(() => {
@@ -112,9 +122,7 @@ export default function App() {
     dispatchAction({ type: "undo_last_play" });
   }, [dispatchAction]);
 
-  // -------------------------
-  // -------------------------
-  // AUTO CONFIRM (stable, ignores other zones changes)
+  // ✅ auto-confirm fallback timer (als je NIET via serial "placed" wilt triggeren)
   const AUTO_CONFIRM_MS = 650;
   const timerRef = useRef(null);
   const armedKeyRef = useRef(null);
@@ -126,60 +134,60 @@ export default function App() {
     }
   }
 
-  const cpi = appState.currentPlayerIndex ?? 0;
-  const expectedZone = cpi + 1;
-  const uidInExpected = appState.zones?.[expectedZone - 1] ?? null;
-  const cardInExpected = uidInExpected ? (appState.mapping?.[uidInExpected] ?? null) : null;
-  const alreadyPlayed = (appState.currentTrick ?? []).some((p) => p.playerIndex === cpi);
-
   useEffect(() => {
-    if (!appState.autoConfirm) {
+    if (!appState?.autoConfirm) {
       clearAutoTimer();
       armedKeyRef.current = null;
       return;
     }
 
-    // moet klaar zijn om te bevestigen
+    if (appState.phase !== "PLAYING_TRICK") {
+      clearAutoTimer();
+      armedKeyRef.current = null;
+      return;
+    }
+
+    const playersCount = appState.players?.length ?? 4;
+    const cpi = appState.currentPlayerIndex ?? 0;
+    const expectedZone = (cpi % playersCount) + 1;
+
+    const uidInExpected = appState.zones?.[expectedZone - 1] ?? null;
+    const cardInExpected = uidInExpected ? (appState.mapping?.[uidInExpected] ?? null) : null;
+
+    const alreadyPlayed = (appState.currentTrick ?? []).some((p) => p.playerIndex === cpi);
+
     if (!uidInExpected || !cardInExpected || alreadyPlayed) {
       clearAutoTimer();
       armedKeyRef.current = null;
       return;
     }
 
-    // key = “wat moet bevestigd worden”
-    const key = `${cpi}|${uidInExpected}`;
-
-    // als al armed voor dezelfde key en timer loopt -> niets doen
+    const key = `${cpi}|${uidInExpected}|${cardInExpected}`;
     if (armedKeyRef.current === key && timerRef.current) return;
 
-    // nieuw key: arm opnieuw
     armedKeyRef.current = key;
     clearAutoTimer();
 
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
-
-      // confirm met meest recente state
-      setAppState((prev) => applyAction(prev, { type: "confirm_turn" }));
+      setAppState((p) => rootReducer(p, { type: "confirm_turn" }));
     }, AUTO_CONFIRM_MS);
   }, [
-    appState.autoConfirm,
-    cpi,
-    uidInExpected,
-    cardInExpected,
-    alreadyPlayed,
+    appState?.autoConfirm,
+    appState?.phase,
+    appState?.currentPlayerIndex,
+    appState?.zones,
+    appState?.mapping,
+    appState?.currentTrick,
+    appState?.players,
   ]);
 
   return (
     <div style={{ fontFamily: "system-ui", padding: 16, maxWidth: 980, margin: "0 auto" }}>
       <h1 style={{ marginTop: 0 }}>Smart Card Mat</h1>
 
-      {/* USB Serial */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
-        <button
-          onClick={connectUsb}
-          disabled={serialStatus === "connected" || serialStatus === "connecting..."}
-        >
+        <button onClick={connectUsb} disabled={serialStatus === "connected" || serialStatus === "connecting..."}>
           Connect USB
         </button>
 
@@ -205,21 +213,17 @@ export default function App() {
           appState={appState}
           gameState={gameState}
           zones={zones}
-          // ✅ UI should follow expectedZone (not stored turnZone)
-          turnZone={gameState.expectedZone}
+          turnZone={gameState?.expectedZone ?? null}
           cardNames={cardNames}
           onZoneClick={handleZoneClick}
           onConfirmTurn={confirmTurnNow}
           onUndo={undoLastPlay}
           onResetPile={resetPile}
           showDebug={true}
-          // mode flow
           onOpenDobbelkingen={() => dispatchAction({ type: "open_mode", mode: "DOBBELKINGEN" })}
           onCloseMode={() => dispatchAction({ type: "open_mode", mode: null })}
           onStartDobbelkingen={() => dispatchAction({ type: "start_dobbelkingen" })}
-          onChooseDobbelkingenContract={(c) =>
-            dispatchAction({ type: "choose_contract", contract: c })
-          }
+          onChooseDobbelkingenContract={(c) => dispatchAction({ type: "choose_contract", contract: c })}
           onBackFromContract={() => dispatchAction({ type: "abort_contract" })}
         />
       )}

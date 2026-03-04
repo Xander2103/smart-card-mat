@@ -1,3 +1,4 @@
+// src/ui/DobbelkingenPanel.jsx
 import { getContractList } from "../core/games/dobbelkingen/contracts";
 
 function pillStyle() {
@@ -30,8 +31,7 @@ function ContractCard({ c, onPick, plays = 0, disabled = false, reason = "" }) {
       }}
     >
       <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-        <div style={{ fontWeight: 800 }}>{c.label}</div>
-
+        <div style={{ fontWeight: 900 }}>{c.label}</div>
         <div style={{ marginLeft: "auto", fontSize: 12, opacity: 0.85 }}>
           ({plays}/2)
         </div>
@@ -40,18 +40,28 @@ function ContractCard({ c, onPick, plays = 0, disabled = false, reason = "" }) {
       <div style={{ opacity: 0.75, marginTop: 6, fontSize: 13 }}>{c.desc}</div>
 
       {disabled && reason ? (
-        <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700 }}>{reason}</div>
+        <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800 }}>{reason}</div>
       ) : null}
     </button>
   );
 }
 
 export function DobbelkingenPanel({ appState, onClose, onStart, onChooseContract }) {
-  const chooserName = appState.players?.[appState.chooserIndex]?.name ?? "Chooser";
-  const currentName = appState.players?.[appState.currentPlayerIndex]?.name ?? "-";
+  const d = appState.game?.dobbelkingen ?? null;
+
+  const chooserIndex = d?.chooserIndex ?? 0;
+  const leaderIndex = d?.leaderIndex ?? null;
+  const currentIndex = d?.currentPlayerIndex ?? null;
+  const contract = d?.contract ?? null;
+
+  const chooserName = appState.players?.[chooserIndex]?.name ?? "Chooser";
+  const leaderName =
+    typeof leaderIndex === "number" ? (appState.players?.[leaderIndex]?.name ?? "-") : "-";
+  const currentName =
+    typeof currentIndex === "number" ? (appState.players?.[currentIndex]?.name ?? "-") : "-";
 
   const contracts = getContractList();
-  const totals = appState.totalScores ?? [];
+  const totals = d?.totalScores ?? [];
 
   return (
     <div style={{ border: "1px solid #eee", borderRadius: 14, padding: 14 }}>
@@ -70,7 +80,10 @@ export function DobbelkingenPanel({ appState, onClose, onStart, onChooseContract
           Chooser: <b>{chooserName}</b>
         </div>
         <div style={pillStyle()}>
-          Contract: <b>{appState.contract ?? "-"}</b>
+          Contract: <b>{contract ?? "-"}</b>
+        </div>
+        <div style={pillStyle()}>
+          Leader: <b>{leaderName}</b>
         </div>
         <div style={pillStyle()}>
           Current: <b>{currentName}</b>
@@ -82,18 +95,19 @@ export function DobbelkingenPanel({ appState, onClose, onStart, onChooseContract
 
       {appState.phase === "DOBBELKINGEN_READY" && (
         <div style={{ marginTop: 12 }}>
-          <button onClick={onStart} style={{ fontWeight: 800 }}>
+          <button onClick={onStart} style={{ fontWeight: 900 }}>
             Start Dobbelkingen
           </button>
           <div style={{ opacity: 0.7, marginTop: 6, fontSize: 13 }}>
-            Eerst kiest {chooserName} een contract. Daarna komt de volgende speler uit.
+            Eerst kiest <b>{chooserName}</b> een contract. Daarna komt{" "}
+            <b>{leaderName}</b> uit.
           </div>
         </div>
       )}
 
       {appState.phase === "CHOOSING_CONTRACT" && (
         <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
-          <div style={{ fontWeight: 800 }}>{chooserName} kiest een spel:</div>
+          <div style={{ fontWeight: 900 }}>{chooserName} kiest een spel:</div>
 
           <div
             style={{
@@ -103,8 +117,8 @@ export function DobbelkingenPanel({ appState, onClose, onStart, onChooseContract
             }}
           >
             {contracts.map((c) => {
-              const plays = appState.contractPlays?.[c.id] ?? 0;
-              const disabledByRepeat = appState.lastContract === c.id;
+              const plays = d?.contractPlays?.[c.id] ?? 0;
+              const disabledByRepeat = d?.lastContract === c.id;
               const disabledByMax = plays >= 2;
               const disabled = disabledByRepeat || disabledByMax;
 
@@ -127,7 +141,7 @@ export function DobbelkingenPanel({ appState, onClose, onStart, onChooseContract
             })}
           </div>
 
-          {/* Tussenstand: totale score over alle gespeelde contracten */}
+          {/* Tussenstand */}
           <div style={{ marginTop: 14, border: "1px solid #eee", borderRadius: 14, padding: 12 }}>
             <div style={{ fontWeight: 900, marginBottom: 8 }}>Tussenstand</div>
 
@@ -146,7 +160,7 @@ export function DobbelkingenPanel({ appState, onClose, onStart, onChooseContract
                   <div>
                     <b>{p.name}</b>
                   </div>
-                  <div style={{ fontWeight: 800 }}>{totals[i] ?? 0}</div>
+                  <div style={{ fontWeight: 900 }}>{totals[i] ?? 0}</div>
                 </div>
               ))}
             </div>

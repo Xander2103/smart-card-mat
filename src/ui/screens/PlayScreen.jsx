@@ -4,6 +4,7 @@ import { Scoreboard } from "../Scoreboard";
 import { DebugLog } from "../DebugLog";
 import { GameModeCards } from "../GameModeCards";
 import { DobbelkingenPanel } from "../DobbelkingenPanel";
+import { useEffect, useMemo, useState } from "react";
 
 export function PlayScreen({
   appState,
@@ -18,28 +19,25 @@ export function PlayScreen({
   showDebug = true,
   onBackFromContract,
 
-  // mode flow
   onOpenDobbelkingen,
   onCloseMode,
   onStartDobbelkingen,
   onChooseDobbelkingenContract,
 }) {
-  const showModesHome = appState.phase === "HOME";
-  const showLobby =
-    appState.phase === "DOBBELKINGEN_READY" ||
-    appState.phase === "CHOOSING_CONTRACT";
-  const showGameUi = appState.phase === "PLAYING_TRICK";
+  // Dobbelkingen slice (single source)
+  const d = appState?.game?.dobbelkingen ?? null;
 
-  // ✅ Mat layout:
-  // 1 = linksboven, 2 = rechtsboven, 3 = rechtsonder, 4 = linksonder
-  // Grid is [TL, TR, BL, BR] -> dus we tonen zones in volgorde [1,2,4,3]
-  const DISPLAY_ZONES = [1, 2, 4, 3];
+  // screens
+  const showModesHome = appState?.phase === "HOME";
+  const showLobby = appState?.phase === "DOBBELKINGEN_READY" || appState?.phase === "CHOOSING_CONTRACT";
+  const showGameUi = appState?.phase === "PLAYING_TRICK";
 
+  // mat layout
+  const DISPLAY_ZONES = useMemo(() => [1, 2, 4, 3], []);
   const zonesForGrid = DISPLAY_ZONES.map((z) => zones?.[z - 1] ?? null);
   const cardNamesForGrid = DISPLAY_ZONES.map((z) => cardNames?.[z - 1] ?? null);
 
-  // ZoneGrid verwacht turnZone als "grid positie" (1..4)
-  // gameState.expectedZone is "echte zone" (1..4)
+  // expectedZone (real zone 1..4) -> grid pos 1..4
   const turnZoneForGrid = (() => {
     const real = gameState?.expectedZone ?? null;
     const idx = DISPLAY_ZONES.indexOf(real);
@@ -52,15 +50,34 @@ export function PlayScreen({
     onZoneClick?.(realZone);
   }
 
+  // ✅ last scanned glow (300ms) op de zone waar net bevestigd werd
+  const [glowZoneGridPos, setGlowZoneGridPos] = useState(null);
+
+  useEffect(() => {
+    const ct = d?.confirmedTurnCard ?? null;
+    if (!ct?.zone) return;
+
+    const realZone = ct.zone; // 1..4
+    const idx = DISPLAY_ZONES.indexOf(realZone);
+    const gridPos = idx >= 0 ? idx + 1 : null;
+    if (!gridPos) return;
+
+    setGlowZoneGridPos(gridPos);
+    const t = window.setTimeout(() => setGlowZoneGridPos(null), 320);
+    return () => window.clearTimeout(t);
+  }, [d?.confirmedTurnCard?.uid, d?.confirmedTurnCard?.zone, DISPLAY_ZONES]);
+
+  const uiContract = d?.contract ?? appState?.contract ?? "-";
+  const uiCurrentIndex = d?.currentPlayerIndex ?? appState?.currentPlayerIndex ?? 0;
+  const uiCurrentName = appState?.players?.[uiCurrentIndex]?.name ?? "-";
+
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      {/* A) HOME: alleen game modes */}
-      {showModesHome && (
-        <GameModeCards onOpenDobbelkingen={onOpenDobbelkingen} />
-      )}
+      {/* HOME */}
+      {showModesHome && <GameModeCards onOpenDobbelkingen={onOpenDobbelkingen} />}
 
-      {/* B) LOBBY: dobbelkingen panel (start + contract kiezen) */}
-      {showLobby && appState.activeMode === "DOBBELKINGEN" && (
+      {/* LOBBY */}
+      {showLobby && appState?.activeMode === "DOBBELKINGEN" && (
         <DobbelkingenPanel
           appState={appState}
           onClose={onCloseMode}
@@ -69,11 +86,10 @@ export function PlayScreen({
         />
       )}
 
-      {/* C) IN-GAME UI */}
+      {/* IN-GAME */}
       {showGameUi && (
         <>
-          {/* ERROR */}
-          {appState.lastError && (
+          {appState?.lastError && (
             <div
               style={{
                 border: "2px solid #ff4d4f",
@@ -90,12 +106,8 @@ export function PlayScreen({
               }}
             >
               <div>🚫 {appState.lastError}</div>
-
-              {/* (optioneel) als je later onClearError toevoegt */}
               <button
-                onClick={() => {
-                  // je kan hier later dispatchAction({type:"clear_error"}) aan hangen
-                }}
+                onClick={() => {}}
                 style={{
                   border: "1px solid #ff4d4f",
                   background: "white",
@@ -110,20 +122,9 @@ export function PlayScreen({
             </div>
           )}
 
-          {/* controls bar */}
           <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                flexWrap: "wrap",
-                alignItems: "center",
-              }}
-            >
-              <button
-                onClick={onConfirmTurn}
-                disabled={!gameState?.canConfirm || appState.autoConfirm}
-              >
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+              <button onClick={onConfirmTurn} disabled={!gameState?.canConfirm || appState?.autoConfirm}>
                 Confirm turn (manual)
               </button>
 
@@ -132,9 +133,7 @@ export function PlayScreen({
 
               <button
                 onClick={() => {
-                  const ok = window.confirm(
-                    "Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen."
-                  );
+                  const ok = window.confirm("Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen.");
                   if (ok) onBackFromContract?.();
                 }}
               >
@@ -142,42 +141,38 @@ export function PlayScreen({
               </button>
 
               <div style={{ marginLeft: "auto" }}>
-                Mode: <b>{appState.gameMode ?? "-"}</b> • Contract:{" "}
-                <b>{appState.contract ?? "-"}</b> • TurnZone:{" "}
-                <b>{turnZone ?? "-"}</b> • Current Player:{" "}
-                <b>{appState.players?.[appState.currentPlayerIndex]?.name ?? "-"}</b>
+                Mode: <b>{appState?.gameMode ?? "-"}</b> • Contract: <b>{uiContract}</b> • TurnZone:{" "}
+                <b>{turnZone ?? "-"}</b> • Current Player: <b>{uiCurrentName}</b>
               </div>
             </div>
           </div>
 
-          {/* zones (met 3/4 swap voor mat layout) */}
           <ZoneGrid
             zones={zonesForGrid}
-            zoneNumbers={DISPLAY_ZONES}     // ✅ dit maakt Zone 4 linksonder en Zone 3 rechtsonder
+            zoneNumbers={DISPLAY_ZONES}
             turnZone={turnZoneForGrid}
+            glowZone={glowZoneGridPos}
             cardNames={cardNamesForGrid}
             onZoneClick={handleGridClick}
           />
 
-          {/* scores */}
           <Scoreboard
-            players={appState.players}
-            scores={gameState.scores}
-            currentPlayerIndex={appState.currentPlayerIndex}
+            players={appState?.players ?? []}
+            scores={gameState?.scores ?? []}
+            currentPlayerIndex={uiCurrentIndex}
           />
 
           <div style={{ fontSize: 12, opacity: 0.8, marginTop: 6 }}>
             <b>Played cards:</b>{" "}
             <span style={{ fontFamily: "ui-monospace, Menlo, monospace" }}>
-              {(appState.usedCardCodes ?? []).slice(-20).join(" • ") || "-"}
+              {(d?.usedCardCodes ?? appState?.usedCardCodes ?? []).slice(-20).join(" • ") || "-"}
             </span>
           </div>
 
-          {/* debug */}
           {showDebug && (
             <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
               <h3 style={{ marginTop: 0 }}>Debug log</h3>
-              <DebugLog lines={appState.log} />
+              <DebugLog lines={appState?.log ?? []} />
             </div>
           )}
         </>

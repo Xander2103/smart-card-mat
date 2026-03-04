@@ -1,3 +1,4 @@
+// src/core/games/dobbelkingen/contracts/index.js
 import { minsteSlagen } from "./minsteSlagen";
 import { minsteHarten } from "./minsteHarten";
 import { geenHartenKoning } from "./geenHartenKoning";
@@ -22,7 +23,6 @@ export function getContract(contractId) {
   return CONTRACT_BY_ID[contractId] ?? null;
 }
 
-// helper die contract metadata geeft voor UI
 export function getContractList() {
   return DOBBELKINGEN_CONTRACTS.map(({ id, label, desc }) => ({ id, label, desc }));
 }
