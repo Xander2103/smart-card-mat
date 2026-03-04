@@ -23,8 +23,8 @@ export const minsteHarten = {
     return delta;
   },
 
-  // 🔴 NIEUW
-  shouldEndEarly({ trickHistory }) {
+  // EndEarly zodra er 13 harten zijn gespeeld (want dan zijn alle strafpunten al toegekend)
+  shouldEndEarly({ trickHistory }) {s
     let hearts = 0;
 
     for (const t of trickHistory ?? []) {

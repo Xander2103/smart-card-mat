@@ -3,6 +3,9 @@ import { determineTrickWinner } from "../../game/trickLogic";
 import { computeScoresFromTrickHistory } from "./scoring";
 import { CARD_BY_CODE } from "../../mapping/deck52";
 
+// ✅ nieuw: contract lookup
+import { getContract } from "./contracts";
+
 const LOG_MAX = 200;
 
 function pushLog(prevLog, raw) {
@@ -61,10 +64,13 @@ function getDobbelState(state) {
     contracts: [
       "MINSTE_SLAGEN",
       "MINSTE_HARTEN",
-      "GEEN_HARTEN_KONING",
+      "HARTEN_KONING",
       "MINSTE_BOEREN_KONINGEN",
       "GEEN_SLAG_7_13",
       "MINSTE_QUEENS",
+
+      // ✅ nieuw contract erbij (extra)
+      "HARTEN_KONING",
     ],
     contractPlays: {},
     lastContract: null,
@@ -123,6 +129,7 @@ export function reduceDobbelkingen(state, action) {
     const nextD = {
       ...d,
       contract: null,
+      lastResult: null,
       ...clearHandRuntimeFields(),
     };
 
@@ -160,6 +167,10 @@ export function reduceDobbelkingen(state, action) {
       contract,
       leaderIndex: leader,
       currentPlayerIndex: leader,
+
+      // ✅ belangrijk: banner/overlay reset zodra nieuw contract gekozen is
+      lastResult: null,
+
       ...clearHandRuntimeFields(),
     };
 
@@ -309,8 +320,12 @@ export function reduceDobbelkingen(state, action) {
       return setDobbelState({ ...state, lastError: null, log: nextLog }, nextD);
     }
 
+    
     // ✅ slag compleet
-    const winner = determineTrickWinner(nextTrick, d.contract);
+    const starterIndex =
+      typeof d.lastTrickWinnerIndex === "number" ? d.lastTrickWinnerIndex : d.leaderIndex;
+
+    const winner = determineTrickWinner(nextTrick, d.contract, starterIndex);
     if (!winner) return state;
 
     const winnerIndex = winner.playerIndex;
@@ -344,12 +359,15 @@ export function reduceDobbelkingen(state, action) {
     };
 
     // -------------------------
-    // ✅ EARLY STOP: MINSTE_HARTEN -> stop als 13 harten gespeeld
-    // (pas NA volledige slag)
+    // ✅ EARLY STOP:
+    // - behoud je MINSTE_HARTEN (zoals je had)
+    // - voeg GENERIC contract.shouldEndEarly support toe (boolean of object)
     // -------------------------
     let endEarly = false;
     let endEarlyReason = null;
+    let endEarlyMeta = null;
 
+    // 1) jouw bestaande MINSTE_HARTEN gedrag
     if (d.contract === "MINSTE_HARTEN") {
       const heartsPlayed = countHeartsInTrickHistory(baseAfterTrickD.trickHistory);
       nextLog = pushLog(nextLog, `HEARTS_PLAYED|${heartsPlayed}/13`);
@@ -357,6 +375,23 @@ export function reduceDobbelkingen(state, action) {
       if (heartsPlayed >= 13) {
         endEarly = true;
         endEarlyReason = "ALL_HEARTS_PLAYED";
+      }
+    }
+
+    // 2) generiek: contract zelf mag early-end bepalen (bv. HARTEN_KONING)
+    if (!endEarly) {
+      const impl = getContract(d.contract);
+      if (impl?.shouldEndEarly) {
+        const res = impl.shouldEndEarly({ trickHistory: baseAfterTrickD.trickHistory });
+
+        if (res === true) {
+          endEarly = true;
+          endEarlyReason = "ENDED_EARLY";
+        } else if (res && typeof res === "object") {
+          endEarly = !!res.endEarly;
+          endEarlyReason = res.reason ?? (endEarly ? "ENDED_EARLY" : null);
+          endEarlyMeta = res.meta ?? null;
+        }
       }
     }
 
@@ -386,8 +421,16 @@ export function reduceDobbelkingen(state, action) {
         contractScores,
         totalScores: nextTotal,
         endedEarly: endEarly,
-        endedEarlyReason: endEarlyReason, // "ALL_HEARTS_PLAYED" of null
+        endedEarlyReason: endEarlyReason, // bv "ALL_HEARTS_PLAYED" of "HEARTS_KING_PLAYED"
         timestamp: Date.now(),
+
+        // ✅ extra info voor HARTEN_KONING UI
+        endedByPlayerIndex:
+          endEarlyReason === "HEARTS_KING_PLAYED"
+            ? (baseAfterTrickD.lastTrickWinnerIndex ?? null)
+            : null,
+        endedByCard:
+          endEarlyReason === "HEARTS_KING_PLAYED" ? "KH" : null,
       };
 
       const nextPhase = anyContractLeft({

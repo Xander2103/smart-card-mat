@@ -1,15 +1,17 @@
 // src/core/games/dobbelkingen/contracts/index.js
+
 import { minsteSlagen } from "./minsteSlagen";
 import { minsteHarten } from "./minsteHarten";
-import { geenHartenKoning } from "./geenHartenKoning";
 import { minsteBoerenKoningen } from "./minsteBoerenKoningen";
 import { geenSlag713 } from "./geenSlag713";
 import { minsteQueens } from "./minsteQueens";
 
+import { hartenKoning } from "./HartenKoning";
+
 export const DOBBELKINGEN_CONTRACTS = [
   minsteSlagen,
   minsteHarten,
-  geenHartenKoning,
+  hartenKoning,
   minsteBoerenKoningen,
   geenSlag713,
   minsteQueens,

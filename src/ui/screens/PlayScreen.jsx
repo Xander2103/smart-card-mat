@@ -5,6 +5,8 @@ import { DebugLog } from "../DebugLog";
 import { GameModeCards } from "../GameModeCards";
 import { DobbelkingenPanel } from "../DobbelkingenPanel";
 import { TableDirection } from "../TableDirection";
+import { ContractEndOverlay } from "../ContractEndOverlay"; // ✅ toevoegen
+
 import { useEffect, useMemo, useState } from "react";
 
 export function PlayScreen({
@@ -38,13 +40,11 @@ export function PlayScreen({
     typeof d?.currentPlayerIndex === "number"
       ? d.currentPlayerIndex
       : typeof appState.currentPlayerIndex === "number"
-      ? appState.currentPlayerIndex
-      : 0;
+        ? appState.currentPlayerIndex
+        : 0;
 
-  const chooserName =
-    chooserIndex !== null ? players[chooserIndex]?.name ?? "-" : "-";
-  const leaderName =
-    leaderIndex !== null ? players[leaderIndex]?.name ?? "-" : "-";
+  const chooserName = chooserIndex !== null ? players[chooserIndex]?.name ?? "-" : "-";
+  const leaderName = leaderIndex !== null ? players[leaderIndex]?.name ?? "-" : "-";
   const currentName = players[currentIndex]?.name ?? "-";
 
   const contractId = d?.contract ?? null;
@@ -86,6 +86,7 @@ export function PlayScreen({
   // -------------------------
   const [trickToast, setTrickToast] = useState(null);
   const [flashWinnerIndex, setFlashWinnerIndex] = useState(null);
+  const [showContractOverlay, setShowContractOverlay] = useState(false);
 
   useEffect(() => {
     const winnerIdx = d?.lastTrickWinnerIndex;
@@ -110,21 +111,81 @@ export function PlayScreen({
     };
   }, [d?.lastTrick?.timestamp, d?.lastTrickWinnerIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // -------------------------
+  // ✅ Contract end overlay + banner (HARTEN_KONING)
+  // -------------------------
+  const endedReason = d?.lastResult?.endedEarlyReason ?? null;
+  const showHeartsKingEnded = endedReason === "HEARTS_KING_PLAYED";
+
+  useEffect(() => {
+    if (showHeartsKingEnded) {
+      setShowContractOverlay(true);
+
+      const t = setTimeout(() => {
+        setShowContractOverlay(false);
+      }, 2000);
+
+      return () => clearTimeout(t);
+    }
+  }, [showHeartsKingEnded]);
+
+  const endedByIndex =
+    typeof d?.lastResult?.endedByPlayerIndex === "number"
+      ? d.lastResult.endedByPlayerIndex
+      : null;
+
+  const endedByName =
+    endedByIndex !== null ? players?.[endedByIndex]?.name ?? `Player ${endedByIndex + 1}` : null;
+
+  const overlayTitle = "Harten Koning gespeeld 👑♥ — contract beëindigd";
+  const overlayMessage = endedByName
+    ? `${endedByName} krijgt -5`
+    : "Speler krijgt -5";
+
+  // banner enkel in contract chooser screen, en blijft staan tot nieuw contract gekozen wordt
+  const showChooserBanner = showLobby && appState.phase === "CHOOSING_CONTRACT" && showHeartsKingEnded;
+
   return (
     <div style={{ display: "grid", gap: 12 }}>
+      {/* ✅ overlay kan overal renderen; het sluit zichzelf na 2.5s */}
+      <ContractEndOverlay
+        open={showHeartsKingEnded}
+        title={overlayTitle}
+        message={overlayMessage}
+        onClose={() => {setShowContractOverlay(false)
+          // overlay sluit automatisch, we doen hier bewust niets.
+          // banner blijft staan tot nieuw contract gekozen wordt (choose_contract wist lastResult).
+        }}
+      />
+
       {/* A) HOME: alleen game modes */}
-      {showModesHome && (
-        <GameModeCards onOpenDobbelkingen={onOpenDobbelkingen} />
-      )}
+      {showModesHome && <GameModeCards onOpenDobbelkingen={onOpenDobbelkingen} />}
 
       {/* B) LOBBY: dobbelkingen panel */}
       {showLobby && appState.activeMode === "DOBBELKINGEN" && (
-        <DobbelkingenPanel
-          appState={appState}
-          onClose={onCloseMode}
-          onStart={onStartDobbelkingen}
-          onChooseContract={onChooseDobbelkingenContract}
-        />
+        <>
+          {/* ✅ banner blijft zichtbaar in chooser tot je nieuw contract kiest */}
+          {showChooserBanner && (
+            <div
+              style={{
+                border: "1px solid #ffe58f",
+                background: "#fffbe6",
+                borderRadius: 14,
+                padding: "12px 14px",
+                fontWeight: 900,
+              }}
+            >
+              ❤️‍🔥 {overlayTitle} — {overlayMessage}
+            </div>
+          )}
+
+          <DobbelkingenPanel
+            appState={appState}
+            onClose={onCloseMode}
+            onStart={onStartDobbelkingen}
+            onChooseContract={onChooseDobbelkingenContract}
+          />
+        </>
       )}
 
       {/* C) IN-GAME UI */}
@@ -222,10 +283,7 @@ export function PlayScreen({
           )}
 
           {/* ✅ Grote UX: tafel view (wie zit waar + turn pulse) */}
-          <TableDirection
-            players={players}
-            currentPlayerIndex={currentIndex}
-          />
+          <TableDirection players={players} currentPlayerIndex={currentIndex} />
 
           {/* zones */}
           <ZoneGrid
