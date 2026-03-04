@@ -5,7 +5,7 @@ import { DebugLog } from "../DebugLog";
 import { GameModeCards } from "../GameModeCards";
 import { DobbelkingenPanel } from "../DobbelkingenPanel";
 import { TableDirection } from "../TableDirection";
-import { ContractEndOverlay } from "../ContractEndOverlay"; // ✅ toevoegen
+import { ContractEndOverlay } from "../ContractEndOverlay";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -27,6 +27,9 @@ export function PlayScreen({
   onCloseMode,
   onStartDobbelkingen,
   onChooseDobbelkingenContract,
+
+  // action dispatcher voor overlay close
+  dispatchAction,
 }) {
   // -------------------------
   // Dobbelkingen slice (1 bron)
@@ -40,14 +43,63 @@ export function PlayScreen({
     typeof d?.currentPlayerIndex === "number"
       ? d.currentPlayerIndex
       : typeof appState.currentPlayerIndex === "number"
-        ? appState.currentPlayerIndex
-        : 0;
+      ? appState.currentPlayerIndex
+      : 0;
 
-  const chooserName = chooserIndex !== null ? players[chooserIndex]?.name ?? "-" : "-";
-  const leaderName = leaderIndex !== null ? players[leaderIndex]?.name ?? "-" : "-";
   const currentName = players[currentIndex]?.name ?? "-";
-
   const contractId = d?.contract ?? null;
+
+  // -------------------------
+  // Contract end overlay + chooser banner
+  // -------------------------
+  const endedReason = d?.lastResult?.endedEarlyReason ?? null;
+
+  // who got the penalty (used by HEARTS_KING overlay)
+  const endedByIndex =
+    typeof d?.lastResult?.endedByPlayerIndex === "number"
+      ? d.lastResult.endedByPlayerIndex
+      : null;
+
+  const endedByName =
+    endedByIndex !== null ? players?.[endedByIndex]?.name ?? `Player ${endedByIndex + 1}` : null;
+
+  // reasons
+  const isHeartsKingEnded = endedReason === "HEARTS_KING_PLAYED";
+  const isAllJkEnded = endedReason === "ALL_JK_PLAYED";
+  const isAllQueensEnded = endedReason === "ALL_QUEENS_PLAYED";
+
+  // overlay visible only in PLAYING_TRICK and can be closed with OK
+  const showContractOverlay =
+    (isHeartsKingEnded || isAllJkEnded || isAllQueensEnded) &&
+    appState.phase === "PLAYING_TRICK" &&
+    d?.lastResult?.overlayClosed !== true;
+
+  // overlay text
+  const overlayTitle = isHeartsKingEnded
+    ? "Harten Koning gespeeld 👑♥ — contract beëindigd"
+    : isAllJkEnded
+    ? "Alle boeren & koningen gespeeld 👑🃏 — contract beëindigd"
+    : "Alle queens gespeeld 👑👑 — contract beëindigd";
+
+  const overlayMessage = isHeartsKingEnded
+    ? endedByName
+      ? `${endedByName} krijgt -5`
+      : "Speler krijgt -5"
+    : isAllJkEnded
+    ? "Alle J & K zijn gevallen — terug naar contract keuze"
+    : "Alle 4 queens zijn gevallen — terug naar contract keuze";
+
+  // banner in chooser stays until a new contract is chosen (because lastResult stays)
+  const showChooserBanner =
+    (appState.phase === "CHOOSING_CONTRACT" || appState.phase === "DOBBELKINGEN_READY") &&
+    appState.activeMode === "DOBBELKINGEN" &&
+    (isHeartsKingEnded || isAllJkEnded || isAllQueensEnded);
+
+  const chooserBannerText = isHeartsKingEnded
+    ? `❤️‍🔥 ${overlayTitle} — ${overlayMessage}`
+    : isAllJkEnded
+    ? `🃏 ${overlayTitle} — ${overlayMessage}`
+    : `👑 ${overlayTitle} — ${overlayMessage}`;
 
   // -------------------------
   // Screens
@@ -86,7 +138,6 @@ export function PlayScreen({
   // -------------------------
   const [trickToast, setTrickToast] = useState(null);
   const [flashWinnerIndex, setFlashWinnerIndex] = useState(null);
-  const [showContractOverlay, setShowContractOverlay] = useState(false);
 
   useEffect(() => {
     const winnerIdx = d?.lastTrickWinnerIndex;
@@ -111,51 +162,14 @@ export function PlayScreen({
     };
   }, [d?.lastTrick?.timestamp, d?.lastTrickWinnerIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // -------------------------
-  // ✅ Contract end overlay + banner (HARTEN_KONING)
-  // -------------------------
-  const endedReason = d?.lastResult?.endedEarlyReason ?? null;
-  const showHeartsKingEnded = endedReason === "HEARTS_KING_PLAYED";
-
-  useEffect(() => {
-    if (showHeartsKingEnded) {
-      setShowContractOverlay(true);
-
-      const t = setTimeout(() => {
-        setShowContractOverlay(false);
-      }, 2000);
-
-      return () => clearTimeout(t);
-    }
-  }, [showHeartsKingEnded]);
-
-  const endedByIndex =
-    typeof d?.lastResult?.endedByPlayerIndex === "number"
-      ? d.lastResult.endedByPlayerIndex
-      : null;
-
-  const endedByName =
-    endedByIndex !== null ? players?.[endedByIndex]?.name ?? `Player ${endedByIndex + 1}` : null;
-
-  const overlayTitle = "Harten Koning gespeeld 👑♥ — contract beëindigd";
-  const overlayMessage = endedByName
-    ? `${endedByName} krijgt -5`
-    : "Speler krijgt -5";
-
-  // banner enkel in contract chooser screen, en blijft staan tot nieuw contract gekozen wordt
-  const showChooserBanner = showLobby && appState.phase === "CHOOSING_CONTRACT" && showHeartsKingEnded;
-
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      {/* ✅ overlay kan overal renderen; het sluit zichzelf na 2.5s */}
+      {/* Overlay: OK sluit hem */}
       <ContractEndOverlay
-        open={showHeartsKingEnded}
+        open={showContractOverlay}
         title={overlayTitle}
         message={overlayMessage}
-        onClose={() => {setShowContractOverlay(false)
-          // overlay sluit automatisch, we doen hier bewust niets.
-          // banner blijft staan tot nieuw contract gekozen wordt (choose_contract wist lastResult).
-        }}
+        onClose={() => dispatchAction?.({ type: "close_contract_overlay" })}
       />
 
       {/* A) HOME: alleen game modes */}
@@ -164,7 +178,7 @@ export function PlayScreen({
       {/* B) LOBBY: dobbelkingen panel */}
       {showLobby && appState.activeMode === "DOBBELKINGEN" && (
         <>
-          {/* ✅ banner blijft zichtbaar in chooser tot je nieuw contract kiest */}
+          {/* banner in chooser blijft staan tot nieuw contract gekozen */}
           {showChooserBanner && (
             <div
               style={{
@@ -175,7 +189,7 @@ export function PlayScreen({
                 fontWeight: 900,
               }}
             >
-              ❤️‍🔥 {overlayTitle} — {overlayMessage}
+              {chooserBannerText}
             </div>
           )}
 
@@ -266,7 +280,7 @@ export function PlayScreen({
             </div>
           </div>
 
-          {/* ✅ Slag toast */}
+          {/* Slag toast */}
           {trickToast && (
             <div
               key={trickToast.key}
@@ -282,7 +296,7 @@ export function PlayScreen({
             </div>
           )}
 
-          {/* ✅ Grote UX: tafel view (wie zit waar + turn pulse) */}
+          {/* Tafel view */}
           <TableDirection players={players} currentPlayerIndex={currentIndex} />
 
           {/* zones */}
