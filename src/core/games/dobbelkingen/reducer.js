@@ -1,11 +1,12 @@
 // src/core/games/dobbelkingen/reducer.js
 import { determineTrickWinner } from "../../game/trickLogic";
 import { computeScoresFromTrickHistory } from "./scoring";
+import { CARD_BY_CODE } from "../../mapping/deck52";
 
 const LOG_MAX = 200;
 
 function pushLog(prevLog, raw) {
-  const next = [raw, ...(prevLog ?? [])];
+  const next = [raw, ...(prevLog ?? [])]; // newest-first
   return next.length > LOG_MAX ? next.slice(0, LOG_MAX) : next;
 }
 
@@ -24,8 +25,8 @@ function hasPlayedContractTwice(d, contract) {
 
 function canPickContract(d, contract) {
   if (!contract) return false;
-  if (d.lastContract === contract) return false;
-  if (hasPlayedContractTwice(d, contract)) return false;
+  if (d.lastContract === contract) return false; // niet 2x na elkaar
+  if (hasPlayedContractTwice(d, contract)) return false; // max 2x
   return true;
 }
 
@@ -79,15 +80,51 @@ function setDobbelState(state, nextDobbel) {
   return { ...state, game: { ...(state.game ?? {}), dobbelkingen: nextDobbel } };
 }
 
+// -------------------------
+// ✅ Hearts helpers (fixed for codes like "AH", "6H", "10H")
+// -------------------------
+function isHeartCode(code) {
+  if (!code) return false;
+
+  const s = String(code).trim().toUpperCase();
+
+  // meest voorkomende: AH, 6H, 10H, QH, KH ...
+  if (s.endsWith("H")) return true;
+
+  // extra fallbacks (moest je ooit andere formats gebruiken)
+  if (s.includes("HEART") || s.includes("HART")) return true;
+  if (s.includes("♥")) return true;
+
+  return false;
+}
+
+function countHeartsInTrickHistory(trickHistory) {
+  let n = 0;
+  for (const t of trickHistory ?? []) {
+    for (const p of t?.plays ?? []) {
+      if (isHeartCode(p?.card)) n++;
+    }
+  }
+  return n;
+}
+
 export function reduceDobbelkingen(state, action) {
-  // jouw rootRouter gebruikt phase/activeMode, dus check niet op modeId
+  if (state.modeId !== "dobbelkingen") return state;
+
   const d = getDobbelState(state);
 
-  // START
+  // ---------------------------
+  // FLOW: start / choose / abort
+  // ---------------------------
+
   if (action.type === "start_dobbelkingen") {
     const chooser = d.chooserIndex ?? 0;
 
-    const nextD = { ...d, contract: null, ...clearHandRuntimeFields() };
+    const nextD = {
+      ...d,
+      contract: null,
+      ...clearHandRuntimeFields(),
+    };
 
     return setDobbelState(
       {
@@ -100,7 +137,6 @@ export function reduceDobbelkingen(state, action) {
     );
   }
 
-  // CHOOSE CONTRACT
   if (action.type === "choose_contract") {
     if (state.phase !== "CHOOSING_CONTRACT") return state;
 
@@ -139,11 +175,14 @@ export function reduceDobbelkingen(state, action) {
     );
   }
 
-  // ABORT CONTRACT
   if (action.type === "abort_contract") {
     if (state.phase !== "PLAYING_TRICK") return state;
 
-    const nextD = { ...d, contract: null, ...clearHandRuntimeFields() };
+    const nextD = {
+      ...d,
+      contract: null,
+      ...clearHandRuntimeFields(),
+    };
 
     return setDobbelState(
       {
@@ -156,7 +195,10 @@ export function reduceDobbelkingen(state, action) {
     );
   }
 
-  // UNDO
+  // ---------------------------
+  // UNDO / RESET
+  // ---------------------------
+
   if (action.type === "undo_last_play") {
     const pile = d.pile ?? [];
     if (pile.length === 0) return state;
@@ -195,7 +237,6 @@ export function reduceDobbelkingen(state, action) {
     );
   }
 
-  // RESET PILE
   if (action.type === "reset_pile") {
     const nextD = {
       ...d,
@@ -213,7 +254,10 @@ export function reduceDobbelkingen(state, action) {
     );
   }
 
-  // CONFIRM TURN
+  // ---------------------------
+  // GAMEPLAY: confirm_turn
+  // ---------------------------
+
   if (action.type === "confirm_turn") {
     if (state.phase !== "PLAYING_TRICK") return state;
 
@@ -228,7 +272,6 @@ export function reduceDobbelkingen(state, action) {
     const card = state.mapping?.[uid] ?? null;
     if (!card) return state;
 
-    // duplicate in contract
     if (d.usedCardSet?.[card]) {
       return {
         ...state,
@@ -237,7 +280,6 @@ export function reduceDobbelkingen(state, action) {
       };
     }
 
-    // player already played this trick
     if ((d.currentTrick ?? []).some((p) => p.playerIndex === d.currentPlayerIndex)) {
       return state;
     }
@@ -250,117 +292,147 @@ export function reduceDobbelkingen(state, action) {
     const nextUsedCodes = [...(d.usedCardCodes ?? []), card];
     const nextUsedSet = { ...(d.usedCardSet ?? {}), [card]: true };
 
-    // default next player if trick not complete
     let nextPlayerIndex = (d.currentPlayerIndex + 1) % playersCount;
 
-    // ✅ TRICK COMPLETE
-    if (nextTrick.length === playersCount) {
-      const winner = determineTrickWinner(nextTrick, d.contract);
-      if (!winner) return state;
-
-      const winnerIndex = winner.playerIndex;
-      const nextTricksPlayed = (d.tricksPlayedInContract ?? 0) + 1;
-
-      nextLog = pushLog(nextLog, `TRICK_WIN|P${winnerIndex}`);
-      nextLog = pushLog(nextLog, `TRICKS_IN_CONTRACT|${nextTricksPlayed}/13`);
-
-      const trickResult = {
-        id: (d.trickHistory?.length ?? 0) + 1,
-        contract: d.contract,
-        plays: nextTrick,
-        winnerIndex,
-        timestamp: Date.now(),
-      };
-
-      nextPlayerIndex = winnerIndex;
-
-      const baseAfterTrickD = {
+    // ✅ slag nog NIET compleet
+    if (nextTrick.length !== playersCount) {
+      const nextD = {
         ...d,
         confirmedTurnCard: played,
         pile: [...(d.pile ?? []), played],
-        currentTrick: [],
+        currentTrick: nextTrick,
         currentPlayerIndex: nextPlayerIndex,
-        trickHistory: [...(d.trickHistory ?? []), trickResult],
-        lastTrick: trickResult,
-        lastTrickWinnerIndex: winnerIndex,
         usedCardCodes: nextUsedCodes,
         usedCardSet: nextUsedSet,
-        tricksPlayedInContract: nextTricksPlayed,
       };
 
-      // ✅ contract ends only after 13 tricks (no early-stop)
-      const contractDone = nextTricksPlayed >= 13;
-
-      if (contractDone) {
-        const nextChooser = clampIndex((d.chooserIndex ?? 0) + 1, playersCount);
-
-        const contractScores = computeScoresFromTrickHistory(baseAfterTrickD.trickHistory, playersCount);
-
-        const prevTotal = d.totalScores ?? Array(playersCount).fill(0);
-        const nextTotal = Array.from(
-          { length: playersCount },
-          (_, i) => (prevTotal[i] ?? 0) + (contractScores[i] ?? 0)
-        );
-
-        const lastResult = {
-          contract: d.contract,
-          contractScores,
-          totalScores: nextTotal,
-          timestamp: Date.now(),
-        };
-
-        const nextPhase = anyContractLeft({
-          ...d,
-          contractPlays: inc(d.contractPlays, d.contract),
-          lastContract: d.contract,
-        })
-          ? "CHOOSING_CONTRACT"
-          : "DOBBELKINGEN_DONE";
-
-        const nextD = {
-          ...d,
-          contractPlays: inc(d.contractPlays, d.contract),
-          lastContract: d.contract,
-          contract: null,
-
-          chooserIndex: nextChooser,
-          leaderIndex: 0,
-          currentPlayerIndex: nextChooser,
-
-          totalScores: nextTotal,
-          lastResult,
-
-          ...clearHandRuntimeFields(),
-        };
-
-        return setDobbelState(
-          {
-            ...state,
-            phase: nextPhase,
-            lastError: null,
-            turnZone: null,
-            log: pushLog(nextLog, `CONTRACT_END|TRICKS=13|NEXT_CHOOSER=P${nextChooser}`),
-          },
-          nextD
-        );
-      }
-
-      // continue contract
-      return setDobbelState({ ...state, lastError: null, log: nextLog }, baseAfterTrickD);
+      return setDobbelState({ ...state, lastError: null, log: nextLog }, nextD);
     }
 
-    // ✅ TRICK NOT COMPLETE
-    const nextD = {
+    // ✅ slag compleet
+    const winner = determineTrickWinner(nextTrick, d.contract);
+    if (!winner) return state;
+
+    const winnerIndex = winner.playerIndex;
+    const nextTricksPlayed = (d.tricksPlayedInContract ?? 0) + 1;
+
+    nextLog = pushLog(nextLog, `TRICK_WIN|P${winnerIndex}`);
+    nextLog = pushLog(nextLog, `TRICKS_IN_CONTRACT|${nextTricksPlayed}/13`);
+
+    const trickResult = {
+      id: (d.trickHistory?.length ?? 0) + 1,
+      contract: d.contract,
+      plays: nextTrick,
+      winnerIndex,
+      timestamp: Date.now(),
+    };
+
+    nextPlayerIndex = winnerIndex;
+
+    const baseAfterTrickD = {
       ...d,
       confirmedTurnCard: played,
       pile: [...(d.pile ?? []), played],
-      currentTrick: nextTrick,
+      currentTrick: [],
       currentPlayerIndex: nextPlayerIndex,
+      trickHistory: [...(d.trickHistory ?? []), trickResult],
+      lastTrick: trickResult,
+      lastTrickWinnerIndex: winnerIndex,
       usedCardCodes: nextUsedCodes,
       usedCardSet: nextUsedSet,
+      tricksPlayedInContract: nextTricksPlayed,
     };
 
-    return setDobbelState({ ...state, lastError: null, log: nextLog }, nextD);
+    // -------------------------
+    // ✅ EARLY STOP: MINSTE_HARTEN -> stop als 13 harten gespeeld
+    // (pas NA volledige slag)
+    // -------------------------
+    let endEarly = false;
+    let endEarlyReason = null;
+
+    if (d.contract === "MINSTE_HARTEN") {
+      const heartsPlayed = countHeartsInTrickHistory(baseAfterTrickD.trickHistory);
+      nextLog = pushLog(nextLog, `HEARTS_PLAYED|${heartsPlayed}/13`);
+
+      if (heartsPlayed >= 13) {
+        endEarly = true;
+        endEarlyReason = "ALL_HEARTS_PLAYED";
+      }
+    }
+
+    nextLog = pushLog(
+      nextLog,
+      `END_EARLY|${d.contract}|${endEarly ? "YES" : "NO"}|${endEarlyReason ?? "-"}`
+    );
+
+    const contractDone = nextTricksPlayed >= 13 || endEarly;
+
+    if (contractDone) {
+      const nextChooser = clampIndex((d.chooserIndex ?? 0) + 1, playersCount);
+
+      const contractScores = computeScoresFromTrickHistory(
+        baseAfterTrickD.trickHistory,
+        playersCount
+      );
+
+      const prevTotal = d.totalScores ?? Array(playersCount).fill(0);
+      const nextTotal = Array.from(
+        { length: playersCount },
+        (_, i) => (prevTotal[i] ?? 0) + (contractScores[i] ?? 0)
+      );
+
+      const lastResult = {
+        contract: d.contract,
+        contractScores,
+        totalScores: nextTotal,
+        endedEarly: endEarly,
+        endedEarlyReason: endEarlyReason, // "ALL_HEARTS_PLAYED" of null
+        timestamp: Date.now(),
+      };
+
+      const nextPhase = anyContractLeft({
+        ...d,
+        contractPlays: inc(d.contractPlays, d.contract),
+        lastContract: d.contract,
+      })
+        ? "CHOOSING_CONTRACT"
+        : "DOBBELKINGEN_DONE";
+
+      const nextD = {
+        ...d,
+        contractPlays: inc(d.contractPlays, d.contract),
+        lastContract: d.contract,
+        contract: null,
+
+        chooserIndex: nextChooser,
+        leaderIndex: 0,
+        currentPlayerIndex: nextChooser,
+
+        totalScores: nextTotal,
+        lastResult,
+
+        ...clearHandRuntimeFields(),
+      };
+
+      return setDobbelState(
+        {
+          ...state,
+          phase: nextPhase,
+          lastError: null,
+          turnZone: null,
+          log: pushLog(
+            nextLog,
+            endEarly
+              ? `CONTRACT_END_EARLY|${lastResult.contract}|${endEarlyReason}|NEXT_CHOOSER=P${nextChooser}`
+              : `CONTRACT_END|TRICKS=13|NEXT_CHOOSER=P${nextChooser}`
+          ),
+        },
+        nextD
+      );
+    }
+
+    // contract loopt verder
+    return setDobbelState({ ...state, lastError: null, log: nextLog }, baseAfterTrickD);
   }
 
   return state;
