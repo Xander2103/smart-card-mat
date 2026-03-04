@@ -4,7 +4,7 @@ import { Scoreboard } from "../Scoreboard";
 import { DebugLog } from "../DebugLog";
 import { GameModeCards } from "../GameModeCards";
 import { DobbelkingenPanel } from "../DobbelkingenPanel";
-import { ContractEndOverlay } from "../ContractEndOverlay";
+import { TableDirection } from "../TableDirection";
 import { useEffect, useMemo, useState } from "react";
 
 export function PlayScreen({
@@ -26,41 +26,53 @@ export function PlayScreen({
   onStartDobbelkingen,
   onChooseDobbelkingenContract,
 }) {
-  // ---- dobbelkingen slice ----
+  // -------------------------
+  // Dobbelkingen slice (1 bron)
+  // -------------------------
   const d = appState.game?.dobbelkingen ?? null;
-
   const players = appState.players ?? [];
 
   const chooserIndex = typeof d?.chooserIndex === "number" ? d.chooserIndex : null;
   const leaderIndex = typeof d?.leaderIndex === "number" ? d.leaderIndex : null;
-  const currentIndex = typeof d?.currentPlayerIndex === "number" ? d.currentPlayerIndex : null;
+  const currentIndex =
+    typeof d?.currentPlayerIndex === "number"
+      ? d.currentPlayerIndex
+      : typeof appState.currentPlayerIndex === "number"
+      ? appState.currentPlayerIndex
+      : 0;
 
   const chooserName =
-    chooserIndex !== null ? (players[chooserIndex]?.name ?? "-") : "-";
+    chooserIndex !== null ? players[chooserIndex]?.name ?? "-" : "-";
   const leaderName =
-    leaderIndex !== null ? (players[leaderIndex]?.name ?? "-") : "-";
-  const currentName =
-    currentIndex !== null ? (players[currentIndex]?.name ?? "-") : "-";
+    leaderIndex !== null ? players[leaderIndex]?.name ?? "-" : "-";
+  const currentName = players[currentIndex]?.name ?? "-";
 
-  const contractId = d?.contract ?? appState.contract ?? null;
+  const contractId = d?.contract ?? null;
 
-  // ---- screens ----
+  // -------------------------
+  // Screens
+  // -------------------------
   const showModesHome = appState.phase === "HOME";
   const showLobby =
-    appState.phase === "DOBBELKINGEN_READY" ||
-    appState.phase === "CHOOSING_CONTRACT";
+    appState.phase === "DOBBELKINGEN_READY" || appState.phase === "CHOOSING_CONTRACT";
   const showGameUi = appState.phase === "PLAYING_TRICK";
 
-  // ✅ Mat layout: [1,2,4,3]
+  // -------------------------
+  // Mat layout (zone mapping)
+  // -------------------------
+  // Mat layout:
+  // Zone 1 = linksboven, Zone 2 = rechtsboven, Zone 4 = linksonder, Zone 3 = rechtsonder
   const DISPLAY_ZONES = useMemo(() => [1, 2, 4, 3], []);
+
   const zonesForGrid = DISPLAY_ZONES.map((z) => zones?.[z - 1] ?? null);
   const cardNamesForGrid = DISPLAY_ZONES.map((z) => cardNames?.[z - 1] ?? null);
 
-  // ZoneGrid verwacht turnZone als "grid positie" (1..4)
+  // ZoneGrid verwacht turnZone als gridPos (1..4)
+  // gameState.expectedZone is echte zone (1..4)
   const turnZoneForGrid = (() => {
-    const real = gameState?.expectedZone ?? null; // echte zone 1..4
+    const real = gameState?.expectedZone ?? null;
     const idx = DISPLAY_ZONES.indexOf(real);
-    return idx >= 0 ? idx + 1 : null; // grid pos 1..4
+    return idx >= 0 ? idx + 1 : null;
   })();
 
   function handleGridClick(gridPos) {
@@ -69,34 +81,37 @@ export function PlayScreen({
     onZoneClick?.(realZone);
   }
 
-  // -------------------------------------------
-  // ✅ Overlay: einde MINSTE_HARTEN bij 13 harten
-  // -------------------------------------------
-  const [overlayOpen, setOverlayOpen] = useState(false);
-  const [overlayKey, setOverlayKey] = useState(null);
+  // -------------------------
+  // Slag indicator (toast + scoreboard flash)
+  // -------------------------
+  const [trickToast, setTrickToast] = useState(null);
+  const [flashWinnerIndex, setFlashWinnerIndex] = useState(null);
 
   useEffect(() => {
-    const r = d?.lastResult ?? null;
-    if (!r) return;
+    const winnerIdx = d?.lastTrickWinnerIndex;
+    const ts = d?.lastTrick?.timestamp ?? null;
+    if (typeof winnerIdx !== "number" || !ts) return;
 
-    if (r.endedEarlyReason === "ALL_HEARTS_PLAYED") {
-      const key = `hearts-${r.timestamp ?? Date.now()}`;
-      if (overlayKey === key) return; // al getoond
+    const name = players?.[winnerIdx]?.name ?? `Player ${winnerIdx + 1}`;
 
-      setOverlayKey(key);
-      setOverlayOpen(true);
-    }
-  }, [d?.lastResult?.timestamp, d?.lastResult?.endedEarlyReason, overlayKey]);
+    setTrickToast({
+      key: `trick-${ts}`,
+      title: `🏆 ${name} wint de slag`,
+    });
+
+    setFlashWinnerIndex(winnerIdx);
+
+    const t1 = window.setTimeout(() => setTrickToast(null), 1200);
+    const t2 = window.setTimeout(() => setFlashWinnerIndex(null), 800);
+
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [d?.lastTrick?.timestamp, d?.lastTrickWinnerIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      <ContractEndOverlay
-        open={overlayOpen}
-        title="Alle harten zijn gespeeld ❤️"
-        message="Dit contract stopt automatisch. Kies het volgende contract om door te spelen."
-        onClose={() => setOverlayOpen(false)}
-      />
-
       {/* A) HOME: alleen game modes */}
       {showModesHome && (
         <GameModeCards onOpenDobbelkingen={onOpenDobbelkingen} />
@@ -133,7 +148,6 @@ export function PlayScreen({
               }}
             >
               <div>🚫 {appState.lastError}</div>
-
               <button
                 onClick={() => {
                   // optioneel later: dispatchAction({type:"clear_error"})
@@ -185,12 +199,33 @@ export function PlayScreen({
 
               <div style={{ marginLeft: "auto" }}>
                 Mode: <b>{appState.gameMode ?? "-"}</b> • Contract:{" "}
-                <b>{contractId ?? "-"}</b> • Chooser: <b>{chooserName}</b> • Leader:{" "}
-                <b>{leaderName}</b> • Current: <b>{currentName}</b> • TurnZone:{" "}
-                <b>{turnZone ?? "-"}</b>
+                <b>{contractId ?? "-"}</b> • TurnZone: <b>{turnZone ?? "-"}</b> • Current:{" "}
+                <b>{currentName}</b>
               </div>
             </div>
           </div>
+
+          {/* ✅ Slag toast */}
+          {trickToast && (
+            <div
+              key={trickToast.key}
+              style={{
+                border: "1px solid #d9f7be",
+                background: "#f6ffed",
+                borderRadius: 14,
+                padding: "10px 12px",
+                fontWeight: 900,
+              }}
+            >
+              {trickToast.title}
+            </div>
+          )}
+
+          {/* ✅ Grote UX: tafel view (wie zit waar + turn pulse) */}
+          <TableDirection
+            players={players}
+            currentPlayerIndex={currentIndex}
+          />
 
           {/* zones */}
           <ZoneGrid
@@ -201,11 +236,12 @@ export function PlayScreen({
             onZoneClick={handleGridClick}
           />
 
-          {/* scores */}
+          {/* scores + highlight winner */}
           <Scoreboard
             players={players}
             scores={gameState?.scores ?? []}
-            currentPlayerIndex={currentIndex ?? 0}
+            currentPlayerIndex={currentIndex}
+            flashWinnerIndex={flashWinnerIndex}
           />
 
           <div style={{ fontSize: 12, opacity: 0.8, marginTop: 6 }}>

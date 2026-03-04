@@ -83,6 +83,8 @@ export default function App() {
   }
 
   // ✅ serial line -> applyRootEvent + optional auto-confirm delay
+  const AUTO_CONFIRM_DELAY_MS = 400; // 300-400ms naar smaak
+
   function handleLine(line) {
     const cleaned = (line ?? "").trim();
     if (!cleaned) return;
@@ -91,13 +93,13 @@ export default function App() {
     if (!ev) return;
 
     setAppState((prev) => {
-      const s = applyRootEvent(prev, ev);
+      let s = applyRootEvent(prev, ev);
 
-      // ✅ auto-confirm: alleen tijdens spelen, enkel op "placed"
+      // auto-confirm: enkel tijdens spelen
       if (s.phase === "PLAYING_TRICK" && s.autoConfirm && ev.type === "placed") {
         window.setTimeout(() => {
-          setAppState((p2) => rootReducer(p2, { type: "confirm_turn" }));
-        }, 250); // kleine delay zodat scan "zichtbaar" is
+          setAppState((prev2) => rootReducer(prev2, { type: "confirm_turn" }));
+        }, AUTO_CONFIRM_DELAY_MS);
       }
 
       return s;
