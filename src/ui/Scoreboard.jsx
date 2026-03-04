@@ -1,45 +1,145 @@
 // src/ui/Scoreboard.jsx
+import { useMemo, useState } from "react";
+
+function IconButton({ title, onClick, children }) {
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      style={{
+        border: "1px solid #eee",
+        background: "white",
+        borderRadius: 10,
+        padding: "6px 10px",
+        cursor: "pointer",
+        fontWeight: 900,
+        lineHeight: 1,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SmallBtn({ children, onClick, title }) {
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      style={{
+        border: "1px solid #ddd",
+        background: "white",
+        borderRadius: 10,
+        padding: "6px 10px",
+        cursor: "pointer",
+        fontWeight: 900,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function Scoreboard({
   players = [],
   scores = [],
   currentPlayerIndex = 0,
-  flashWinnerIndex = null, // ✅ nieuw
+  flashWinnerIndex = null,
+
+  onAdjustScore,
+  allowEdit = true,
+  showPlusMinusFive = false,
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+
+  const rows = useMemo(() => {
+    return players.map((p, i) => ({
+      key: p.id ?? i,
+      name: p?.name ?? `Player ${i + 1}`,
+      score: scores?.[i] ?? 0,
+      isCurrent: i === currentPlayerIndex,
+      isFlash: typeof flashWinnerIndex === "number" && i === flashWinnerIndex,
+    }));
+  }, [players, scores, currentPlayerIndex, flashWinnerIndex]);
+
   return (
     <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
-      <div style={{ fontWeight: 700, marginBottom: 8 }}>Scores</div>
+      {/* header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          position: "relative",
+          marginBottom: 10,
+        }}
+      >
+        <div style={{ fontWeight: 900, fontSize: 18 }}>Tussenstand</div>
 
-      <div style={{ display: "grid", rowGap: 8 }}>
-        {players.map((p, i) => {
-          const isCurrent = i === currentPlayerIndex;
-          const isFlash = flashWinnerIndex === i;
-          const score = scores?.[i] ?? 0;
-
-          return (
-            <div
-              key={p.id ?? i}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "10px 12px",
-                border: "1px solid #f0f0f0",
-                borderRadius: 12,
-                background: isFlash ? "#e6fffb" : isCurrent ? "#f6faff" : "white",
-                transition: "background 200ms ease",
-              }}
+        {allowEdit && (
+          <div style={{ position: "absolute", right: 0 }}>
+            <IconButton
+              title={isEditing ? "Stop aanpassen" : "Scores aanpassen"}
+              onClick={() => setIsEditing((v) => !v)}
             >
-              <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
-                <div style={{ width: 26, opacity: 0.6 }}>P{i + 1}</div>
-                <div style={{ fontWeight: 800 }}>{p.name ?? `Player ${i + 1}`}</div>
-                {isCurrent ? <div style={{ fontSize: 12, opacity: 0.55 }}>(current)</div> : null}
-                {isFlash ? <div style={{ fontSize: 12, fontWeight: 900 }}>🏆</div> : null}
-              </div>
+              {isEditing ? "✅" : "⚙️"}
+            </IconButton>
+          </div>
+        )}
+      </div>
 
-              <div style={{ fontWeight: 900 }}>{score}</div>
+      {/* rows */}
+      <div style={{ display: "grid", rowGap: 10 }}>
+        {rows.map((r, i) => (
+          <div
+            key={r.key}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr auto",
+              alignItems: "center",
+              padding: "12px 14px",
+              borderRadius: 14,
+              border: "1px solid #eee",
+              background: r.isFlash ? "#f6ffed" : r.isCurrent ? "#fafafa" : "white",
+            }}
+          >
+            {/* ✅ NAAM LINKS */}
+            <div style={{ fontWeight: 900, textAlign: "left" }}>{r.name}</div>
+
+            {/* score + inline edit buttons */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {allowEdit && isEditing && (
+                <>
+                  <SmallBtn title="-1" onClick={() => onAdjustScore?.(i, -1)}>
+                    −1
+                  </SmallBtn>
+                  <SmallBtn title="+1" onClick={() => onAdjustScore?.(i, +1)}>
+                    +1
+                  </SmallBtn>
+
+                  {showPlusMinusFive && (
+                    <>
+                      <SmallBtn title="-5" onClick={() => onAdjustScore?.(i, -5)}>
+                        −5
+                      </SmallBtn>
+                      <SmallBtn title="+5" onClick={() => onAdjustScore?.(i, +5)}>
+                        +5
+                      </SmallBtn>
+                    </>
+                  )}
+                </>
+              )}
+
+              <div style={{ fontWeight: 900, minWidth: 36, textAlign: "right" }}>
+                {r.score}
+              </div>
             </div>
-          );
-        })}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7, textAlign: "center" }}>
+        Scores zijn totaal (opgeteld over alle gespeelde contracten).
       </div>
     </div>
   );

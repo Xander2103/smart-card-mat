@@ -227,6 +227,7 @@ export default function App() {
           onStartDobbelkingen={() => dispatchAction({ type: "start_dobbelkingen" })}
           onChooseDobbelkingenContract={(c) => dispatchAction({ type: "choose_contract", contract: c })}
           onBackFromContract={() => dispatchAction({ type: "abort_contract" })}
+          dispatchAction={dispatchAction}
         />
       )}
 

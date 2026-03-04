@@ -43,8 +43,8 @@ export function PlayScreen({
     typeof d?.currentPlayerIndex === "number"
       ? d.currentPlayerIndex
       : typeof appState.currentPlayerIndex === "number"
-      ? appState.currentPlayerIndex
-      : 0;
+        ? appState.currentPlayerIndex
+        : 0;
 
   const currentName = players[currentIndex]?.name ?? "-";
   const contractId = d?.contract ?? null;
@@ -78,16 +78,16 @@ export function PlayScreen({
   const overlayTitle = isHeartsKingEnded
     ? "Harten Koning gespeeld 👑♥ — contract beëindigd"
     : isAllJkEnded
-    ? "Alle boeren & koningen gespeeld 👑🃏 — contract beëindigd"
-    : "Alle queens gespeeld 👑👑 — contract beëindigd";
+      ? "Alle boeren & koningen gespeeld 👑🃏 — contract beëindigd"
+      : "Alle queens gespeeld 👑👑 — contract beëindigd";
 
   const overlayMessage = isHeartsKingEnded
     ? endedByName
       ? `${endedByName} krijgt -5`
       : "Speler krijgt -5"
     : isAllJkEnded
-    ? "Alle J & K zijn gevallen — terug naar contract keuze"
-    : "Alle 4 queens zijn gevallen — terug naar contract keuze";
+      ? "Alle J & K zijn gevallen — terug naar contract keuze"
+      : "Alle 4 queens zijn gevallen — terug naar contract keuze";
 
   // banner in chooser stays until a new contract is chosen (because lastResult stays)
   const showChooserBanner =
@@ -98,8 +98,8 @@ export function PlayScreen({
   const chooserBannerText = isHeartsKingEnded
     ? `❤️‍🔥 ${overlayTitle} — ${overlayMessage}`
     : isAllJkEnded
-    ? `🃏 ${overlayTitle} — ${overlayMessage}`
-    : `👑 ${overlayTitle} — ${overlayMessage}`;
+      ? `🃏 ${overlayTitle} — ${overlayMessage}`
+      : `👑 ${overlayTitle} — ${overlayMessage}`;
 
   // -------------------------
   // Screens
@@ -198,6 +198,7 @@ export function PlayScreen({
             onClose={onCloseMode}
             onStart={onStartDobbelkingen}
             onChooseContract={onChooseDobbelkingenContract}
+            dispatchAction={dispatchAction}
           />
         </>
       )}
@@ -311,9 +312,13 @@ export function PlayScreen({
           {/* scores + highlight winner */}
           <Scoreboard
             players={players}
-            scores={gameState?.scores ?? []}
+            scores={d?.totalScores ?? []}
             currentPlayerIndex={currentIndex}
             flashWinnerIndex={flashWinnerIndex}
+            allowEdit={appState.phase === "CHOOSING_CONTRACT"} // ⚙️ enkel in chooser
+            onAdjustScore={(playerIndex, delta) =>
+              dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
+            }
           />
 
           <div style={{ fontSize: 12, opacity: 0.8, marginTop: 6 }}>
