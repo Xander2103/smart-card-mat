@@ -12,37 +12,53 @@ function parseCardCode(code) {
   if (!["C", "D", "H", "S"].includes(suit)) return null;
   if (!Number.isFinite(rank)) return null;
 
-  return { suit, rank };
+  return { suit, rank, rankStr };
 }
 
-/**
- * Winner = hoogste kaart in lead suit (suit van eerste play)
- * @param {Array<{playerIndex:number, card:string}>} plays
- * @param {string|null} modeOrContract
- */
-export function determineTrickWinner(plays, modeOrContract, starterPlayerIndex = null) {
-  if (!Array.isArray(plays) || plays.length === 0) return null;
-
-  let leadPlay = plays[0];
-
-  // ✅ als starterPlayerIndex gegeven is: gebruik die kaart als lead suit bron
-  if (typeof starterPlayerIndex === "number") {
-    const found = plays.find(p => p?.playerIndex === starterPlayerIndex);
-    if (found) leadPlay = found;
+function normalizeOptions(modeOrOptions, starterPlayerIndex) {
+  if (
+    modeOrOptions &&
+    typeof modeOrOptions === "object" &&
+    !Array.isArray(modeOrOptions)
+  ) {
+    return {
+      contractId: modeOrOptions.contractId ?? null,
+      trumpSuit: modeOrOptions.trumpSuit
+        ? String(modeOrOptions.trumpSuit).toUpperCase()
+        : null,
+      starterPlayerIndex:
+        typeof modeOrOptions.starterPlayerIndex === "number"
+          ? modeOrOptions.starterPlayerIndex
+          : starterPlayerIndex,
+    };
   }
 
-  const firstMeta = parseCardCode(leadPlay?.card);
-  if (!firstMeta) return leadPlay ?? null;
+  return {
+    contractId: modeOrOptions ?? null,
+    trumpSuit: null,
+    starterPlayerIndex,
+  };
+}
 
-  const leadSuit = firstMeta.suit;
+function getLeadPlay(plays, starterPlayerIndex = null) {
+  if (!Array.isArray(plays) || plays.length === 0) return null;
 
+  if (typeof starterPlayerIndex === "number") {
+    const found = plays.find((p) => p?.playerIndex === starterPlayerIndex);
+    if (found) return found;
+  }
+
+  return plays[0] ?? null;
+}
+
+function getBestPlayInSuit(plays, suit) {
   let best = null;
   let bestRank = -1;
 
-  for (const p of plays) {
+  for (const p of plays ?? []) {
     const meta = parseCardCode(p?.card);
     if (!meta) continue;
-    if (meta.suit !== leadSuit) continue;
+    if (meta.suit !== suit) continue;
 
     if (meta.rank > bestRank) {
       bestRank = meta.rank;
@@ -50,5 +66,39 @@ export function determineTrickWinner(plays, modeOrContract, starterPlayerIndex =
     }
   }
 
-  return best ?? leadPlay ?? null;
+  return best;
+}
+
+/**
+ * Backward compatible:
+ * determineTrickWinner(plays, contractId, starterPlayerIndex)
+ * determineTrickWinner(plays, { contractId, trumpSuit, starterPlayerIndex })
+ */
+export function determineTrickWinner(
+  plays,
+  modeOrOptions = null,
+  starterPlayerIndex = null
+) {
+  if (!Array.isArray(plays) || plays.length === 0) return null;
+
+  const options = normalizeOptions(modeOrOptions, starterPlayerIndex);
+  const leadPlay = getLeadPlay(plays, options.starterPlayerIndex);
+  if (!leadPlay) return null;
+
+  const leadMeta = parseCardCode(leadPlay?.card);
+  if (!leadMeta) return leadPlay;
+
+  const leadSuit = leadMeta.suit;
+  const trumpSuit = options.trumpSuit ?? null;
+
+  if (trumpSuit) {
+    const bestTrump = getBestPlayInSuit(plays, trumpSuit);
+    if (bestTrump) return bestTrump;
+  }
+
+  return getBestPlayInSuit(plays, leadSuit) ?? leadPlay;
+}
+
+export function getCardMeta(code) {
+  return parseCardCode(code);
 }

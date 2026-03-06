@@ -3,34 +3,31 @@ import { getContract } from "./contracts";
 
 function countHeartsInTrickHistory(trickHistory) {
   let n = 0;
+
   for (const t of trickHistory ?? []) {
     for (const p of t?.plays ?? []) {
-      const code = p?.card;
-      if (typeof code === "string" && code.endsWith("H")) n++;
+      const code = String(p?.card ?? "").toUpperCase();
+      if (
+        code.endsWith("H") ||
+        code.includes("HEART") ||
+        code.includes("HART") ||
+        code.includes("♥")
+      ) {
+        n++;
+      }
     }
   }
+
   return n;
 }
 
-/**
- * Returns { endEarly: boolean, reason: string|null, meta?: any }
- * Only evaluated AFTER a full trick has been completed.
- */
 export function shouldEndEarlyFromTrickHistory(contractId, trickHistory) {
   if (contractId === "MINSTE_HARTEN") {
     const heartsPlayed = countHeartsInTrickHistory(trickHistory);
 
-    if (heartsPlayed >= 13) {
-      return {
-        endEarly: true,
-        reason: "ALL_HEARTS_PLAYED",
-        meta: { heartsPlayed },
-      };
-    }
-
     return {
-      endEarly: false,
-      reason: null,
+      endEarly: heartsPlayed >= 13,
+      reason: heartsPlayed >= 13 ? "ALL_HEARTS_PLAYED" : null,
       meta: { heartsPlayed },
     };
   }
@@ -53,8 +50,14 @@ export function computeScoresFromTrickHistory(trickHistory, playersCount) {
     }
 
     const contractId = t?.contract ?? null;
-    const contract = getContract(contractId);
 
+    // Fase 2: per slagwinst +1
+    if (contractId === "TROEF") {
+      scores[winnerIndex] += 1;
+      continue;
+    }
+
+    const contract = getContract(contractId);
     if (!contract?.scoreTrick) continue;
 
     const input = {

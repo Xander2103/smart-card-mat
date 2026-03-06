@@ -1,83 +1,180 @@
-import { pushLog, clampIndex } from "../utils";
-import { clearHandRuntimeFields, setDobbelState } from "../slice";
+// src/core/games/dobbelkingen/reducerParts/handlers/flow.js
+import {
+  getDobbelState,
+  setDobbelState,
+  clearHandRuntimeFields,
+  pushLog,
+  clampIndex,
+} from "../state";
 import { canPickContract } from "../contractsRules";
+import { normalizeTroefSuit, getTroefStarterIndex } from "../troefFlow";
 
-export function handleStartDobbelkingen(state, d) {
-  const chooser = d.chooserIndex ?? 0;
+export function handleDobbelFlowAction(state, action) {
+  const d = getDobbelState(state);
+  const playersCount = state.players?.length ?? 4;
 
-  const nextD = {
-    ...d,
-    contract: null,
-    lastResult: null,
-    ...clearHandRuntimeFields(),
-  };
-
-  return setDobbelState(
-    {
-      ...state,
-      phase: "CHOOSING_CONTRACT",
-      lastError: null,
-      log: pushLog(state.log, `DOBBELKINGEN|START|CHOOSER=P${chooser}`),
-    },
-    nextD
-  );
-}
-
-export function handleChooseContract(state, d, action) {
-  if (state.phase !== "CHOOSING_CONTRACT") return state;
-
-  const contract = action.contract ?? null;
-  if (!contract) return state;
-
-  if (!canPickContract(d, contract)) {
-    return {
-      ...state,
-      lastError: `Contract kan niet: ${contract}`,
-      log: pushLog(state.log, `ERROR|CONTRACT_BLOCKED|${contract}`),
+  if (action.type === "start_dobbelkingen") {
+    const nextD = {
+      ...d,
+      chooserIndex: 0,
+      leaderIndex: 0,
+      currentPlayerIndex: 0,
+      contract: null,
+      contractPlays: {},
+      lastContract: null,
+      roundPhase: 1,
+      troefPickCounts: Array(playersCount).fill(0),
+      troefChooserIndex: 0,
+      currentTrumpSuit: null,
+      currentContractStarterIndex: 0,
+      totalScores: Array(playersCount).fill(0),
+      lastResult: null,
+      ...clearHandRuntimeFields(),
     };
+
+    return setDobbelState(
+      {
+        ...state,
+        phase: "CHOOSING_CONTRACT",
+        turnZone: null,
+        lastError: null,
+        log: pushLog(state.log, "DOBBELKINGEN|START|PHASE=1"),
+      },
+      nextD
+    );
   }
 
-  const playersCount = state.players?.length ?? 4;
-  const chooser = clampIndex(d.chooserIndex ?? 0, playersCount);
-  const leader = clampIndex(chooser + 1, playersCount);
+  if (action.type === "debug_go_to_phase2") {
+    return setDobbelState(
+      {
+        ...state,
+        phase: "CHOOSING_TROEF",
+        turnZone: null,
+        lastError: null,
+        log: pushLog(state.log, "DOBBELKINGEN|DEBUG_GO_TO_PHASE2"),
+      },
+      {
+        ...d,
+        roundPhase: 2,
+        contract: null,
+        chooserIndex: 0,
+        troefChooserIndex: 0,
+        troefPickCounts: Array(playersCount).fill(0),
+        leaderIndex: 0,
+        currentPlayerIndex: 0,
+        currentTrumpSuit: null,
+        currentContractStarterIndex: 0,
+        lastResult: null,
+        ...clearHandRuntimeFields(),
+      }
+    );
+  }
 
-  const nextD = {
-    ...d,
-    contract,
-    leaderIndex: leader,
-    currentPlayerIndex: leader,
-    lastResult: null,
-    ...clearHandRuntimeFields(),
-  };
+  if (action.type === "choose_contract") {
+    if (state.phase !== "CHOOSING_CONTRACT") return state;
+    if (d.roundPhase !== 1) return state;
 
-  return setDobbelState(
-    {
-      ...state,
-      phase: "PLAYING_TRICK",
-      turnZone: leader + 1,
-      lastError: null,
-      log: pushLog(state.log, `DOBBELKINGEN|CONTRACT|${contract}|LEADER=P${leader}`),
-    },
-    nextD
-  );
-}
+    const contract = action.contract ?? null;
+    if (!contract) return state;
 
-export function handleAbortContract(state, d) {
-  if (state.phase !== "PLAYING_TRICK") return state;
+    if (!canPickContract(d, contract)) {
+      return {
+        ...state,
+        lastError: `Contract kan niet: ${contract}`,
+        log: pushLog(state.log, `ERROR|CONTRACT_BLOCKED|${contract}`),
+      };
+    }
 
-  const nextD = {
-    ...d,
-    contract: null,
-    ...clearHandRuntimeFields(),
-  };
+    const chooser = clampIndex(d.chooserIndex ?? 0, playersCount);
+    const leader = clampIndex(chooser + 1, playersCount);
 
-  return setDobbelState(
-    {
-      ...state,
-      phase: "CHOOSING_CONTRACT",
-      lastError: null,
-      log: pushLog(state.log, "CONTRACT|ABORT|BACK_TO_CHOOSING"),
-    },
-    nextD
-  );
+    return setDobbelState(
+      {
+        ...state,
+        phase: "PLAYING_TRICK",
+        turnZone: leader + 1,
+        lastError: null,
+        log: pushLog(
+          state.log,
+          `DOBBELKINGEN|PHASE1_CONTRACT|${contract}|CHOOSER=P${chooser}|LEADER=P${leader}`
+        ),
+      },
+      {
+        ...d,
+        contract,
+        leaderIndex: leader,
+        currentPlayerIndex: leader,
+        currentTrumpSuit: null,
+        currentContractStarterIndex: leader,
+        lastResult: null,
+        ...clearHandRuntimeFields(),
+      }
+    );
+  }
+
+  if (action.type === "choose_troef_suit") {
+    if (state.phase !== "CHOOSING_TROEF") return state;
+    if (d.roundPhase !== 2) return state;
+
+    const suit = normalizeTroefSuit(action.suit);
+    if (!suit) {
+      return {
+        ...state,
+        lastError: `Ongeldige troefkleur: ${action.suit}`,
+        log: pushLog(state.log, `ERROR|INVALID_TROEF_SUIT|${action.suit}`),
+      };
+    }
+
+    const chooser = clampIndex(d.troefChooserIndex ?? 0, playersCount);
+    const leader = getTroefStarterIndex(chooser, playersCount);
+
+    return setDobbelState(
+      {
+        ...state,
+        phase: "PLAYING_TRICK",
+        turnZone: leader + 1,
+        lastError: null,
+        log: pushLog(
+          state.log,
+          `DOBBELKINGEN|PHASE2_TROEF|SUIT=${suit}|CHOOSER=P${chooser}|LEADER=P${leader}`
+        ),
+      },
+      {
+        ...d,
+        chooserIndex: chooser,
+        contract: "TROEF",
+        currentTrumpSuit: suit,
+        leaderIndex: leader,
+        currentPlayerIndex: leader,
+        currentContractStarterIndex: leader,
+        lastResult: null,
+        ...clearHandRuntimeFields(),
+      }
+    );
+  }
+
+  if (action.type === "abort_contract") {
+    if (state.phase !== "PLAYING_TRICK") return state;
+
+    const backPhase =
+      d.roundPhase === 2 ? "CHOOSING_TROEF" : "CHOOSING_CONTRACT";
+
+    return setDobbelState(
+      {
+        ...state,
+        phase: backPhase,
+        turnZone: null,
+        lastError: null,
+        log: pushLog(state.log, `CONTRACT|ABORT|BACK_TO_${backPhase}`),
+      },
+      {
+        ...d,
+        contract: null,
+        currentTrumpSuit: d.roundPhase === 2 ? d.currentTrumpSuit : null,
+        ...clearHandRuntimeFields(),
+      }
+    );
+  }
+
+  return state;
 }

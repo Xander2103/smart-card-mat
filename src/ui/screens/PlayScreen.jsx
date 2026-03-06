@@ -23,23 +23,16 @@ export function PlayScreen({
   showDebug = true,
   onBackFromContract,
 
-  // mode flow
   onOpenDobbelkingen,
   onCloseMode,
   onStartDobbelkingen,
   onChooseDobbelkingenContract,
 
-  // action dispatcher voor overlay close
   dispatchAction,
 }) {
-  // -------------------------
-  // Dobbelkingen slice (1 bron)
-  // -------------------------
   const d = appState.game?.dobbelkingen ?? null;
   const players = appState.players ?? [];
 
-  const chooserIndex = typeof d?.chooserIndex === "number" ? d.chooserIndex : null;
-  const leaderIndex = typeof d?.leaderIndex === "number" ? d.leaderIndex : null;
   const currentIndex =
     typeof d?.currentPlayerIndex === "number"
       ? d.currentPlayerIndex
@@ -55,12 +48,8 @@ export function PlayScreen({
       ? computeScoresFromTrickHistory(d?.trickHistory ?? [], players.length || 4)
       : (d?.totalScores ?? []);
 
-  // -------------------------
-  // Contract end overlay + chooser banner
-  // -------------------------
   const endedReason = d?.lastResult?.endedEarlyReason ?? null;
 
-  // who got the penalty (used by HEARTS_KING overlay)
   const endedByIndex =
     typeof d?.lastResult?.endedByPlayerIndex === "number"
       ? d.lastResult.endedByPlayerIndex
@@ -69,19 +58,16 @@ export function PlayScreen({
   const endedByName =
     endedByIndex !== null ? players?.[endedByIndex]?.name ?? `Player ${endedByIndex + 1}` : null;
 
-  // reasons
   const isHeartsKingEnded = endedReason === "HEARTS_KING_PLAYED";
   const isAllHeartsEnded = endedReason === "ALL_HEARTS_PLAYED";
   const isAllJkEnded = endedReason === "ALL_JK_PLAYED";
   const isAllQueensEnded = endedReason === "ALL_QUEENS_PLAYED";
 
-  // overlay visible only in PLAYING_TRICK and can be closed with OK
   const showContractOverlay =
     (isHeartsKingEnded || isAllHeartsEnded || isAllJkEnded || isAllQueensEnded) &&
     appState.phase === "PLAYING_TRICK" &&
     d?.lastResult?.overlayClosed !== true;
 
-  // overlay text
   const overlayTitle = isHeartsKingEnded
     ? "Harten Koning gespeeld 👑♥ — contract beëindigd"
     : isAllHeartsEnded
@@ -100,7 +86,6 @@ export function PlayScreen({
         ? "Alle J & K zijn gevallen — terug naar contract keuze"
         : "Alle 4 queens zijn gevallen — terug naar contract keuze";
 
-  // banner in chooser stays until a new contract is chosen (because lastResult stays)
   const showChooserBanner =
     (
       appState.phase === "CHOOSING_CONTRACT" ||
@@ -118,9 +103,6 @@ export function PlayScreen({
         ? `🃏 ${overlayTitle} — ${overlayMessage}`
         : `👑 ${overlayTitle} — ${overlayMessage}`;
 
-  // -------------------------
-  // Screens
-  // -------------------------
   const showModesHome = appState.phase === "HOME";
   const showLobby =
     appState.phase === "DOBBELKINGEN_READY" ||
@@ -128,18 +110,10 @@ export function PlayScreen({
     appState.phase === "CHOOSING_TROEF";
   const showGameUi = appState.phase === "PLAYING_TRICK";
 
-  // -------------------------
-  // Mat layout (zone mapping)
-  // -------------------------
-  // Mat layout:
-  // Zone 1 = linksboven, Zone 2 = rechtsboven, Zone 4 = linksonder, Zone 3 = rechtsonder
   const DISPLAY_ZONES = useMemo(() => [1, 2, 4, 3], []);
-
   const zonesForGrid = DISPLAY_ZONES.map((z) => zones?.[z - 1] ?? null);
   const cardNamesForGrid = DISPLAY_ZONES.map((z) => cardNames?.[z - 1] ?? null);
 
-  // ZoneGrid verwacht turnZone als gridPos (1..4)
-  // gameState.expectedZone is echte zone (1..4)
   const turnZoneForGrid = (() => {
     const real = gameState?.expectedZone ?? null;
     const idx = DISPLAY_ZONES.indexOf(real);
@@ -152,9 +126,6 @@ export function PlayScreen({
     onZoneClick?.(realZone);
   }
 
-  // -------------------------
-  // Slag indicator (toast + scoreboard flash)
-  // -------------------------
   const [trickToast, setTrickToast] = useState(null);
   const [flashWinnerIndex, setFlashWinnerIndex] = useState(null);
 
@@ -183,7 +154,6 @@ export function PlayScreen({
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      {/* Overlay: OK sluit hem */}
       <ContractEndOverlay
         open={showContractOverlay}
         title={overlayTitle}
@@ -191,13 +161,10 @@ export function PlayScreen({
         onClose={() => dispatchAction?.({ type: "close_contract_overlay" })}
       />
 
-      {/* A) HOME: alleen game modes */}
       {showModesHome && <GameModeCards onOpenDobbelkingen={onOpenDobbelkingen} />}
 
-      {/* B) LOBBY: dobbelkingen panel */}
       {showLobby && appState.activeMode === "DOBBELKINGEN" && (
         <>
-          {/* banner in chooser blijft staan tot nieuw contract gekozen */}
           {showChooserBanner && (
             <div
               style={{
@@ -222,10 +189,8 @@ export function PlayScreen({
         </>
       )}
 
-      {/* C) IN-GAME UI */}
       {showGameUi && (
         <>
-          {/* ERROR */}
           {appState.lastError && (
             <div
               style={{
@@ -244,9 +209,7 @@ export function PlayScreen({
             >
               <div>🚫 {appState.lastError}</div>
               <button
-                onClick={() => {
-                  // optioneel later: dispatchAction({type:"clear_error"})
-                }}
+                onClick={() => {}}
                 style={{
                   border: "1px solid #ff4d4f",
                   background: "white",
@@ -261,7 +224,6 @@ export function PlayScreen({
             </div>
           )}
 
-          {/* controls bar */}
           <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
             <div
               style={{
@@ -300,7 +262,6 @@ export function PlayScreen({
             </div>
           </div>
 
-          {/* Slag toast */}
           {trickToast && (
             <div
               key={trickToast.key}
@@ -316,10 +277,8 @@ export function PlayScreen({
             </div>
           )}
 
-          {/* Tafel view */}
           <TableDirection players={players} currentPlayerIndex={currentIndex} />
 
-          {/* zones */}
           <ZoneGrid
             zones={zonesForGrid}
             zoneNumbers={DISPLAY_ZONES}
@@ -328,13 +287,12 @@ export function PlayScreen({
             onZoneClick={handleGridClick}
           />
 
-          {/* scores + highlight winner */}
           <Scoreboard
             players={players}
             scores={scoreboardScores}
             currentPlayerIndex={currentIndex}
             flashWinnerIndex={flashWinnerIndex}
-            allowEdit={appState.phase === "CHOOSING_CONTRACT"}
+            allowEdit={appState.phase === "CHOOSING_CONTRACT" || appState.phase === "CHOOSING_TROEF"}
             onAdjustScore={(playerIndex, delta) =>
               dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
             }
@@ -349,7 +307,6 @@ export function PlayScreen({
             </span>
           </div>
 
-          {/* debug */}
           {showDebug && (
             <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
               <h3 style={{ marginTop: 0 }}>Debug log</h3>
