@@ -86,6 +86,8 @@ export function PlayScreen({
       ? getTrickWinsByPlayer(d?.trickHistory ?? [], playersCount)
       : Array(playersCount).fill(0);
 
+  const trickCount = d?.trickHistory?.length ?? 0;
+
   const endedReason = d?.lastResult?.endedEarlyReason ?? null;
 
   const endedByIndex =
@@ -164,6 +166,13 @@ export function PlayScreen({
     onZoneClick?.(realZone);
   }
 
+  const leaderPlayerIndex =
+    typeof d?.lastTrickWinnerIndex === "number"
+      ? d.lastTrickWinnerIndex
+      : typeof d?.currentContractStarterIndex === "number"
+        ? d.currentContractStarterIndex
+        : null;
+
   const [trickToast, setTrickToast] = useState(null);
   const [flashWinnerIndex, setFlashWinnerIndex] = useState(null);
 
@@ -182,7 +191,7 @@ export function PlayScreen({
     setFlashWinnerIndex(winnerIdx);
 
     const t1 = window.setTimeout(() => setTrickToast(null), 1200);
-    const t2 = window.setTimeout(() => setFlashWinnerIndex(null), 800);
+    const t2 = window.setTimeout(() => setFlashWinnerIndex(null), 900);
 
     return () => {
       window.clearTimeout(t1);
@@ -262,7 +271,15 @@ export function PlayScreen({
             </div>
           )}
 
-          <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
+          <div
+            style={{
+              border: "1px solid #e5e7eb",
+              background: "#fafafa",
+              borderRadius: 14,
+              padding: 12,
+              boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+            }}
+          >
             <div
               style={{
                 display: "flex",
@@ -295,8 +312,8 @@ export function PlayScreen({
               <div style={{ marginLeft: "auto" }}>
                 Mode: <b>{appState.gameMode ?? "-"}</b> • Contract:{" "}
                 <b>{contractId ?? "-"}</b> • Troef:{" "}
-                <b>{getTrumpLabel(d?.currentTrumpSuit)}</b> • TurnZone: <b>{turnZone ?? "-"}</b> • Current:{" "}
-                <b>{currentName}</b>
+                <b>{getTrumpLabel(d?.currentTrumpSuit)}</b> • Slag: <b>{trickCount} / 13</b> • TurnZone:{" "}
+                <b>{turnZone ?? "-"}</b> • Current: <b>{currentName}</b>
               </div>
             </div>
           </div>
@@ -305,24 +322,30 @@ export function PlayScreen({
             <div
               key={trickToast.key}
               style={{
-                border: "1px solid #d9f7be",
-                background: "#f6ffed",
+                border: "1px solid #86efac",
+                background: "#f0fdf4",
                 borderRadius: 14,
                 padding: "10px 12px",
                 fontWeight: 900,
+                boxShadow: "0 8px 20px rgba(34, 197, 94, 0.12)",
               }}
             >
               {trickToast.title}
             </div>
           )}
 
-          <TableDirection players={players} currentPlayerIndex={currentIndex} />
+          <TableDirection
+            players={players}
+            currentPlayerIndex={currentIndex}
+            leaderPlayerIndex={leaderPlayerIndex}
+          />
 
           <ZoneGrid
             zones={zonesForGrid}
             zoneNumbers={DISPLAY_ZONES}
             turnZone={turnZoneForGrid}
             cardNames={cardNamesForGrid}
+            trumpSuit={d?.currentTrumpSuit ?? null}
             onZoneClick={handleGridClick}
           />
 
@@ -338,7 +361,15 @@ export function PlayScreen({
           />
 
           {contractId === "TROEF" && (
-            <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
+            <div
+              style={{
+                border: "1px solid #e5e7eb",
+                background: "#fafafa",
+                borderRadius: 14,
+                padding: 12,
+                boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+              }}
+            >
               <div style={{ fontWeight: 900, marginBottom: 8 }}>Slagen fase 2</div>
 
               <div style={{ display: "grid", gap: 8 }}>
@@ -352,6 +383,7 @@ export function PlayScreen({
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
+                      background: "white",
                     }}
                   >
                     <div>{player.name ?? `Player ${index + 1}`}</div>
@@ -372,7 +404,15 @@ export function PlayScreen({
           </div>
 
           {showDebug && (
-            <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
+            <div
+              style={{
+                border: "1px solid #e5e7eb",
+                background: "#fafafa",
+                borderRadius: 14,
+                padding: 12,
+                boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+              }}
+            >
               <h3 style={{ marginTop: 0 }}>Debug log</h3>
               <DebugLog lines={appState.log} />
             </div>

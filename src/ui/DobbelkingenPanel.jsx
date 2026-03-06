@@ -1,4 +1,5 @@
 // src/ui/DobbelkingenPanel.jsx
+import { useState } from "react";
 import { Scoreboard } from "./Scoreboard";
 import { getContract } from "../core/games/dobbelkingen/contracts";
 
@@ -13,7 +14,7 @@ function pillStyle() {
   };
 }
 
-function cardStyle(disabled) {
+function cardStyle(disabled, hovered = false) {
   return {
     border: "1px solid #eee",
     borderRadius: 14,
@@ -23,6 +24,9 @@ function cardStyle(disabled) {
     cursor: disabled ? "not-allowed" : "pointer",
     display: "grid",
     gap: 6,
+    transition: "all 0.15s ease",
+    transform: hovered && !disabled ? "translateY(-2px) scale(1.01)" : "none",
+    boxShadow: hovered && !disabled ? "0 10px 24px rgba(15, 23, 42, 0.08)" : "none",
   };
 }
 
@@ -55,6 +59,9 @@ export function DobbelkingenPanel({
   onChooseContract,
   dispatchAction,
 }) {
+  const [hoveredContract, setHoveredContract] = useState(null);
+  const [hoveredTroef, setHoveredTroef] = useState(null);
+
   const d = appState?.game?.dobbelkingen ?? null;
   const players = appState?.players ?? [];
   const playersCount = players.length || 4;
@@ -99,7 +106,15 @@ export function DobbelkingenPanel({
   }
 
   return (
-    <div style={{ border: "1px solid #eee", borderRadius: 16, padding: 14 }}>
+    <div
+      style={{
+        border: "1px solid #e5e7eb",
+        background: "#fafafa",
+        borderRadius: 16,
+        padding: 14,
+        boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+      }}
+    >
       <div
         style={{
           display: "flex",
@@ -182,11 +197,14 @@ export function DobbelkingenPanel({
               const desc = c?.desc ?? "";
               const n = plays?.[id] ?? 0;
               const disabled = !canPick(id);
+              const hovered = hoveredContract === id;
 
               return (
                 <div
                   key={id}
-                  style={cardStyle(disabled)}
+                  style={cardStyle(disabled, hovered)}
+                  onMouseEnter={() => setHoveredContract(id)}
+                  onMouseLeave={() => setHoveredContract(null)}
                   onClick={() => {
                     if (disabled) return;
                     onChooseContract?.(id);
@@ -277,25 +295,31 @@ export function DobbelkingenPanel({
               gap: 12,
             }}
           >
-            {TROEF_OPTIONS.map((opt) => (
-              <div
-                key={opt.suit}
-                style={cardStyle(false)}
-                onClick={() =>
-                  dispatchAction?.({
-                    type: "choose_troef_suit",
-                    suit: opt.suit,
-                  })
-                }
-              >
-                <div style={{ fontWeight: 900, fontSize: 18, color: opt.color }}>
-                  {opt.symbol} {opt.label}
+            {TROEF_OPTIONS.map((opt) => {
+              const hovered = hoveredTroef === opt.suit;
+
+              return (
+                <div
+                  key={opt.suit}
+                  style={cardStyle(false, hovered)}
+                  onMouseEnter={() => setHoveredTroef(opt.suit)}
+                  onMouseLeave={() => setHoveredTroef(null)}
+                  onClick={() =>
+                    dispatchAction?.({
+                      type: "choose_troef_suit",
+                      suit: opt.suit,
+                    })
+                  }
+                >
+                  <div style={{ fontWeight: 900, fontSize: 18, color: opt.color }}>
+                    {opt.symbol} {opt.label}
+                  </div>
+                  <div style={{ fontSize: 13, opacity: 0.8 }}>
+                    Gekozen door {chooserName}
+                  </div>
                 </div>
-                <div style={{ fontSize: 13, opacity: 0.8 }}>
-                  Gekozen door {chooserName}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div style={{ marginTop: 14 }}>
@@ -312,6 +336,7 @@ export function DobbelkingenPanel({
                     display: "flex",
                     justifyContent: "space-between",
                     gap: 12,
+                    background: "white",
                   }}
                 >
                   <div>{p.name ?? `Player ${index + 1}`}</div>
@@ -355,6 +380,7 @@ export function DobbelkingenPanel({
                   borderRadius: 12,
                   padding: "10px 12px",
                   fontSize: 14,
+                  background: "white",
                 }}
               >
                 <b>{entry.label ?? entry.contract}</b>{" "}

@@ -63,8 +63,23 @@ export function Scoreboard({
   }, [players, scores, currentPlayerIndex, flashWinnerIndex]);
 
   return (
-    <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
-      {/* header */}
+    <div
+      style={{
+        border: "1px solid #e5e7eb",
+        background: "#fafafa",
+        borderRadius: 14,
+        padding: 12,
+        boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+      }}
+    >
+      <style>{`
+        @keyframes winnerFlashRow {
+          0%   { transform: scale(1); background: #ffffff; }
+          20%  { transform: scale(1.01); background: #dcfce7; }
+          100% { transform: scale(1); background: #f6ffed; }
+        }
+      `}</style>
+
       <div
         style={{
           display: "flex",
@@ -88,7 +103,6 @@ export function Scoreboard({
         )}
       </div>
 
-      {/* rows */}
       <div style={{ display: "grid", rowGap: 10 }}>
         {rows.map((r, i) => (
           <div
@@ -99,14 +113,19 @@ export function Scoreboard({
               alignItems: "center",
               padding: "12px 14px",
               borderRadius: 14,
-              border: "1px solid #eee",
+              border: r.isFlash
+                ? "2px solid #22c55e"
+                : r.isCurrent
+                  ? "1px solid #d1d5db"
+                  : "1px solid #eee",
               background: r.isFlash ? "#f6ffed" : r.isCurrent ? "#fafafa" : "white",
+              animation: r.isFlash ? "winnerFlashRow 650ms ease-out" : "none",
+              boxShadow: r.isFlash ? "0 8px 20px rgba(34, 197, 94, 0.12)" : "none",
+              transition: "all 0.18s ease",
             }}
           >
-            {/* ✅ NAAM LINKS */}
             <div style={{ fontWeight: 900, textAlign: "left" }}>{r.name}</div>
 
-            {/* score + inline edit buttons */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {allowEdit && isEditing && (
                 <>
