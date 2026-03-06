@@ -8,6 +8,7 @@ import { TableDirection } from "../TableDirection";
 import { ContractEndOverlay } from "../ContractEndOverlay";
 
 import { useEffect, useMemo, useState } from "react";
+import { computeScoresFromTrickHistory } from "../../core/games/dobbelkingen/scoring";
 
 export function PlayScreen({
   appState,
@@ -49,6 +50,11 @@ export function PlayScreen({
   const currentName = players[currentIndex]?.name ?? "-";
   const contractId = d?.contract ?? null;
 
+  const scoreboardScores =
+    appState.phase === "PLAYING_TRICK"
+      ? computeScoresFromTrickHistory(d?.trickHistory ?? [], players.length || 4)
+      : (d?.totalScores ?? []);
+
   // -------------------------
   // Contract end overlay + chooser banner
   // -------------------------
@@ -65,48 +71,61 @@ export function PlayScreen({
 
   // reasons
   const isHeartsKingEnded = endedReason === "HEARTS_KING_PLAYED";
+  const isAllHeartsEnded = endedReason === "ALL_HEARTS_PLAYED";
   const isAllJkEnded = endedReason === "ALL_JK_PLAYED";
   const isAllQueensEnded = endedReason === "ALL_QUEENS_PLAYED";
 
   // overlay visible only in PLAYING_TRICK and can be closed with OK
   const showContractOverlay =
-    (isHeartsKingEnded || isAllJkEnded || isAllQueensEnded) &&
+    (isHeartsKingEnded || isAllHeartsEnded || isAllJkEnded || isAllQueensEnded) &&
     appState.phase === "PLAYING_TRICK" &&
     d?.lastResult?.overlayClosed !== true;
 
   // overlay text
   const overlayTitle = isHeartsKingEnded
     ? "Harten Koning gespeeld 👑♥ — contract beëindigd"
-    : isAllJkEnded
-      ? "Alle boeren & koningen gespeeld 👑🃏 — contract beëindigd"
-      : "Alle queens gespeeld 👑👑 — contract beëindigd";
+    : isAllHeartsEnded
+      ? "Alle harten zijn gespeeld ♥ — contract beëindigd"
+      : isAllJkEnded
+        ? "Alle boeren & koningen gespeeld 👑🃏 — contract beëindigd"
+        : "Alle queens gespeeld 👑👑 — contract beëindigd";
 
   const overlayMessage = isHeartsKingEnded
     ? endedByName
       ? `${endedByName} krijgt -5`
       : "Speler krijgt -5"
-    : isAllJkEnded
-      ? "Alle J & K zijn gevallen — terug naar contract keuze"
-      : "Alle 4 queens zijn gevallen — terug naar contract keuze";
+    : isAllHeartsEnded
+      ? "Alle 13 harten zijn gespeeld — terug naar contract keuze"
+      : isAllJkEnded
+        ? "Alle J & K zijn gevallen — terug naar contract keuze"
+        : "Alle 4 queens zijn gevallen — terug naar contract keuze";
 
   // banner in chooser stays until a new contract is chosen (because lastResult stays)
   const showChooserBanner =
-    (appState.phase === "CHOOSING_CONTRACT" || appState.phase === "DOBBELKINGEN_READY") &&
+    (
+      appState.phase === "CHOOSING_CONTRACT" ||
+      appState.phase === "CHOOSING_TROEF" ||
+      appState.phase === "DOBBELKINGEN_READY"
+    ) &&
     appState.activeMode === "DOBBELKINGEN" &&
-    (isHeartsKingEnded || isAllJkEnded || isAllQueensEnded);
+    (isHeartsKingEnded || isAllHeartsEnded || isAllJkEnded || isAllQueensEnded);
 
   const chooserBannerText = isHeartsKingEnded
     ? `❤️‍🔥 ${overlayTitle} — ${overlayMessage}`
-    : isAllJkEnded
-      ? `🃏 ${overlayTitle} — ${overlayMessage}`
-      : `👑 ${overlayTitle} — ${overlayMessage}`;
+    : isAllHeartsEnded
+      ? `♥ ${overlayTitle} — ${overlayMessage}`
+      : isAllJkEnded
+        ? `🃏 ${overlayTitle} — ${overlayMessage}`
+        : `👑 ${overlayTitle} — ${overlayMessage}`;
 
   // -------------------------
   // Screens
   // -------------------------
   const showModesHome = appState.phase === "HOME";
   const showLobby =
-    appState.phase === "DOBBELKINGEN_READY" || appState.phase === "CHOOSING_CONTRACT";
+    appState.phase === "DOBBELKINGEN_READY" ||
+    appState.phase === "CHOOSING_CONTRACT" ||
+    appState.phase === "CHOOSING_TROEF";
   const showGameUi = appState.phase === "PLAYING_TRICK";
 
   // -------------------------
@@ -312,10 +331,10 @@ export function PlayScreen({
           {/* scores + highlight winner */}
           <Scoreboard
             players={players}
-            scores={d?.totalScores ?? []}
+            scores={scoreboardScores}
             currentPlayerIndex={currentIndex}
             flashWinnerIndex={flashWinnerIndex}
-            allowEdit={appState.phase === "CHOOSING_CONTRACT"} // ⚙️ enkel in chooser
+            allowEdit={appState.phase === "CHOOSING_CONTRACT"}
             onAdjustScore={(playerIndex, delta) =>
               dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
             }

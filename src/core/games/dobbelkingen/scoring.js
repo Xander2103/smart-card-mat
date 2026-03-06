@@ -14,15 +14,25 @@ function countHeartsInTrickHistory(trickHistory) {
 
 /**
  * Returns { endEarly: boolean, reason: string|null, meta?: any }
- * Only evaluated AFTER a full trick has been completed (because trickHistory contains only full tricks).
+ * Only evaluated AFTER a full trick has been completed.
  */
 export function shouldEndEarlyFromTrickHistory(contractId, trickHistory) {
   if (contractId === "MINSTE_HARTEN") {
     const heartsPlayed = countHeartsInTrickHistory(trickHistory);
+
     if (heartsPlayed >= 13) {
-      return { endEarly: true, reason: "ALL_HEARTS_PLAYED", meta: { heartsPlayed } };
+      return {
+        endEarly: true,
+        reason: "ALL_HEARTS_PLAYED",
+        meta: { heartsPlayed },
+      };
     }
-    return { endEarly: false, reason: null, meta: { heartsPlayed } };
+
+    return {
+      endEarly: false,
+      reason: null,
+      meta: { heartsPlayed },
+    };
   }
 
   return { endEarly: false, reason: null, meta: null };
@@ -33,6 +43,7 @@ export function computeScoresFromTrickHistory(trickHistory, playersCount) {
 
   for (const t of trickHistory ?? []) {
     const winnerIndex = t?.winnerIndex;
+
     if (
       typeof winnerIndex !== "number" ||
       winnerIndex < 0 ||
@@ -43,19 +54,26 @@ export function computeScoresFromTrickHistory(trickHistory, playersCount) {
 
     const contractId = t?.contract ?? null;
     const contract = getContract(contractId);
+
     if (!contract?.scoreTrick) continue;
 
-    const delta = contract.scoreTrick({
+    const input = {
       trick: t?.plays ?? [],
+      plays: t?.plays ?? [],
       playersCount,
       winnerIndex,
       trickIndex: t?.id ?? null,
-    });
+      trickId: t?.id ?? null,
+      contractId,
+      trumpSuit: t?.trumpSuit ?? null,
+    };
 
-    if (!delta) continue;
+    const delta = contract.scoreTrick(input);
+
+    if (!Array.isArray(delta)) continue;
 
     for (let i = 0; i < playersCount; i++) {
-      scores[i] += delta[i] ?? 0;
+      scores[i] += Number(delta[i] ?? 0);
     }
   }
 

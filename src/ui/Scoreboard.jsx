@@ -139,7 +139,7 @@ export function Scoreboard({
       </div>
 
       <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7, textAlign: "center" }}>
-        Scores zijn totaal (opgeteld over alle gespeelde contracten).
+        Getoonde scores hangen af van de huidige fase.
       </div>
     </div>
   );
