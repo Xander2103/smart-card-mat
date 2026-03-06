@@ -26,11 +26,26 @@ function cardStyle(disabled) {
   };
 }
 
+function getTrumpLabel(suit) {
+  switch (String(suit ?? "").toUpperCase()) {
+    case "H":
+      return "♥ Harten";
+    case "D":
+      return "♦ Ruiten";
+    case "C":
+      return "♣ Klaveren";
+    case "S":
+      return "♠ Schoppen";
+    default:
+      return "-";
+  }
+}
+
 const TROEF_OPTIONS = [
-  { suit: "H", label: "Harten", symbol: "♥" },
-  { suit: "D", label: "Ruiten", symbol: "♦" },
-  { suit: "C", label: "Klaveren", symbol: "♣" },
-  { suit: "S", label: "Schoppen", symbol: "♠" },
+  { suit: "H", label: "Harten", symbol: "♥", color: "#c62828" },
+  { suit: "D", label: "Ruiten", symbol: "♦", color: "#c62828" },
+  { suit: "C", label: "Klaveren", symbol: "♣", color: "#111827" },
+  { suit: "S", label: "Schoppen", symbol: "♠", color: "#111827" },
 ];
 
 export function DobbelkingenPanel({
@@ -73,6 +88,7 @@ export function DobbelkingenPanel({
   const plays = d?.contractPlays ?? {};
   const lastContract = d?.lastContract ?? null;
   const troefPickCounts = d?.troefPickCounts ?? [];
+  const history = d?.history ?? [];
 
   function canPick(contractId) {
     if (!contractId) return false;
@@ -115,7 +131,7 @@ export function DobbelkingenPanel({
         <div style={pillStyle()}>Leader: <b>{leaderName}</b></div>
         <div style={pillStyle()}>Current: <b>{currentName}</b></div>
         <div style={pillStyle()}>Contract: <b>{d?.contract ?? "-"}</b></div>
-        <div style={pillStyle()}>Troef: <b>{d?.currentTrumpSuit ?? "-"}</b></div>
+        <div style={pillStyle()}>Troef: <b>{getTrumpLabel(d?.currentTrumpSuit)}</b></div>
       </div>
 
       {appState.phase === "DOBBELKINGEN_READY" && (
@@ -272,7 +288,7 @@ export function DobbelkingenPanel({
                   })
                 }
               >
-                <div style={{ fontWeight: 900, fontSize: 18 }}>
+                <div style={{ fontWeight: 900, fontSize: 18, color: opt.color }}>
                   {opt.symbol} {opt.label}
                 </div>
                 <div style={{ fontSize: 13, opacity: 0.8 }}>
@@ -324,6 +340,31 @@ export function DobbelkingenPanel({
             />
           </div>
         </>
+      )}
+
+      {history.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontWeight: 900, marginBottom: 8 }}>History</div>
+
+          <div style={{ display: "grid", gap: 8 }}>
+            {[...history].slice().reverse().map((entry, index) => (
+              <div
+                key={`${entry.contract}-${entry.timestamp ?? index}-${index}`}
+                style={{
+                  border: "1px solid #eee",
+                  borderRadius: 12,
+                  padding: "10px 12px",
+                  fontSize: 14,
+                }}
+              >
+                <b>{entry.label ?? entry.contract}</b>{" "}
+                {entry.trumpSuit ? `(${getTrumpLabel(entry.trumpSuit)}) ` : ""}
+                — gespeeld door{" "}
+                <b>{players?.[entry.chooserIndex]?.name ?? `Player ${(entry.chooserIndex ?? 0) + 1}`}</b>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

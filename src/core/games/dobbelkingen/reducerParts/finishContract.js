@@ -13,6 +13,19 @@ import {
   getNextTroefChooserIndex,
 } from "./troefFlow";
 import { computeScoresFromTrickHistory } from "../scoring";
+import { getContract } from "../contracts";
+
+function buildHistoryEntry(d, chooserIndex) {
+  const contractDef = getContract(d.contract);
+
+  return {
+    contract: d.contract,
+    label: contractDef?.label ?? d.contract,
+    chooserIndex,
+    trumpSuit: d.currentTrumpSuit ?? null,
+    timestamp: Date.now(),
+  };
+}
 
 export function finishDobbelContract({
   state,
@@ -32,8 +45,10 @@ export function finishDobbelContract({
   );
 
   if (d.roundPhase === 1) {
+    const currentChooser = clampIndex(d.chooserIndex ?? 0, playersCount);
     const nextChooser = clampIndex((d.chooserIndex ?? 0) + 1, playersCount);
     const nextContractPlays = inc(d.contractPlays, d.contract);
+    const nextHistory = [...(d.history ?? []), buildHistoryEntry(d, currentChooser)];
 
     const lastResult = {
       contract: d.contract,
@@ -80,12 +95,12 @@ export function finishDobbelContract({
           currentContractStarterIndex: 0,
           totalScores: nextTotal,
           lastResult,
+          history: nextHistory,
           ...clearHandRuntimeFields(),
         }
       );
     }
 
-    // automatisch naar fase 2
     return setDobbelState(
       {
         ...state,
@@ -109,12 +124,12 @@ export function finishDobbelContract({
         currentContractStarterIndex: 0,
         totalScores: nextTotal,
         lastResult,
+        history: nextHistory,
         ...clearHandRuntimeFields(),
       }
     );
   }
 
-  // fase 2 einde
   const chooser = clampIndex(d.troefChooserIndex ?? 0, playersCount);
   const nextTroefPickCounts = [
     ...(d.troefPickCounts ?? Array(playersCount).fill(0)),
@@ -127,6 +142,7 @@ export function finishDobbelContract({
   );
 
   const nextTroefChooser = getNextTroefChooserIndex(chooser, playersCount);
+  const nextHistory = [...(d.history ?? []), buildHistoryEntry(d, chooser)];
 
   return setDobbelState(
     {
@@ -152,6 +168,7 @@ export function finishDobbelContract({
       currentContractStarterIndex: 0,
       troefPickCounts: nextTroefPickCounts,
       totalScores: nextTotal,
+      history: nextHistory,
       lastResult: {
         contract: "TROEF",
         contractScores,

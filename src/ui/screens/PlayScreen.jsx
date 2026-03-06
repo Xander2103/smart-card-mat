@@ -10,6 +10,38 @@ import { ContractEndOverlay } from "../ContractEndOverlay";
 import { useEffect, useMemo, useState } from "react";
 import { computeScoresFromTrickHistory } from "../../core/games/dobbelkingen/scoring";
 
+function getTrumpLabel(suit) {
+  switch (String(suit ?? "").toUpperCase()) {
+    case "H":
+      return "♥ Harten";
+    case "D":
+      return "♦ Ruiten";
+    case "C":
+      return "♣ Klaveren";
+    case "S":
+      return "♠ Schoppen";
+    default:
+      return "-";
+  }
+}
+
+function getTrickWinsByPlayer(trickHistory, playersCount) {
+  const wins = Array(playersCount).fill(0);
+
+  for (const trick of trickHistory ?? []) {
+    const winnerIndex = trick?.winnerIndex;
+    if (
+      typeof winnerIndex === "number" &&
+      winnerIndex >= 0 &&
+      winnerIndex < playersCount
+    ) {
+      wins[winnerIndex] += 1;
+    }
+  }
+
+  return wins;
+}
+
 export function PlayScreen({
   appState,
   gameState,
@@ -32,6 +64,7 @@ export function PlayScreen({
 }) {
   const d = appState.game?.dobbelkingen ?? null;
   const players = appState.players ?? [];
+  const playersCount = players.length || 4;
 
   const currentIndex =
     typeof d?.currentPlayerIndex === "number"
@@ -45,8 +78,13 @@ export function PlayScreen({
 
   const scoreboardScores =
     appState.phase === "PLAYING_TRICK"
-      ? computeScoresFromTrickHistory(d?.trickHistory ?? [], players.length || 4)
+      ? computeScoresFromTrickHistory(d?.trickHistory ?? [], playersCount)
       : (d?.totalScores ?? []);
+
+  const trickWins =
+    appState.phase === "PLAYING_TRICK"
+      ? getTrickWinsByPlayer(d?.trickHistory ?? [], playersCount)
+      : Array(playersCount).fill(0);
 
   const endedReason = d?.lastResult?.endedEarlyReason ?? null;
 
@@ -256,7 +294,8 @@ export function PlayScreen({
 
               <div style={{ marginLeft: "auto" }}>
                 Mode: <b>{appState.gameMode ?? "-"}</b> • Contract:{" "}
-                <b>{contractId ?? "-"}</b> • TurnZone: <b>{turnZone ?? "-"}</b> • Current:{" "}
+                <b>{contractId ?? "-"}</b> • Troef:{" "}
+                <b>{getTrumpLabel(d?.currentTrumpSuit)}</b> • TurnZone: <b>{turnZone ?? "-"}</b> • Current:{" "}
                 <b>{currentName}</b>
               </div>
             </div>
@@ -297,6 +336,31 @@ export function PlayScreen({
               dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
             }
           />
+
+          {contractId === "TROEF" && (
+            <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
+              <div style={{ fontWeight: 900, marginBottom: 8 }}>Slagen fase 2</div>
+
+              <div style={{ display: "grid", gap: 8 }}>
+                {players.map((player, index) => (
+                  <div
+                    key={player.id ?? index}
+                    style={{
+                      border: "1px solid #f0f0f0",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div>{player.name ?? `Player ${index + 1}`}</div>
+                    <div style={{ fontWeight: 900 }}>{trickWins[index] ?? 0}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div style={{ fontSize: 12, opacity: 0.8, marginTop: 6 }}>
             <b>Played cards:</b>{" "}
