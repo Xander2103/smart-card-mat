@@ -24,13 +24,33 @@ export const minsteHarten = {
   },
 
   // EndEarly zodra er 13 harten zijn gespeeld (want dan zijn alle strafpunten al toegekend)
-  shouldEndEarly({ trickHistory }) {s
-    let hearts = 0;
+  shouldEndEarly({ trickHistory }) {
+    let heartsPlayed = 0;
 
-    for (const t of trickHistory ?? []) {
-      hearts += countHearts(t.plays);
+    for (const trick of trickHistory ?? []) {
+      for (const play of trick?.plays ?? []) {
+        const card = String(play?.card ?? "").toUpperCase();
+
+        if (
+          card.endsWith("H") ||
+          card.includes("HEART") ||
+          card.includes("HART") ||
+          card.includes("♥")
+        ) {
+          heartsPlayed++;
+        }
+      }
     }
 
-    return hearts >= 13;
-  }
-};
+    if (heartsPlayed >= 13) {
+      return {
+        endEarly: true,
+        reason: "ALL_HEARTS_PLAYED",
+      };
+    }
+
+    return {
+      endEarly: false,
+      reason: null,
+    };
+  }};
