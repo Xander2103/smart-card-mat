@@ -9,11 +9,49 @@ import {
 import { canPickContract } from "../contractsRules";
 import { normalizeTroefSuit, getTroefStarterIndex } from "../troefFlow";
 
+function buildRanking(finalScores, players) {
+  return [...finalScores]
+    .map((score, playerIndex) => ({
+      playerIndex,
+      name: players?.[playerIndex]?.name ?? `Player ${playerIndex + 1}`,
+      score,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map((row, index) => ({
+      ...row,
+      place: index + 1,
+    }));
+}
+
+function buildMatchSummary({ players, d, finalScores, finishedAt }) {
+  const ranking = buildRanking(finalScores, players);
+  const winner = ranking[0] ?? null;
+
+  return {
+    matchId: `dobbelkingen_${finishedAt}`,
+    game: "DOBBELKINGEN",
+    startedAt: d.matchStartedAt ?? null,
+    finishedAt,
+    winnerPlayerIndex: winner?.playerIndex ?? null,
+    winnerName: winner?.name ?? null,
+    finalScores: [...finalScores],
+    ranking,
+    players: players.map((p, index) => ({
+      playerIndex: index,
+      name: p?.name ?? `Player ${index + 1}`,
+    })),
+    contracts: [...(d.history ?? [])],
+  };
+}
+
 export function handleDobbelFlowAction(state, action) {
   const d = getDobbelState(state);
-  const playersCount = state.players?.length ?? 4;
+  const players = state.players ?? [];
+  const playersCount = players.length || 4;
 
   if (action.type === "start_dobbelkingen") {
+    const now = Date.now();
+
     const nextD = {
       ...d,
       chooserIndex: 0,
@@ -29,6 +67,10 @@ export function handleDobbelFlowAction(state, action) {
       currentContractStarterIndex: 0,
       totalScores: Array(playersCount).fill(0),
       lastResult: null,
+      history: [],
+      matchSummary: null,
+      matchStartedAt: now,
+      matchFinishedAt: null,
       ...clearHandRuntimeFields(),
     };
 
@@ -45,6 +87,8 @@ export function handleDobbelFlowAction(state, action) {
   }
 
   if (action.type === "debug_go_to_phase2") {
+    const startedAt = d.matchStartedAt ?? Date.now();
+
     return setDobbelState(
       {
         ...state,
@@ -64,6 +108,42 @@ export function handleDobbelFlowAction(state, action) {
         currentPlayerIndex: 0,
         currentTrumpSuit: null,
         currentContractStarterIndex: 0,
+        lastResult: null,
+        matchStartedAt: startedAt,
+        matchFinishedAt: null,
+        matchSummary: null,
+        ...clearHandRuntimeFields(),
+      }
+    );
+  }
+
+  if (action.type === "debug_finish_phase2_match") {
+    if (d.roundPhase !== 2) return state;
+
+    const finishedAt = Date.now();
+    const finalScores = [...(d.totalScores ?? Array(playersCount).fill(0))];
+    const summary = buildMatchSummary({
+      players,
+      d,
+      finalScores,
+      finishedAt,
+    });
+
+    return setDobbelState(
+      {
+        ...state,
+        phase: "DOBBELKINGEN_DONE",
+        turnZone: null,
+        lastError: null,
+        log: pushLog(state.log, "DOBBELKINGEN|DEBUG_FINISH_PHASE2_MATCH"),
+      },
+      {
+        ...d,
+        contract: null,
+        currentTrumpSuit: null,
+        currentContractStarterIndex: 0,
+        matchFinishedAt: finishedAt,
+        matchSummary: summary,
         lastResult: null,
         ...clearHandRuntimeFields(),
       }

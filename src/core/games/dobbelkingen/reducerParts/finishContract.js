@@ -15,15 +15,66 @@ import {
 import { computeScoresFromTrickHistory } from "../scoring";
 import { getContract } from "../contracts";
 
-function buildHistoryEntry(d, chooserIndex) {
+function buildHistoryEntry({
+  d,
+  chooserIndex,
+  leaderIndex,
+  contractScores,
+  totalScoresAfter,
+  endEarlyReason,
+}) {
   const contractDef = getContract(d.contract);
 
   return {
     contract: d.contract,
     label: contractDef?.label ?? d.contract,
     chooserIndex,
+    leaderIndex,
     trumpSuit: d.currentTrumpSuit ?? null,
+    contractScores: [...(contractScores ?? [])],
+    totalScoresAfter: [...(totalScoresAfter ?? [])],
+    endedEarlyReason: endEarlyReason ?? null,
     timestamp: Date.now(),
+  };
+}
+
+function buildRanking(finalScores, players) {
+  return [...finalScores]
+    .map((score, playerIndex) => ({
+      playerIndex,
+      name: players?.[playerIndex]?.name ?? `Player ${playerIndex + 1}`,
+      score,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map((row, index) => ({
+      ...row,
+      place: index + 1,
+    }));
+}
+
+function buildMatchSummary({
+  players,
+  d,
+  finalScores,
+  finishedAt,
+}) {
+  const ranking = buildRanking(finalScores, players);
+  const winner = ranking[0] ?? null;
+
+  return {
+    matchId: `dobbelkingen_${finishedAt}`,
+    game: "DOBBELKINGEN",
+    startedAt: d.matchStartedAt ?? null,
+    finishedAt,
+    winnerPlayerIndex: winner?.playerIndex ?? null,
+    winnerName: winner?.name ?? null,
+    finalScores: [...finalScores],
+    ranking,
+    players: players.map((p, index) => ({
+      playerIndex: index,
+      name: p?.name ?? `Player ${index + 1}`,
+    })),
+    contracts: [...(d.history ?? [])],
   };
 }
 
@@ -36,7 +87,8 @@ export function finishDobbelContract({
   nextLog,
 }) {
   const d = getDobbelState(state);
-  const playersCount = state.players?.length ?? 4;
+  const players = state.players ?? [];
+  const playersCount = players.length || 4;
 
   const prevTotal = d.totalScores ?? Array(playersCount).fill(0);
   const nextTotal = Array.from(
@@ -48,7 +100,17 @@ export function finishDobbelContract({
     const currentChooser = clampIndex(d.chooserIndex ?? 0, playersCount);
     const nextChooser = clampIndex((d.chooserIndex ?? 0) + 1, playersCount);
     const nextContractPlays = inc(d.contractPlays, d.contract);
-    const nextHistory = [...(d.history ?? []), buildHistoryEntry(d, currentChooser)];
+
+    const historyEntry = buildHistoryEntry({
+      d,
+      chooserIndex: currentChooser,
+      leaderIndex: d.leaderIndex ?? null,
+      contractScores,
+      totalScoresAfter: nextTotal,
+      endEarlyReason,
+    });
+
+    const nextHistory = [...(d.history ?? []), historyEntry];
 
     const lastResult = {
       contract: d.contract,
@@ -136,25 +198,82 @@ export function finishDobbelContract({
   ];
   nextTroefPickCounts[chooser] = (nextTroefPickCounts[chooser] ?? 0) + 1;
 
+  const historyEntry = buildHistoryEntry({
+    d,
+    chooserIndex: chooser,
+    leaderIndex: d.leaderIndex ?? null,
+    contractScores,
+    totalScoresAfter: nextTotal,
+    endEarlyReason: null,
+  });
+
+  const nextHistory = [...(d.history ?? []), historyEntry];
+
   const doneAllTroef = allPlayersPickedTroefTwice(
     nextTroefPickCounts,
     playersCount
   );
 
   const nextTroefChooser = getNextTroefChooserIndex(chooser, playersCount);
-  const nextHistory = [...(d.history ?? []), buildHistoryEntry(d, chooser)];
+
+  if (doneAllTroef) {
+    const finishedAt = Date.now();
+
+    const summary = buildMatchSummary({
+      players,
+      d: {
+        ...d,
+        history: nextHistory,
+      },
+      finalScores: nextTotal,
+      finishedAt,
+    });
+
+    return setDobbelState(
+      {
+        ...state,
+        phase: "DOBBELKINGEN_DONE",
+        lastError: null,
+        turnZone: null,
+        log: pushLog(nextLog, "PHASE2_DONE|DOBBELKINGEN_DONE"),
+      },
+      {
+        ...d,
+        contract: null,
+        chooserIndex: nextTroefChooser,
+        troefChooserIndex: nextTroefChooser,
+        leaderIndex: 0,
+        currentPlayerIndex: nextTroefChooser,
+        currentTrumpSuit: null,
+        currentContractStarterIndex: 0,
+        troefPickCounts: nextTroefPickCounts,
+        totalScores: nextTotal,
+        history: nextHistory,
+        matchFinishedAt: finishedAt,
+        matchSummary: summary,
+        lastResult: {
+          contract: "TROEF",
+          contractScores,
+          totalScores: nextTotal,
+          endedEarly: false,
+          endedEarlyReason: null,
+          timestamp: finishedAt,
+          overlayClosed: true,
+        },
+        ...clearHandRuntimeFields(),
+      }
+    );
+  }
 
   return setDobbelState(
     {
       ...state,
-      phase: doneAllTroef ? "DOBBELKINGEN_DONE" : "CHOOSING_TROEF",
+      phase: "CHOOSING_TROEF",
       lastError: null,
       turnZone: null,
       log: pushLog(
         nextLog,
-        doneAllTroef
-          ? "PHASE2_DONE|DOBBELKINGEN_DONE"
-          : `TROEF_CONTRACT_END|NEXT_CHOOSER=P${nextTroefChooser}`
+        `TROEF_CONTRACT_END|NEXT_CHOOSER=P${nextTroefChooser}`
       ),
     },
     {

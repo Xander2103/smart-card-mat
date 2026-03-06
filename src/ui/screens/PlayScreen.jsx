@@ -42,6 +42,122 @@ function getTrickWinsByPlayer(trickHistory, playersCount) {
   return wins;
 }
 
+function EndScreen({ summary, onNewGame, onBackHome }) {
+  const ranking = summary?.ranking ?? [];
+  const finalScores = summary?.finalScores ?? [];
+  const winnerName = summary?.winnerName ?? "Onbekend";
+
+  return (
+    <div
+      style={{
+        border: "1px solid #e5e7eb",
+        background: "#fafafa",
+        borderRadius: 16,
+        padding: 18,
+        display: "grid",
+        gap: 16,
+        boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+      }}
+    >
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 28, fontWeight: 900 }}>Dobbelkingen klaar</div>
+        <div style={{ marginTop: 6, fontSize: 18, fontWeight: 800 }}>
+          🏆 Winnaar: {winnerName}
+        </div>
+      </div>
+
+      <div
+        style={{
+          border: "1px solid #eee",
+          background: "white",
+          borderRadius: 14,
+          padding: 14,
+        }}
+      >
+        <div style={{ fontWeight: 900, marginBottom: 10 }}>Eindranking</div>
+
+        <div style={{ display: "grid", gap: 8 }}>
+          {ranking.map((row) => (
+            <div
+              key={row.playerIndex}
+              style={{
+                border: "1px solid #f0f0f0",
+                borderRadius: 12,
+                padding: "10px 12px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: row.place === 1 ? "#fefce8" : "white",
+              }}
+            >
+              <div>
+                <b>#{row.place}</b> {row.name}
+              </div>
+              <div style={{ fontWeight: 900 }}>{row.score}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div
+        style={{
+          border: "1px solid #eee",
+          background: "white",
+          borderRadius: 14,
+          padding: 14,
+        }}
+      >
+        <div style={{ fontWeight: 900, marginBottom: 10 }}>Totaalscores</div>
+
+        <div style={{ display: "grid", gap: 8 }}>
+          {finalScores.map((score, index) => (
+            <div
+              key={index}
+              style={{
+                border: "1px solid #f0f0f0",
+                borderRadius: 12,
+                padding: "10px 12px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div>Player {index + 1}</div>
+              <div style={{ fontWeight: 900 }}>{score}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+        <button
+          onClick={onNewGame}
+          style={{
+            borderRadius: 12,
+            padding: "12px 16px",
+            fontWeight: 900,
+            cursor: "pointer",
+          }}
+        >
+          Nieuw spel
+        </button>
+
+        <button
+          onClick={onBackHome}
+          style={{
+            borderRadius: 12,
+            padding: "12px 16px",
+            fontWeight: 900,
+            cursor: "pointer",
+          }}
+        >
+          Terug naar home
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function PlayScreen({
   appState,
   gameState,
@@ -149,6 +265,7 @@ export function PlayScreen({
     appState.phase === "CHOOSING_CONTRACT" ||
     appState.phase === "CHOOSING_TROEF";
   const showGameUi = appState.phase === "PLAYING_TRICK";
+  const showDoneUi = appState.phase === "DOBBELKINGEN_DONE";
 
   const DISPLAY_ZONES = useMemo(() => [1, 2, 4, 3], []);
   const zonesForGrid = DISPLAY_ZONES.map((z) => zones?.[z - 1] ?? null);
@@ -236,6 +353,14 @@ export function PlayScreen({
         </>
       )}
 
+      {showDoneUi && (
+        <EndScreen
+          summary={d?.matchSummary}
+          onNewGame={onStartDobbelkingen}
+          onBackHome={onCloseMode}
+        />
+      )}
+
       {showGameUi && (
         <>
           {appState.lastError && (
@@ -256,7 +381,7 @@ export function PlayScreen({
             >
               <div>🚫 {appState.lastError}</div>
               <button
-                onClick={() => {}}
+                onClick={() => { }}
                 style={{
                   border: "1px solid #ff4d4f",
                   background: "white",
@@ -297,6 +422,11 @@ export function PlayScreen({
 
               <button onClick={onUndo}>Undo last play</button>
               <button onClick={onResetPile}>Reset pile</button>
+              {d?.roundPhase === 2 && (
+                <button onClick={() => dispatchAction?.({ type: "debug_finish_phase2_match" })}>
+                  Match beëindigen (debug)
+                </button>
+              )}
 
               <button
                 onClick={() => {

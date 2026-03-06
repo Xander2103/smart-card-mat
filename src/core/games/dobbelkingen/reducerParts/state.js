@@ -59,6 +59,12 @@ export function getDobbelState(state) {
     totalScores: Array(playersCount).fill(0),
     lastResult: null,
 
+    // persistence-ready
+    history: [],
+    matchSummary: null,
+    matchStartedAt: null,
+    matchFinishedAt: null,
+
     ...clearHandRuntimeFields(),
   };
 }
