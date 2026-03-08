@@ -11,7 +11,6 @@ import { ContractEndOverlay } from "../ContractEndOverlay";
 import { computeScoresFromTrickHistory } from "../../core/games/dobbelkingen/scoring";
 import { EndScreen } from "../play/EndScreen";
 import { GameToolbar } from "../play/GameToolbar";
-import { StatusOverview } from "../play/StatusOverview";
 import { useViewport } from "../play/useViewport";
 import { colors, panelStyle, softCardStyle } from "../play/theme";
 
@@ -303,18 +302,6 @@ export function PlayScreen({
     };
   }, [d?.lastTrick?.timestamp, d?.lastTrickWinnerIndex, players]);
 
-  const phaseLabel = buildPhaseLabel(appState, roundPhase);
-  const roundLabel = buildRoundLabel(roundPhase, contractId, trickCount);
-  const statusText =
-    appState.phase === "CHOOSING_CONTRACT"
-      ? "Kies een contract"
-      : appState.phase === "CHOOSING_TROEF"
-        ? "Kies een troefkleur"
-        : appState.phase === "PLAYING_TRICK"
-          ? "Speel de volgende kaart"
-          : appState.phase === "DOBBELKINGEN_DONE"
-            ? "Match afgerond"
-            : "Klaar om te starten";
 
   const { isMobile, isTablet } = useViewport();
 
@@ -383,19 +370,6 @@ export function PlayScreen({
         <>
           <ErrorBanner message={appState.lastError} />
 
-          <StatusOverview
-            chooserName={chooserName}
-            leaderName={leaderName}
-            currentName={currentName}
-            phaseLabel={phaseLabel}
-            roundLabel={roundLabel}
-            playedCount={roundPhase === 2 ? d?.troefHistory?.length ?? 0 : d?.history?.length ?? 0}
-            totalCount={roundPhase === 2 ? playersCount * 2 : (d?.contracts?.length ?? 0) * 2}
-            contractLabel={contractId ?? "—"}
-            trumpLabel={getTrumpLabel(d?.currentTrumpSuit)}
-            statusText={statusText}
-          />
-
           <GameToolbar
             canConfirm={gameState?.canConfirm}
             autoConfirm={appState.autoConfirm}
@@ -429,6 +403,15 @@ export function PlayScreen({
             </div>
           )}
 
+          <TableDirection
+            players={players}
+            currentPlayerIndex={currentIndex}
+            leaderPlayerIndex={leaderPlayerIndex}
+            contractLabel={contractId ?? "—"}
+            trumpLabel={getTrumpLabel(d?.currentTrumpSuit)}
+            trickLabel={`${trickCount} / 13`}
+          />
+
           <div
             style={{
               display: "grid",
@@ -438,13 +421,6 @@ export function PlayScreen({
             }}
           >
             <div style={{ display: "grid", gap: 14, order: leftColumnOrder }}>
-              {!isMobile && (
-                <TableDirection
-                  players={players}
-                  currentPlayerIndex={currentIndex}
-                  leaderPlayerIndex={leaderPlayerIndex}
-                />
-              )}
 
               <ZoneGrid
                 zones={zonesForGrid}
@@ -466,14 +442,6 @@ export function PlayScreen({
             </div>
 
             <div style={{ display: "grid", gap: 14, order: rightColumnOrder }}>
-              {isMobile && (
-                <TableDirection
-                  players={players}
-                  currentPlayerIndex={currentIndex}
-                  leaderPlayerIndex={leaderPlayerIndex}
-                />
-              )}
-
               <Scoreboard
                 players={players}
                 scores={scoreboardScores}

@@ -28,20 +28,22 @@ const TROEF_OPTIONS = [
   { suit: "S", label: "Schoppen", symbol: "♠", color: "#e5eefb" },
 ];
 
-function InfoCard({ title, value, accent = colors.blue }) {
+function MiniStat({ label, value, accent = colors.blue }) {
   return (
     <div
-      style={softCardStyle({
-        padding: 14,
-        display: "grid",
-        gap: 6,
+      style={{
+        borderRadius: 999,
+        padding: "8px 12px",
         background: "rgba(255,255,255,0.04)",
-      })}
+        border: "1px solid rgba(255,255,255,0.08)",
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        flexWrap: "wrap",
+      }}
     >
-      <div style={{ fontSize: 12, color: colors.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 800 }}>
-        {title}
-      </div>
-      <div style={{ fontWeight: 900, fontSize: 18, color: accent }}>{value}</div>
+      <span style={{ fontSize: 12, color: colors.muted, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.6 }}>{label}</span>
+      <span style={{ fontWeight: 900, color: accent }}>{value}</span>
     </div>
   );
 }
@@ -186,13 +188,21 @@ export function DobbelkingenPanel({
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
-          <InfoCard title="Fase" value={phase} accent={colors.accent} />
-          <InfoCard title="Contractronde" value={String(d?.roundPhase ?? 1)} accent={colors.green} />
-          <InfoCard title="Kiest" value={chooserName} accent={colors.blue} />
-          <InfoCard title="Komt uit" value={leaderName} accent={colors.red} />
-          <InfoCard title="Aan zet" value={currentName} accent={colors.text} />
-          <InfoCard title="Troef" value={getTrumpLabel(d?.currentTrumpSuit)} accent={colors.accent} />
+        <div
+          style={softCardStyle({
+            padding: 12,
+            display: "flex",
+            gap: 8,
+            flexWrap: "wrap",
+            alignItems: "center",
+            background: "rgba(255,255,255,0.03)",
+          })}
+        >
+          <MiniStat label="Fase" value={phase === "CHOOSING_CONTRACT" ? "Contractkeuze" : phase === "CHOOSING_TROEF" ? "Troefkeuze" : phase} accent={colors.accent} />
+          <MiniStat label="Ronde" value={String(d?.roundPhase ?? 1)} accent={colors.green} />
+          <MiniStat label="Kiest" value={chooserName} accent={colors.blue} />
+          <MiniStat label="Komt uit" value={leaderName} accent={colors.red} />
+          <MiniStat label="Troef" value={getTrumpLabel(d?.currentTrumpSuit)} accent={colors.accent} />
         </div>
 
         {appState.phase === "DOBBELKINGEN_READY" && (
@@ -211,10 +221,10 @@ export function DobbelkingenPanel({
 
         {appState.phase === "CHOOSING_CONTRACT" && (
           <>
-            <div style={softCardStyle({ padding: 18, display: "grid", gap: 4, background: "rgba(251,191,36,0.10)" })}>
-              <div style={{ fontWeight: 900, fontSize: 22 }}>{chooserName} kiest nu een contract</div>
-              <div style={{ color: colors.muted }}>
-                De volgende speler in de rij komt uit in de eerste slag.
+            <div style={softCardStyle({ padding: 14, display: "grid", gap: 2, background: "rgba(251,191,36,0.08)" })}>
+              <div style={{ fontWeight: 900, fontSize: isMobile ? 18 : 20 }}>{chooserName} kiest nu een contract</div>
+              <div style={{ color: colors.muted, fontSize: 14 }}>
+                Volgende speler komt uit in de eerste slag.
               </div>
             </div>
 
@@ -273,9 +283,9 @@ export function DobbelkingenPanel({
 
         {appState.phase === "CHOOSING_TROEF" && (
           <>
-            <div style={softCardStyle({ padding: 18, display: "grid", gap: 4, background: "rgba(74,222,128,0.10)" })}>
-              <div style={{ fontWeight: 900, fontSize: 22 }}>{chooserName} kiest troef</div>
-              <div style={{ color: colors.muted }}>{leaderName} komt uit in de eerste slag.</div>
+            <div style={softCardStyle({ padding: 14, display: "grid", gap: 2, background: "rgba(74,222,128,0.08)" })}>
+              <div style={{ fontWeight: 900, fontSize: isMobile ? 18 : 20 }}>{chooserName} kiest troef</div>
+              <div style={{ color: colors.muted, fontSize: 14 }}>{leaderName} komt uit in de eerste slag.</div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
