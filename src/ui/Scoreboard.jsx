@@ -1,21 +1,10 @@
 // src/ui/Scoreboard.jsx
 import { useMemo, useState } from "react";
+import { buttonStyle, colors, panelStyle, softCardStyle } from "./play/theme";
 
 function IconButton({ title, onClick, children }) {
   return (
-    <button
-      title={title}
-      onClick={onClick}
-      style={{
-        border: "1px solid #eee",
-        background: "white",
-        borderRadius: 10,
-        padding: "6px 10px",
-        cursor: "pointer",
-        fontWeight: 900,
-        lineHeight: 1,
-      }}
-    >
+    <button title={title} onClick={onClick} style={{ ...buttonStyle(), padding: "8px 10px", lineHeight: 1 }}>
       {children}
     </button>
   );
@@ -27,12 +16,9 @@ function SmallBtn({ children, onClick, title }) {
       title={title}
       onClick={onClick}
       style={{
-        border: "1px solid #ddd",
-        background: "white",
-        borderRadius: 10,
+        ...buttonStyle(),
         padding: "6px 10px",
-        cursor: "pointer",
-        fontWeight: 900,
+        fontSize: 12,
       }}
     >
       {children}
@@ -45,38 +31,31 @@ export function Scoreboard({
   scores = [],
   currentPlayerIndex = 0,
   flashWinnerIndex = null,
-
   onAdjustScore,
   allowEdit = true,
   showPlusMinusFive = false,
 }) {
   const [isEditing, setIsEditing] = useState(false);
 
-  const rows = useMemo(() => {
-    return players.map((p, i) => ({
-      key: p.id ?? i,
-      name: p?.name ?? `Player ${i + 1}`,
-      score: scores?.[i] ?? 0,
-      isCurrent: i === currentPlayerIndex,
-      isFlash: typeof flashWinnerIndex === "number" && i === flashWinnerIndex,
-    }));
-  }, [players, scores, currentPlayerIndex, flashWinnerIndex]);
+  const rows = useMemo(
+    () =>
+      players.map((p, i) => ({
+        key: p.id ?? i,
+        name: p?.name ?? `Player ${i + 1}`,
+        score: scores?.[i] ?? 0,
+        isCurrent: i === currentPlayerIndex,
+        isFlash: typeof flashWinnerIndex === "number" && i === flashWinnerIndex,
+      })),
+    [players, scores, currentPlayerIndex, flashWinnerIndex]
+  );
 
   return (
-    <div
-      style={{
-        border: "1px solid #e5e7eb",
-        background: "#fafafa",
-        borderRadius: 14,
-        padding: 12,
-        boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
-      }}
-    >
+    <div style={panelStyle({ padding: 16, display: "grid", gap: 12 })}>
       <style>{`
         @keyframes winnerFlashRow {
-          0%   { transform: scale(1); background: #ffffff; }
-          20%  { transform: scale(1.01); background: #dcfce7; }
-          100% { transform: scale(1); background: #f6ffed; }
+          0%   { transform: scale(1); background: rgba(255, 255, 255, 0.04); }
+          20%  { transform: scale(1.01); background: rgba(74, 222, 128, 0.18); }
+          100% { transform: scale(1); background: rgba(74, 222, 128, 0.12); }
         }
       `}</style>
 
@@ -84,22 +63,22 @@ export function Scoreboard({
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
-          marginBottom: 10,
+          justifyContent: "space-between",
+          gap: 12,
         }}
       >
-        <div style={{ fontWeight: 900, fontSize: 18 }}>Tussenstand</div>
+        <div>
+          <div style={{ fontWeight: 900, fontSize: 20 }}>Tussenstand</div>
+          <div style={{ fontSize: 13, color: colors.muted }}>Totaal of contractscore afhankelijk van de huidige fase.</div>
+        </div>
 
         {allowEdit && (
-          <div style={{ position: "absolute", right: 0 }}>
-            <IconButton
-              title={isEditing ? "Stop aanpassen" : "Scores aanpassen"}
-              onClick={() => setIsEditing((v) => !v)}
-            >
-              {isEditing ? "✅" : "⚙️"}
-            </IconButton>
-          </div>
+          <IconButton
+            title={isEditing ? "Stop aanpassen" : "Scores aanpassen"}
+            onClick={() => setIsEditing((v) => !v)}
+          >
+            {isEditing ? "✅" : "⚙️"}
+          </IconButton>
         )}
       </div>
 
@@ -108,23 +87,32 @@ export function Scoreboard({
           <div
             key={r.key}
             style={{
-              display: "grid",
-              gridTemplateColumns: "1fr auto",
-              alignItems: "center",
-              padding: "12px 14px",
-              borderRadius: 14,
-              border: r.isFlash
-                ? "2px solid #22c55e"
-                : r.isCurrent
-                  ? "1px solid #d1d5db"
-                  : "1px solid #eee",
-              background: r.isFlash ? "#f6ffed" : r.isCurrent ? "#fafafa" : "white",
-              animation: r.isFlash ? "winnerFlashRow 650ms ease-out" : "none",
-              boxShadow: r.isFlash ? "0 8px 20px rgba(34, 197, 94, 0.12)" : "none",
-              transition: "all 0.18s ease",
+              ...softCardStyle({
+                display: "grid",
+                gridTemplateColumns: "1fr auto",
+                alignItems: "center",
+                padding: "12px 14px",
+                background: r.isFlash
+                  ? colors.greenSoft
+                  : r.isCurrent
+                    ? "rgba(251, 191, 36, 0.10)"
+                    : "rgba(255,255,255,0.04)",
+                border: r.isFlash
+                  ? "1px solid rgba(74, 222, 128, 0.42)"
+                  : r.isCurrent
+                    ? "1px solid rgba(251, 191, 36, 0.34)"
+                    : "1px solid rgba(255, 255, 255, 0.08)",
+                animation: r.isFlash ? "winnerFlashRow 650ms ease-out" : "none",
+                boxShadow: r.isFlash ? "0 12px 24px rgba(74, 222, 128, 0.12)" : "none",
+              }),
             }}
           >
-            <div style={{ fontWeight: 900, textAlign: "left" }}>{r.name}</div>
+            <div style={{ display: "grid", gap: 4, textAlign: "left" }}>
+              <div style={{ fontWeight: 900 }}>{r.name}</div>
+              <div style={{ fontSize: 12, color: colors.muted }}>
+                {r.isFlash ? "Wint de laatste slag" : r.isCurrent ? "Aan de beurt" : ""}
+              </div>
+            </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {allowEdit && isEditing && (
@@ -149,16 +137,12 @@ export function Scoreboard({
                 </>
               )}
 
-              <div style={{ fontWeight: 900, minWidth: 36, textAlign: "right" }}>
+              <div style={{ fontWeight: 900, minWidth: 42, textAlign: "right", fontSize: 20 }}>
                 {r.score}
               </div>
             </div>
           </div>
         ))}
-      </div>
-
-      <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7, textAlign: "center" }}>
-        Getoonde scores hangen af van de huidige fase.
       </div>
     </div>
   );

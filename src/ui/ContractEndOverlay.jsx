@@ -1,10 +1,11 @@
 // src/ui/ContractEndOverlay.jsx
 import { useEffect } from "react";
+import { buttonStyle, colors, panelStyle, softCardStyle } from "./play/theme";
 
 export function ContractEndOverlay({ open, title, message, onClose }) {
   useEffect(() => {
-    if (!open) return;
-    const t = setTimeout(() => onClose?.(), 2500); // auto close
+    if (!open) return undefined;
+    const t = setTimeout(() => onClose?.(), 2500);
     return () => clearTimeout(t);
   }, [open, onClose]);
 
@@ -15,7 +16,7 @@ export function ContractEndOverlay({ open, title, message, onClose }) {
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.35)",
+        background: "rgba(2, 6, 23, 0.68)",
         display: "grid",
         placeItems: "center",
         zIndex: 9999,
@@ -23,34 +24,22 @@ export function ContractEndOverlay({ open, title, message, onClose }) {
       }}
       onClick={() => onClose?.()}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "min(560px, 100%)",
-          borderRadius: 18,
-          background: "white",
-          border: "1px solid #eee",
-          padding: 16,
-          boxShadow: "0 10px 40px rgba(0,0,0,0.25)",
-        }}
-      >
-        <div style={{ fontWeight: 900, fontSize: 18 }}>{title}</div>
-        <div style={{ marginTop: 8, opacity: 0.8, fontSize: 14 }}>
-          {message}
-        </div>
+      <div onClick={(e) => e.stopPropagation()} style={panelStyle({ width: "min(560px, 100%)", padding: 20 })}>
+        <div style={{ display: "grid", gap: 14 }}>
+          <div>
+            <div style={{ fontWeight: 900, fontSize: 22 }}>{title}</div>
+            <div style={{ marginTop: 8, color: colors.muted, fontSize: 14 }}>{message}</div>
+          </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
-          <button
-            onClick={() => onClose?.()}
-            style={{
-              borderRadius: 12,
-              padding: "8px 12px",
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
-            Oké
-          </button>
+          <div style={softCardStyle({ padding: 12, background: "rgba(251, 191, 36, 0.10)", color: colors.text })}>
+            De overlay sluit automatisch na een paar seconden.
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button onClick={() => onClose?.()} style={buttonStyle("primary")}>
+              Oké
+            </button>
+          </div>
         </div>
       </div>
     </div>

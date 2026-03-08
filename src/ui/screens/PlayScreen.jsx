@@ -1,4 +1,6 @@
 // src/ui/screens/PlayScreen.jsx
+import { useEffect, useMemo, useState } from "react";
+
 import { ZoneGrid } from "../ZoneGrid";
 import { Scoreboard } from "../Scoreboard";
 import { DebugLog } from "../DebugLog";
@@ -6,9 +8,11 @@ import { GameModeCards } from "../GameModeCards";
 import { DobbelkingenPanel } from "../DobbelkingenPanel";
 import { TableDirection } from "../TableDirection";
 import { ContractEndOverlay } from "../ContractEndOverlay";
-
-import { useEffect, useMemo, useState } from "react";
 import { computeScoresFromTrickHistory } from "../../core/games/dobbelkingen/scoring";
+import { EndScreen } from "../play/EndScreen";
+import { GameToolbar } from "../play/GameToolbar";
+import { StatusOverview } from "../play/StatusOverview";
+import { colors, panelStyle, softCardStyle } from "../play/theme";
 
 function getTrumpLabel(suit) {
   switch (String(suit ?? "").toUpperCase()) {
@@ -21,7 +25,7 @@ function getTrumpLabel(suit) {
     case "S":
       return "♠ Schoppen";
     default:
-      return "-";
+      return "—";
   }
 }
 
@@ -30,11 +34,7 @@ function getTrickWinsByPlayer(trickHistory, playersCount) {
 
   for (const trick of trickHistory ?? []) {
     const winnerIndex = trick?.winnerIndex;
-    if (
-      typeof winnerIndex === "number" &&
-      winnerIndex >= 0 &&
-      winnerIndex < playersCount
-    ) {
+    if (typeof winnerIndex === "number" && winnerIndex >= 0 && winnerIndex < playersCount) {
       wins[winnerIndex] += 1;
     }
   }
@@ -42,117 +42,91 @@ function getTrickWinsByPlayer(trickHistory, playersCount) {
   return wins;
 }
 
-function EndScreen({ summary, onNewGame, onBackHome }) {
-  const ranking = summary?.ranking ?? [];
-  const finalScores = summary?.finalScores ?? [];
-  const winnerName = summary?.winnerName ?? "Onbekend";
+function buildPhaseLabel(appState, roundPhase) {
+  if (appState.phase === "CHOOSING_TROEF") return "Fase 2 · Troefkeuze";
+  if (appState.phase === "CHOOSING_CONTRACT") return "Fase 1 · Contractkeuze";
+  if (appState.phase === "PLAYING_TRICK") {
+    return roundPhase === 2 ? "Fase 2 · Slag spelen" : "Fase 1 · Slag spelen";
+  }
+  if (appState.phase === "DOBBELKINGEN_READY") return "Klaar om te starten";
+  if (appState.phase === "DOBBELKINGEN_DONE") return "Match afgerond";
+  return "Dobbelkingen";
+}
+
+function buildRoundLabel(roundPhase, contractId, trickCount) {
+  if (roundPhase === 2) return `Troefronde · slag ${Math.min((trickCount ?? 0) + 1, 13)} / 13`;
+  if (contractId) return `Contract · ${contractId}`;
+  return "Contractronde 1";
+}
+
+function ErrorBanner({ message }) {
+  if (!message) return null;
 
   return (
     <div
       style={{
-        border: "1px solid #e5e7eb",
-        background: "#fafafa",
-        borderRadius: 16,
-        padding: 18,
-        display: "grid",
-        gap: 16,
-        boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+        ...panelStyle({
+          padding: "14px 16px",
+          border: "1px solid rgba(251, 113, 133, 0.34)",
+          background: "rgba(127, 29, 29, 0.52)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }),
+        color: "#ffe4e6",
       }}
     >
-      <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 28, fontWeight: 900 }}>Dobbelkingen klaar</div>
-        <div style={{ marginTop: 6, fontSize: 18, fontWeight: 800 }}>
-          🏆 Winnaar: {winnerName}
-        </div>
-      </div>
+      <div style={{ fontWeight: 800 }}>🚫 {message}</div>
+      <div style={{ fontSize: 13, color: "#fecdd3" }}>Controleer de huidige beurt en zone.</div>
+    </div>
+  );
+}
 
+function PlayedCardsPanel({ cardCodes = [] }) {
+  return (
+    <div style={panelStyle({ padding: 16, display: "grid", gap: 8 })}>
+      <div style={{ fontWeight: 900 }}>Recent gespeelde kaarten</div>
+      <div style={{ color: colors.muted, fontSize: 13 }}>
+        Laatste 20 gescande codes uit deze matchflow.
+      </div>
       <div
         style={{
-          border: "1px solid #eee",
-          background: "white",
-          borderRadius: 14,
-          padding: 14,
+          ...softCardStyle({
+            padding: 14,
+            fontFamily: "ui-monospace, Menlo, monospace",
+            fontSize: 13,
+            lineHeight: 1.6,
+            color: colors.text,
+          }),
         }}
       >
-        <div style={{ fontWeight: 900, marginBottom: 10 }}>Eindranking</div>
-
-        <div style={{ display: "grid", gap: 8 }}>
-          {ranking.map((row) => (
-            <div
-              key={row.playerIndex}
-              style={{
-                border: "1px solid #f0f0f0",
-                borderRadius: 12,
-                padding: "10px 12px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                background: row.place === 1 ? "#fefce8" : "white",
-              }}
-            >
-              <div>
-                <b>#{row.place}</b> {row.name}
-              </div>
-              <div style={{ fontWeight: 900 }}>{row.score}</div>
-            </div>
-          ))}
-        </div>
+        {cardCodes.slice(-20).join(" • ") || "—"}
       </div>
+    </div>
+  );
+}
 
-      <div
-        style={{
-          border: "1px solid #eee",
-          background: "white",
-          borderRadius: 14,
-          padding: 14,
-        }}
-      >
-        <div style={{ fontWeight: 900, marginBottom: 10 }}>Totaalscores</div>
-
-        <div style={{ display: "grid", gap: 8 }}>
-          {finalScores.map((score, index) => (
-            <div
-              key={index}
-              style={{
-                border: "1px solid #f0f0f0",
-                borderRadius: 12,
-                padding: "10px 12px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <div>Player {index + 1}</div>
-              <div style={{ fontWeight: 900 }}>{score}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-        <button
-          onClick={onNewGame}
-          style={{
-            borderRadius: 12,
-            padding: "12px 16px",
-            fontWeight: 900,
-            cursor: "pointer",
-          }}
-        >
-          Nieuw spel
-        </button>
-
-        <button
-          onClick={onBackHome}
-          style={{
-            borderRadius: 12,
-            padding: "12px 16px",
-            fontWeight: 900,
-            cursor: "pointer",
-          }}
-        >
-          Terug naar home
-        </button>
+function TrickWinsPanel({ players, trickWins }) {
+  return (
+    <div style={panelStyle({ padding: 16, display: "grid", gap: 12 })}>
+      <div style={{ fontWeight: 900 }}>Slagen in fase 2</div>
+      <div style={{ display: "grid", gap: 8 }}>
+        {players.map((player, index) => (
+          <div
+            key={player.id ?? index}
+            style={softCardStyle({
+              padding: "12px 14px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              background: "rgba(255,255,255,0.04)",
+            })}
+          >
+            <div>{player.name ?? `Player ${index + 1}`}</div>
+            <div style={{ fontWeight: 900 }}>{trickWins[index] ?? 0}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -170,12 +144,10 @@ export function PlayScreen({
   onResetPile,
   showDebug = true,
   onBackFromContract,
-
   onOpenDobbelkingen,
   onCloseMode,
   onStartDobbelkingen,
   onChooseDobbelkingenContract,
-
   dispatchAction,
 }) {
   const d = appState.game?.dobbelkingen ?? null;
@@ -189,23 +161,22 @@ export function PlayScreen({
         ? appState.currentPlayerIndex
         : 0;
 
-  const currentName = players[currentIndex]?.name ?? "-";
+  const currentName = players[currentIndex]?.name ?? `Player ${currentIndex + 1}`;
   const contractId = d?.contract ?? null;
+  const trickCount = d?.trickHistory?.length ?? 0;
+  const roundPhase = d?.roundPhase ?? 1;
 
   const scoreboardScores =
     appState.phase === "PLAYING_TRICK"
       ? computeScoresFromTrickHistory(d?.trickHistory ?? [], playersCount)
-      : (d?.totalScores ?? []);
+      : d?.totalScores ?? [];
 
   const trickWins =
     appState.phase === "PLAYING_TRICK"
       ? getTrickWinsByPlayer(d?.trickHistory ?? [], playersCount)
       : Array(playersCount).fill(0);
 
-  const trickCount = d?.trickHistory?.length ?? 0;
-
   const endedReason = d?.lastResult?.endedEarlyReason ?? null;
-
   const endedByIndex =
     typeof d?.lastResult?.endedByPlayerIndex === "number"
       ? d.lastResult.endedByPlayerIndex
@@ -230,7 +201,7 @@ export function PlayScreen({
       ? "Alle harten zijn gespeeld ♥ — contract beëindigd"
       : isAllJkEnded
         ? "Alle boeren & koningen gespeeld 👑🃏 — contract beëindigd"
-        : "Alle queens gespeeld 👑👑 — contract beëindigd";
+        : "Alle queens zijn gespeeld 👑 — contract beëindigd";
 
   const overlayMessage = isHeartsKingEnded
     ? endedByName
@@ -243,11 +214,9 @@ export function PlayScreen({
         : "Alle 4 queens zijn gevallen — terug naar contract keuze";
 
   const showChooserBanner =
-    (
-      appState.phase === "CHOOSING_CONTRACT" ||
+    (appState.phase === "CHOOSING_CONTRACT" ||
       appState.phase === "CHOOSING_TROEF" ||
-      appState.phase === "DOBBELKINGEN_READY"
-    ) &&
+      appState.phase === "DOBBELKINGEN_READY") &&
     appState.activeMode === "DOBBELKINGEN" &&
     (isHeartsKingEnded || isAllHeartsEnded || isAllJkEnded || isAllQueensEnded);
 
@@ -283,12 +252,29 @@ export function PlayScreen({
     onZoneClick?.(realZone);
   }
 
+  const chooserIndex =
+    appState.phase === "CHOOSING_TROEF"
+      ? typeof d?.troefChooserIndex === "number"
+        ? d.troefChooserIndex
+        : 0
+      : typeof d?.chooserIndex === "number"
+        ? d.chooserIndex
+        : currentIndex;
+
   const leaderPlayerIndex =
     typeof d?.lastTrickWinnerIndex === "number"
       ? d.lastTrickWinnerIndex
       : typeof d?.currentContractStarterIndex === "number"
         ? d.currentContractStarterIndex
-        : null;
+        : typeof d?.leaderIndex === "number"
+          ? d.leaderIndex
+          : null;
+
+  const chooserName = players?.[chooserIndex]?.name ?? `Player ${chooserIndex + 1}`;
+  const leaderName =
+    leaderPlayerIndex !== null
+      ? players?.[leaderPlayerIndex]?.name ?? `Player ${leaderPlayerIndex + 1}`
+      : "—";
 
   const [trickToast, setTrickToast] = useState(null);
   const [flashWinnerIndex, setFlashWinnerIndex] = useState(null);
@@ -296,7 +282,7 @@ export function PlayScreen({
   useEffect(() => {
     const winnerIdx = d?.lastTrickWinnerIndex;
     const ts = d?.lastTrick?.timestamp ?? null;
-    if (typeof winnerIdx !== "number" || !ts) return;
+    if (typeof winnerIdx !== "number" || !ts) return undefined;
 
     const name = players?.[winnerIdx]?.name ?? `Player ${winnerIdx + 1}`;
 
@@ -314,10 +300,31 @@ export function PlayScreen({
       window.clearTimeout(t1);
       window.clearTimeout(t2);
     };
-  }, [d?.lastTrick?.timestamp, d?.lastTrickWinnerIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [d?.lastTrick?.timestamp, d?.lastTrickWinnerIndex, players]);
+
+  const phaseLabel = buildPhaseLabel(appState, roundPhase);
+  const roundLabel = buildRoundLabel(roundPhase, contractId, trickCount);
+  const statusText =
+    appState.phase === "CHOOSING_CONTRACT"
+      ? "Kies een contract"
+      : appState.phase === "CHOOSING_TROEF"
+        ? "Kies een troefkleur"
+        : appState.phase === "PLAYING_TRICK"
+          ? "Speel de volgende kaart"
+          : appState.phase === "DOBBELKINGEN_DONE"
+            ? "Match afgerond"
+            : "Klaar om te starten";
+
+  const toolbarMeta = [
+    { label: "Mode", value: appState.gameMode ?? "—", accent: colors.blue },
+    { label: "Contract", value: contractId ?? "—", accent: colors.accent },
+    { label: "Troef", value: getTrumpLabel(d?.currentTrumpSuit), accent: colors.green },
+    { label: "Slag", value: `${trickCount} / 13`, accent: colors.red },
+    { label: "TurnZone", value: turnZone ?? "—", accent: colors.blue },
+  ];
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
+    <div style={{ display: "grid", gap: 14 }}>
       <ContractEndOverlay
         open={showContractOverlay}
         title={overlayTitle}
@@ -331,13 +338,12 @@ export function PlayScreen({
         <>
           {showChooserBanner && (
             <div
-              style={{
-                border: "1px solid #ffe58f",
-                background: "#fffbe6",
-                borderRadius: 14,
+              style={panelStyle({
                 padding: "12px 14px",
+                border: "1px solid rgba(251, 191, 36, 0.34)",
+                background: "rgba(120, 53, 15, 0.48)",
                 fontWeight: 900,
-              }}
+              })}
             >
               {chooserBannerText}
             </div>
@@ -363,190 +369,103 @@ export function PlayScreen({
 
       {showGameUi && (
         <>
-          {appState.lastError && (
-            <div
-              style={{
-                border: "2px solid #ff4d4f",
-                background: "#fff1f0",
-                color: "#a8071a",
-                borderRadius: 14,
-                padding: "14px 16px",
-                fontWeight: 800,
-                fontSize: 18,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-              }}
-            >
-              <div>🚫 {appState.lastError}</div>
-              <button
-                onClick={() => { }}
-                style={{
-                  border: "1px solid #ff4d4f",
-                  background: "white",
-                  borderRadius: 10,
-                  padding: "8px 12px",
-                  fontWeight: 800,
-                  cursor: "pointer",
-                }}
-              >
-                OK
-              </button>
-            </div>
-          )}
+          <ErrorBanner message={appState.lastError} />
 
-          <div
-            style={{
-              border: "1px solid #e5e7eb",
-              background: "#fafafa",
-              borderRadius: 14,
-              padding: 12,
-              boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+          <StatusOverview
+            chooserName={chooserName}
+            leaderName={leaderName}
+            currentName={currentName}
+            phaseLabel={phaseLabel}
+            roundLabel={roundLabel}
+            playedCount={roundPhase === 2 ? d?.troefHistory?.length ?? 0 : d?.history?.length ?? 0}
+            totalCount={roundPhase === 2 ? playersCount * 2 : (d?.contracts?.length ?? 0) * 2}
+            contractLabel={contractId ?? "—"}
+            trumpLabel={getTrumpLabel(d?.currentTrumpSuit)}
+            statusText={statusText}
+          />
+
+          <GameToolbar
+            canConfirm={gameState?.canConfirm}
+            autoConfirm={appState.autoConfirm}
+            onConfirmTurn={onConfirmTurn}
+            onUndo={onUndo}
+            onResetPile={onResetPile}
+            onDebugNextPhase={() => dispatchAction?.({ type: "debug_go_to_phase2" })}
+            onFinishMatch={() => dispatchAction?.({ type: "debug_finish_phase2_match" })}
+            showNextPhaseButton={d?.roundPhase !== 2}
+            showFinishMatchButton={d?.roundPhase === 2}
+            meta={toolbarMeta}
+            onBack={() => {
+              const ok = window.confirm(
+                "Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen."
+              );
+              if (ok) onBackFromContract?.();
             }}
-          >
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                flexWrap: "wrap",
-                alignItems: "center",
-              }}
-            >
-              <button
-                onClick={onConfirmTurn}
-                disabled={!gameState?.canConfirm || appState.autoConfirm}
-              >
-                Confirm turn (manual)
-              </button>
-
-              <button onClick={onUndo}>Undo last play</button>
-              <button onClick={onResetPile}>Reset pile</button>
-              {d?.roundPhase === 2 && (
-                <button onClick={() => dispatchAction?.({ type: "debug_finish_phase2_match" })}>
-                  Match beëindigen (debug)
-                </button>
-              )}
-
-              <button
-                onClick={() => {
-                  const ok = window.confirm(
-                    "Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen."
-                  );
-                  if (ok) onBackFromContract?.();
-                }}
-              >
-                ← Terug
-              </button>
-
-              <div style={{ marginLeft: "auto" }}>
-                Mode: <b>{appState.gameMode ?? "-"}</b> • Contract:{" "}
-                <b>{contractId ?? "-"}</b> • Troef:{" "}
-                <b>{getTrumpLabel(d?.currentTrumpSuit)}</b> • Slag: <b>{trickCount} / 13</b> • TurnZone:{" "}
-                <b>{turnZone ?? "-"}</b> • Current: <b>{currentName}</b>
-              </div>
-            </div>
-          </div>
+          />
 
           {trickToast && (
             <div
               key={trickToast.key}
-              style={{
-                border: "1px solid #86efac",
-                background: "#f0fdf4",
-                borderRadius: 14,
+              style={panelStyle({
                 padding: "10px 12px",
+                border: "1px solid rgba(74, 222, 128, 0.34)",
+                background: "rgba(20, 83, 45, 0.56)",
                 fontWeight: 900,
-                boxShadow: "0 8px 20px rgba(34, 197, 94, 0.12)",
-              }}
+              })}
             >
               {trickToast.title}
             </div>
           )}
 
-          <TableDirection
-            players={players}
-            currentPlayerIndex={currentIndex}
-            leaderPlayerIndex={leaderPlayerIndex}
-          />
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1.6fr) minmax(300px, 0.9fr)",
+              gap: 14,
+              alignItems: "start",
+            }}
+          >
+            <div style={{ display: "grid", gap: 14 }}>
+              <TableDirection
+                players={players}
+                currentPlayerIndex={currentIndex}
+                leaderPlayerIndex={leaderPlayerIndex}
+              />
 
-          <ZoneGrid
-            zones={zonesForGrid}
-            zoneNumbers={DISPLAY_ZONES}
-            turnZone={turnZoneForGrid}
-            cardNames={cardNamesForGrid}
-            trumpSuit={d?.currentTrumpSuit ?? null}
-            onZoneClick={handleGridClick}
-          />
+              <ZoneGrid
+                zones={zonesForGrid}
+                zoneNumbers={DISPLAY_ZONES}
+                turnZone={turnZoneForGrid}
+                cardNames={cardNamesForGrid}
+                trumpSuit={d?.currentTrumpSuit ?? null}
+                onZoneClick={handleGridClick}
+              />
 
-          <Scoreboard
-            players={players}
-            scores={scoreboardScores}
-            currentPlayerIndex={currentIndex}
-            flashWinnerIndex={flashWinnerIndex}
-            allowEdit={appState.phase === "CHOOSING_CONTRACT" || appState.phase === "CHOOSING_TROEF"}
-            onAdjustScore={(playerIndex, delta) =>
-              dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
-            }
-          />
+              <PlayedCardsPanel cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []} />
 
-          {contractId === "TROEF" && (
-            <div
-              style={{
-                border: "1px solid #e5e7eb",
-                background: "#fafafa",
-                borderRadius: 14,
-                padding: 12,
-                boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
-              }}
-            >
-              <div style={{ fontWeight: 900, marginBottom: 8 }}>Slagen fase 2</div>
-
-              <div style={{ display: "grid", gap: 8 }}>
-                {players.map((player, index) => (
-                  <div
-                    key={player.id ?? index}
-                    style={{
-                      border: "1px solid #f0f0f0",
-                      borderRadius: 10,
-                      padding: "10px 12px",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      background: "white",
-                    }}
-                  >
-                    <div>{player.name ?? `Player ${index + 1}`}</div>
-                    <div style={{ fontWeight: 900 }}>{trickWins[index] ?? 0}</div>
-                  </div>
-                ))}
-              </div>
+              {showDebug && (
+                <div style={panelStyle({ padding: 16, display: "grid", gap: 10 })}>
+                  <div style={{ fontWeight: 900 }}>Debug log</div>
+                  <DebugLog lines={appState.log} />
+                </div>
+              )}
             </div>
-          )}
 
-          <div style={{ fontSize: 12, opacity: 0.8, marginTop: 6 }}>
-            <b>Played cards:</b>{" "}
-            <span style={{ fontFamily: "ui-monospace, Menlo, monospace" }}>
-              {(d?.usedCardCodes ?? appState.usedCardCodes ?? [])
-                .slice(-20)
-                .join(" • ") || "-"}
-            </span>
+            <div style={{ display: "grid", gap: 14 }}>
+              <Scoreboard
+                players={players}
+                scores={scoreboardScores}
+                currentPlayerIndex={currentIndex}
+                flashWinnerIndex={flashWinnerIndex}
+                allowEdit={false}
+                onAdjustScore={(playerIndex, delta) =>
+                  dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
+                }
+              />
+
+              {contractId === "TROEF" && <TrickWinsPanel players={players} trickWins={trickWins} />}
+            </div>
           </div>
-
-          {showDebug && (
-            <div
-              style={{
-                border: "1px solid #e5e7eb",
-                background: "#fafafa",
-                borderRadius: 14,
-                padding: 12,
-                boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
-              }}
-            >
-              <h3 style={{ marginTop: 0 }}>Debug log</h3>
-              <DebugLog lines={appState.log} />
-            </div>
-          )}
         </>
       )}
     </div>

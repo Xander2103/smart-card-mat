@@ -1,35 +1,52 @@
 // src/ui/GameModeCards.jsx
-function Card({ title, desc, onClick }) {
+import { buttonStyle, colors, panelStyle, softCardStyle } from "./play/theme";
+
+function Card({ title, eyebrow, desc, onClick }) {
   return (
     <button
       onClick={onClick}
       style={{
-        textAlign: "left",
-        border: "1px solid #eee",
-        borderRadius: 14,
-        padding: 14,
-        background: "white",
-        cursor: "pointer",
+        ...softCardStyle({
+          textAlign: "left",
+          padding: 18,
+          display: "grid",
+          gap: 10,
+          cursor: "pointer",
+          transition: "all 0.18s ease",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.04) 100%)",
+          boxShadow: "0 18px 36px rgba(2, 6, 23, 0.22)",
+        }),
       }}
     >
-      <div style={{ fontWeight: 800, fontSize: 16 }}>{title}</div>
-      <div style={{ opacity: 0.75, marginTop: 6, fontSize: 13 }}>{desc}</div>
+      <div style={{ fontSize: 12, color: colors.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 800 }}>
+        {eyebrow}
+      </div>
+      <div style={{ fontWeight: 900, fontSize: 22, color: colors.text }}>{title}</div>
+      <div style={{ color: colors.muted, fontSize: 14, lineHeight: 1.55 }}>{desc}</div>
+      <div>
+        <span style={{ ...buttonStyle("primary"), display: "inline-flex", padding: "8px 12px" }}>
+          Open spelmodus
+        </span>
+      </div>
     </button>
   );
 }
 
 export function GameModeCards({ onOpenDobbelkingen }) {
   return (
-    <div style={{ display: "grid", gap: 10 }}>
-      <div style={{ fontWeight: 800 }}>Game Modes</div>
+    <div style={panelStyle({ padding: 20, display: "grid", gap: 16 })}>
+      <div>
+        <div style={{ fontWeight: 900, fontSize: 28 }}>Game Modes</div>
+        <div style={{ color: colors.muted, marginTop: 4 }}>
+          Kies de modus die je op de Smart Card Mat wil starten.
+        </div>
+      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12 }}>
         <Card
           title="Dobbelkingen"
-          desc="Dobbelkingen is een strategisch kaartspel voor vier spelers
-           waarbij je in verschillende rondes soms zo weinig mogelijk strafpunten probeert te verzamelen
-            en in troefrondes net zoveel mogelijk slagen wil halen, waarna op het einde de positieve 
-            en negatieve punten worden verrekend om de winnaar te bepalen."
+          eyebrow="Kaartspel"
+          desc="Een strategisch slagenspel voor vier spelers waarbij je in fase 1 de juiste contracten kiest en in fase 2 twee keer troef probeert uit te buiten voor extra punten."
           onClick={onOpenDobbelkingen}
         />
       </div>
