@@ -1,5 +1,6 @@
 // src/ui/ZoneGrid.jsx
 import { colors, panelStyle, softCardStyle } from "./play/theme";
+import { useViewport } from "./play/useViewport";
 
 function getSuitColor(card) {
   const c = String(card ?? "").toUpperCase();
@@ -54,6 +55,9 @@ export function ZoneGrid({
   trumpSuit = null,
   onZoneClick,
 }) {
+  const { width, isMobile } = useViewport();
+  const isSmallMobile = width <= 480;
+
   return (
     <div style={panelStyle({ padding: 16, display: "grid", gap: 12 })}>
       <style>{`
@@ -86,7 +90,7 @@ export function ZoneGrid({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gridTemplateColumns: isSmallMobile ? "minmax(0, 1fr)" : "repeat(2, minmax(0, 1fr))",
           gap: 12,
         }}
       >
@@ -104,7 +108,11 @@ export function ZoneGrid({
             <button
               key={gridPos}
               onClick={() => onZoneClick?.(gridPos)}
-              style={zoneCardStyle({ isTurn, isGlow, isTrump })}
+              style={{
+                ...zoneCardStyle({ isTurn, isGlow, isTrump }),
+                minHeight: isMobile ? 116 : 136,
+                padding: isMobile ? 14 : 16,
+              }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ fontWeight: 900, fontSize: 18 }}>Zone {labelZone}</div>

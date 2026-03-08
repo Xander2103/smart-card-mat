@@ -89,7 +89,7 @@ export function Scoreboard({
             style={{
               ...softCardStyle({
                 display: "grid",
-                gridTemplateColumns: "1fr auto",
+                gridTemplateColumns: "minmax(0,1fr) auto",
                 alignItems: "center",
                 padding: "12px 14px",
                 background: r.isFlash
@@ -114,7 +114,7 @@ export function Scoreboard({
               </div>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
               {allowEdit && isEditing && (
                 <>
                   <SmallBtn title="-1" onClick={() => onAdjustScore?.(i, -1)}>

@@ -12,6 +12,7 @@ import { computeScoresFromTrickHistory } from "../../core/games/dobbelkingen/sco
 import { EndScreen } from "../play/EndScreen";
 import { GameToolbar } from "../play/GameToolbar";
 import { StatusOverview } from "../play/StatusOverview";
+import { useViewport } from "../play/useViewport";
 import { colors, panelStyle, softCardStyle } from "../play/theme";
 
 function getTrumpLabel(suit) {
@@ -315,6 +316,17 @@ export function PlayScreen({
             ? "Match afgerond"
             : "Klaar om te starten";
 
+  const { isMobile, isTablet } = useViewport();
+
+  const contentColumns = isMobile
+    ? "minmax(0, 1fr)"
+    : isTablet
+      ? "minmax(0, 1fr)"
+      : "minmax(0, 1.6fr) minmax(300px, 0.9fr)";
+
+  const leftColumnOrder = isMobile ? 2 : 1;
+  const rightColumnOrder = isMobile ? 1 : 2;
+
   const toolbarMeta = [
     { label: "Mode", value: appState.gameMode ?? "—", accent: colors.blue },
     { label: "Contract", value: contractId ?? "—", accent: colors.accent },
@@ -420,17 +432,19 @@ export function PlayScreen({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(0, 1.6fr) minmax(300px, 0.9fr)",
+              gridTemplateColumns: contentColumns,
               gap: 14,
               alignItems: "start",
             }}
           >
-            <div style={{ display: "grid", gap: 14 }}>
-              <TableDirection
-                players={players}
-                currentPlayerIndex={currentIndex}
-                leaderPlayerIndex={leaderPlayerIndex}
-              />
+            <div style={{ display: "grid", gap: 14, order: leftColumnOrder }}>
+              {!isMobile && (
+                <TableDirection
+                  players={players}
+                  currentPlayerIndex={currentIndex}
+                  leaderPlayerIndex={leaderPlayerIndex}
+                />
+              )}
 
               <ZoneGrid
                 zones={zonesForGrid}
@@ -451,7 +465,15 @@ export function PlayScreen({
               )}
             </div>
 
-            <div style={{ display: "grid", gap: 14 }}>
+            <div style={{ display: "grid", gap: 14, order: rightColumnOrder }}>
+              {isMobile && (
+                <TableDirection
+                  players={players}
+                  currentPlayerIndex={currentIndex}
+                  leaderPlayerIndex={leaderPlayerIndex}
+                />
+              )}
+
               <Scoreboard
                 players={players}
                 scores={scoreboardScores}

@@ -41,7 +41,7 @@ export function GameToolbar({
         gap: 14,
       })}
     >
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "stretch" }}>
         <button
           onClick={onConfirmTurn}
           disabled={!canConfirm || autoConfirm}
@@ -79,7 +79,7 @@ export function GameToolbar({
         </button>
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "stretch" }}>
         {meta.map((item) => (
           <MetaPill key={item.label} label={item.label} value={item.value} accent={item.accent} />
         ))}

@@ -12,6 +12,7 @@ import { connectSerial } from "../transport/serialTransport";
 import { computeGameState } from "../core/game/computeGameState";
 
 import { Tabs } from "../ui/tabs";
+import { useViewport } from "../ui/play/useViewport";
 import { PlayScreen } from "../ui/screens/PlayScreen";
 import { DeckSetupScreen } from "../ui/screens/DeckSetupScreen";
 import { SettingsScreen } from "../ui/screens/SettingsScreen";
@@ -20,12 +21,12 @@ import { CARD_BY_CODE } from "../core/mapping/deck52";
 
 const theme = {
   panel: {
-    border: "1px solid rgba(148, 163, 184, 0.22)",
-    background: "rgba(15, 23, 42, 0.76)",
+    border: "1px solid rgba(251, 191, 36, 0.18)",
+    background: "rgba(39, 27, 21, 0.84)",
     backdropFilter: "blur(18px)",
     borderRadius: 22,
     boxShadow: "0 18px 50px rgba(2, 6, 23, 0.34)",
-    color: "#e5eefb",
+    color: "#f5efe6",
   },
   button: {
     borderRadius: 14,
@@ -33,13 +34,14 @@ const theme = {
     fontWeight: 900,
     cursor: "pointer",
     border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.05)",
-    color: "#e5eefb",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%)",
+    color: "#f5efe6",
   },
 };
 
 export default function App() {
   const ZONES = 4;
+  const { isMobile } = useViewport();
 
   const [tab, setTab] = useState("play");
   const [serialStatus, setSerialStatus] = useState("disconnected");
@@ -198,16 +200,42 @@ export default function App() {
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <div style={{ ...theme.panel, padding: 20, display: "grid", gap: 14 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 34 }}>Smart Card Mat</h1>
-            <div style={{ marginTop: 6, color: "#9fb0cf" }}>
-              RFID kaartdetectie, spelmodi en live scoring op één scherm.
+      <div
+        style={{
+          ...theme.panel,
+          padding: isMobile ? 16 : 20,
+          display: "grid",
+          gap: 14,
+          background: "linear-gradient(180deg, rgba(39, 27, 21, 0.94) 0%, rgba(28, 20, 16, 0.94) 100%)",
+          border: "1px solid rgba(251, 191, 36, 0.18)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+            alignItems: isMobile ? "stretch" : "center",
+            flexDirection: isMobile ? "column" : "row",
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 30 : 34 }}>Smart Card Mat</h1>
+            <div style={{ marginTop: 6, color: "#c8b6a1", maxWidth: 740 }}>
+              RFID kaartdetectie, spelmodi en live scoring in een donkere tavern card-table look.
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              flexWrap: "wrap",
+              width: isMobile ? "100%" : "auto",
+            }}
+          >
             <div
               style={{
                 borderRadius: 999,
@@ -228,7 +256,7 @@ export default function App() {
             <button
               onClick={connectUsb}
               disabled={serialStatus === "connected" || serialStatus === "connecting..."}
-              style={{ ...theme.button, opacity: serialStatus === "connected" || serialStatus === "connecting..." ? 0.55 : 1 }}
+              style={{ ...theme.button, opacity: serialStatus === "connected" || serialStatus === "connecting..." ? 0.55 : 1, flex: isMobile ? 1 : "0 1 auto" }}
             >
               Connect USB
             </button>
@@ -236,7 +264,7 @@ export default function App() {
             <button
               onClick={disconnectUsb}
               disabled={serialStatus !== "connected"}
-              style={{ ...theme.button, opacity: serialStatus !== "connected" ? 0.55 : 1 }}
+              style={{ ...theme.button, opacity: serialStatus !== "connected" ? 0.55 : 1, flex: isMobile ? 1 : "0 1 auto" }}
             >
               Disconnect
             </button>

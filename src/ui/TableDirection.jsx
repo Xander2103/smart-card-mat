@@ -1,5 +1,6 @@
 // src/ui/TableDirection.jsx
 import { colors, panelStyle, softCardStyle } from "./play/theme";
+import { useViewport } from "./play/useViewport";
 
 export function TableDirection({
   players = [],
@@ -7,6 +8,8 @@ export function TableDirection({
   leaderPlayerIndex = null,
 }) {
   const p = (i) => players?.[i]?.name ?? `P${i + 1}`;
+  const { width } = useViewport();
+  const isSmallMobile = width <= 480;
 
   return (
     <div style={panelStyle({ padding: 16, display: "grid", gap: 12 })}>
@@ -31,7 +34,7 @@ export function TableDirection({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isSmallMobile ? "minmax(0, 1fr)" : "repeat(2, minmax(0, 1fr))", gap: 10 }}>
         <Seat label="Zone 1" name={p(0)} active={currentPlayerIndex === 0} leader={leaderPlayerIndex === 0} />
         <Seat label="Zone 2" name={p(1)} active={currentPlayerIndex === 1} leader={leaderPlayerIndex === 1} />
         <Seat label="Zone 4" name={p(3)} active={currentPlayerIndex === 3} leader={leaderPlayerIndex === 3} />

@@ -22,14 +22,14 @@ export function DobbelkingenInfo({ open, onClose }) {
         onClick={(e) => e.stopPropagation()}
         style={panelStyle({
           width: "min(940px, 100%)",
-          maxHeight: "85vh",
+          maxHeight: "88vh",
           overflowY: "auto",
-          padding: 22,
+          padding: "clamp(14px, 3vw, 22px)",
           display: "grid",
           gap: 18,
         })}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <div>
             <div style={{ fontSize: 28, fontWeight: 900 }}>Dobbelkingen – uitleg</div>
             <div style={{ fontSize: 14, color: colors.muted, marginTop: 4 }}>

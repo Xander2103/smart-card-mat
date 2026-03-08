@@ -38,11 +38,11 @@ export function GameModeCards({ onOpenDobbelkingen }) {
       <div>
         <div style={{ fontWeight: 900, fontSize: 28 }}>Game Modes</div>
         <div style={{ color: colors.muted, marginTop: 4 }}>
-          Kies de modus die je op de Smart Card Mat wil starten.
+          Kies een spelmodus en start je tafel alsof je in een digitale kaartenkroeg zit.
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
         <Card
           title="Dobbelkingen"
           eyebrow="Kaartspel"

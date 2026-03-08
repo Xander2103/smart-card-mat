@@ -4,6 +4,7 @@ import { getContract } from "../core/games/dobbelkingen/contracts";
 import { DobbelkingenInfo } from "./dobbelkingen/DobbelkingenInfo";
 import { Scoreboard } from "./Scoreboard";
 import { buttonStyle, colors, panelStyle, softCardStyle } from "./play/theme";
+import { useViewport } from "./play/useViewport";
 
 function getTrumpLabel(suit) {
   switch (String(suit ?? "").toUpperCase()) {
@@ -109,6 +110,7 @@ export function DobbelkingenPanel({
   const [hoveredContract, setHoveredContract] = useState(null);
   const [hoveredTroef, setHoveredTroef] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
+  const { isMobile, isTablet } = useViewport();
 
   const d = appState?.game?.dobbelkingen ?? null;
   const players = appState?.players ?? [];
@@ -184,7 +186,7 @@ export function DobbelkingenPanel({
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
           <InfoCard title="Fase" value={phase} accent={colors.accent} />
           <InfoCard title="Contractronde" value={String(d?.roundPhase ?? 1)} accent={colors.green} />
           <InfoCard title="Kiest" value={chooserName} accent={colors.blue} />
@@ -216,7 +218,7 @@ export function DobbelkingenPanel({
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "repeat(auto-fit, minmax(250px, 1fr))", gap: 12 }}>
               {contractList.map((id) => {
                 const c = getContract(id);
                 const label = c?.label ?? id;
@@ -276,7 +278,7 @@ export function DobbelkingenPanel({
               <div style={{ color: colors.muted }}>{leaderName} komt uit in de eerste slag.</div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
               {TROEF_OPTIONS.map((opt) => {
                 const hovered = hoveredTroef === opt.suit;
                 return (
@@ -308,7 +310,7 @@ export function DobbelkingenPanel({
               })}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isTablet ? "minmax(0, 1fr)" : "minmax(0, 1fr) minmax(0, 1fr)", gap: 12 }}>
               <div style={softCardStyle({ padding: 16, display: "grid", gap: 10 })}>
                 <div style={{ fontWeight: 900, fontSize: 18 }}>Troef-keuzes</div>
                 <div style={{ display: "grid", gap: 8 }}>
