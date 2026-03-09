@@ -13,7 +13,7 @@ import { EndScreen } from "../play/EndScreen";
 import { CARD_BY_CODE } from "../../core/mapping/deck52";
 import { GameToolbar } from "../play/GameToolbar";
 import { useViewport } from "../play/useViewport";
-import { colors, panelStyle, softCardStyle } from "../play/theme";
+import { buttonStyle, colors, panelStyle, softCardStyle } from "../play/theme";
 
 function getTrumpLabel(suit) {
   switch (String(suit ?? "").toUpperCase()) {
@@ -43,23 +43,6 @@ function getTrickWinsByPlayer(trickHistory, playersCount) {
   return wins;
 }
 
-function buildPhaseLabel(appState, roundPhase) {
-  if (appState.phase === "CHOOSING_TROEF") return "Fase 2 · Troefkeuze";
-  if (appState.phase === "CHOOSING_CONTRACT") return "Fase 1 · Contractkeuze";
-  if (appState.phase === "PLAYING_TRICK") {
-    return roundPhase === 2 ? "Fase 2 · Slag spelen" : "Fase 1 · Slag spelen";
-  }
-  if (appState.phase === "DOBBELKINGEN_READY") return "Klaar om te starten";
-  if (appState.phase === "DOBBELKINGEN_DONE") return "Match afgerond";
-  return "Dobbelkingen";
-}
-
-function buildRoundLabel(roundPhase, contractId, trickCount) {
-  if (roundPhase === 2) return `Troefronde · slag ${Math.min((trickCount ?? 0) + 1, 13)} / 13`;
-  if (contractId) return `Contract · ${contractId}`;
-  return "Contractronde 1";
-}
-
 function ErrorBanner({ message }) {
   if (!message) return null;
 
@@ -79,7 +62,9 @@ function ErrorBanner({ message }) {
       }}
     >
       <div style={{ fontWeight: 800 }}>🚫 {message}</div>
-      <div style={{ fontSize: 13, color: "#fecdd3" }}>Controleer de huidige beurt en zone.</div>
+      <div style={{ fontSize: 13, color: "#fecdd3" }}>
+        Controleer de huidige beurt en zone.
+      </div>
     </div>
   );
 }
@@ -89,18 +74,16 @@ function PlayedCardsPanel({ cardCodes = [] }) {
     <div style={panelStyle({ padding: 16, display: "grid", gap: 8 })}>
       <div style={{ fontWeight: 900 }}>Recent gespeelde kaarten</div>
       <div style={{ color: colors.muted, fontSize: 13 }}>
-        Laatste 20 gescande codes uit deze matchflow.
+        Laatste 20 gescande kaartcodes uit deze matchflow.
       </div>
       <div
-        style={{
-          ...softCardStyle({
-            padding: 14,
-            fontFamily: "ui-monospace, Menlo, monospace",
-            fontSize: 13,
-            lineHeight: 1.6,
-            color: colors.text,
-          }),
-        }}
+        style={softCardStyle({
+          padding: 14,
+          fontFamily: "ui-monospace, Menlo, monospace",
+          fontSize: 13,
+          lineHeight: 1.6,
+          color: colors.text,
+        })}
       >
         {cardCodes.slice(-20).join(" • ") || "—"}
       </div>
@@ -128,6 +111,70 @@ function TrickWinsPanel({ players, trickWins }) {
             <div style={{ fontWeight: 900 }}>{trickWins[index] ?? 0}</div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function DevPanel({
+  appState,
+  d,
+  zonesForGrid,
+  DISPLAY_ZONES,
+  turnZoneForGrid,
+  cardNamesForGrid,
+  handleGridClick,
+  onConfirmTurn,
+  onResetPile,
+  dispatchAction,
+}) {
+  return (
+    <div style={panelStyle({ padding: 16, display: "grid", gap: 14 })}>
+      <div style={{ fontWeight: 900, fontSize: 20 }}>Dev panel</div>
+      <div style={{ color: colors.muted, fontSize: 13 }}>
+        Ontwikkeltools, debugacties en speelzones. Dit hoort niet in de normale gameplay UI.
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+        <button onClick={onConfirmTurn} style={buttonStyle("primary")}>
+          Confirm turn
+        </button>
+
+        <button onClick={onResetPile} style={buttonStyle()}>
+          Reset pile
+        </button>
+
+        {d?.roundPhase !== 2 && (
+          <button
+            onClick={() => dispatchAction?.({ type: "debug_go_to_phase2" })}
+            style={buttonStyle("success")}
+          >
+            Doorgaan naar fase 2
+          </button>
+        )}
+
+        {d?.roundPhase === 2 && (
+          <button
+            onClick={() => dispatchAction?.({ type: "debug_finish_phase2_match" })}
+            style={buttonStyle("success")}
+          >
+            Match direct afronden
+          </button>
+        )}
+      </div>
+
+      <ZoneGrid
+        zones={zonesForGrid}
+        zoneNumbers={DISPLAY_ZONES}
+        turnZone={turnZoneForGrid}
+        cardNames={cardNamesForGrid}
+        trumpSuit={d?.currentTrumpSuit ?? null}
+        onZoneClick={handleGridClick}
+      />
+
+      <div style={panelStyle({ padding: 16, display: "grid", gap: 10 })}>
+        <div style={{ fontWeight: 900 }}>Debug log</div>
+        <DebugLog lines={appState.log} />
       </div>
     </div>
   );
@@ -162,10 +209,8 @@ export function PlayScreen({
         ? appState.currentPlayerIndex
         : 0;
 
-  const currentName = players[currentIndex]?.name ?? `Player ${currentIndex + 1}`;
   const contractId = d?.contract ?? null;
   const trickCount = d?.trickHistory?.length ?? 0;
-  const roundPhase = d?.roundPhase ?? 1;
 
   const scoreboardScores =
     appState.phase === "PLAYING_TRICK"
@@ -184,7 +229,9 @@ export function PlayScreen({
       : null;
 
   const endedByName =
-    endedByIndex !== null ? players?.[endedByIndex]?.name ?? `Player ${endedByIndex + 1}` : null;
+    endedByIndex !== null
+      ? players?.[endedByIndex]?.name ?? `Player ${endedByIndex + 1}`
+      : null;
 
   const isHeartsKingEnded = endedReason === "HEARTS_KING_PLAYED";
   const isAllHeartsEnded = endedReason === "ALL_HEARTS_PLAYED";
@@ -273,12 +320,6 @@ export function PlayScreen({
             ? d.leaderIndex
             : (chooserIndex + 1) % playersCount;
 
-  const chooserName = players?.[chooserIndex]?.name ?? `Player ${chooserIndex + 1}`;
-  const leaderName =
-    leaderPlayerIndex !== null
-      ? players?.[leaderPlayerIndex]?.name ?? `Player ${leaderPlayerIndex + 1}`
-      : "—";
-
   const tableSeatCards = useMemo(() => {
     return Array.from({ length: playersCount }, (_, index) => {
       const uid = zones?.[index] ?? null;
@@ -314,28 +355,50 @@ export function PlayScreen({
     };
   }, [d?.lastTrick?.timestamp, d?.lastTrickWinnerIndex, players]);
 
+  const { isMobile } = useViewport();
 
-  const { isMobile, isTablet } = useViewport();
-
-  const contentColumns = isMobile
-    ? "minmax(0, 1fr)"
-    : isTablet
-      ? "minmax(0, 1fr)"
-      : "minmax(0, 1.6fr) minmax(300px, 0.9fr)";
-
-  const leftColumnOrder = isMobile ? 2 : 1;
-  const rightColumnOrder = isMobile ? 1 : 2;
-
-  const toolbarMeta = [
-    { label: "Mode", value: appState.gameMode ?? "—", accent: colors.blue },
-    { label: "Contract", value: contractId ?? "—", accent: colors.accent },
-    { label: "Troef", value: getTrumpLabel(d?.currentTrumpSuit), accent: colors.green },
-    { label: "Slag", value: `${trickCount} / 13`, accent: colors.red },
-    { label: "TurnZone", value: turnZone ?? "—", accent: colors.blue },
-  ];
+  const showRecentCards = appState.showRecentCards !== false;
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
+      <style>{`
+        .table-ornament-wrap {
+          position: relative;
+        }
+
+        .table-center-ornament {
+          position: absolute;
+          width: 180px;
+          height: 180px;
+          border-radius: 50%;
+          border: 2px solid rgba(255, 200, 120, 0.18);
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          pointer-events: none;
+          opacity: 0.42;
+          box-shadow:
+            inset 0 0 24px rgba(255, 180, 60, 0.10),
+            0 0 40px rgba(255, 180, 60, 0.05);
+          background:
+            radial-gradient(circle at center, rgba(255, 180, 60, 0.05) 0%, rgba(255, 180, 60, 0.015) 48%, transparent 72%);
+          z-index: 0;
+        }
+
+        .table-ornament-core {
+          position: absolute;
+          width: 74px;
+          height: 74px;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          border-radius: 18px;
+          border: 1px solid rgba(255, 220, 170, 0.12);
+          background: rgba(255, 255, 255, 0.03);
+          box-shadow: inset 0 0 16px rgba(255, 190, 90, 0.08);
+        }
+      `}</style>
+
       <ContractEndOverlay
         open={showContractOverlay}
         title={overlayTitle}
@@ -383,16 +446,7 @@ export function PlayScreen({
           <ErrorBanner message={appState.lastError} />
 
           <GameToolbar
-            canConfirm={gameState?.canConfirm}
-            autoConfirm={appState.autoConfirm}
-            onConfirmTurn={onConfirmTurn}
             onUndo={onUndo}
-            onResetPile={onResetPile}
-            onDebugNextPhase={() => dispatchAction?.({ type: "debug_go_to_phase2" })}
-            onFinishMatch={() => dispatchAction?.({ type: "debug_finish_phase2_match" })}
-            showNextPhaseButton={showDebug && d?.roundPhase !== 2}
-            showFinishMatchButton={showDebug && d?.roundPhase === 2}
-            meta={toolbarMeta}
             onBack={() => {
               const ok = window.confirm(
                 "Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen."
@@ -415,62 +469,52 @@ export function PlayScreen({
             </div>
           )}
 
-          <TableDirection
+          <div className="table-ornament-wrap">
+            <div className="table-center-ornament" />
+            <div className="table-ornament-core" />
+
+            <TableDirection
+              players={players}
+              currentPlayerIndex={currentIndex}
+              leaderPlayerIndex={leaderPlayerIndex}
+              contractLabel={contractId ?? "—"}
+              trumpLabel={getTrumpLabel(d?.currentTrumpSuit)}
+              trickLabel={`${trickCount} / 13`}
+              seatCards={tableSeatCards}
+            />
+          </div>
+
+          <Scoreboard
             players={players}
+            scores={scoreboardScores}
             currentPlayerIndex={currentIndex}
-            leaderPlayerIndex={leaderPlayerIndex}
-            contractLabel={contractId ?? "—"}
-            trumpLabel={getTrumpLabel(d?.currentTrumpSuit)}
-            trickLabel={`${trickCount} / 13`}
-            seatCards={tableSeatCards}
+            flashWinnerIndex={flashWinnerIndex}
+            allowEdit={false}
+            onAdjustScore={(playerIndex, delta) =>
+              dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
+            }
           />
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: contentColumns,
-              gap: 14,
-              alignItems: "start",
-            }}
-          >
-            <div style={{ display: "grid", gap: 14, order: leftColumnOrder }}>
+          {contractId === "TROEF" && <TrickWinsPanel players={players} trickWins={trickWins} />}
 
-              {showDebug && (
-                <ZoneGrid
-                  zones={zonesForGrid}
-                  zoneNumbers={DISPLAY_ZONES}
-                  turnZone={turnZoneForGrid}
-                  cardNames={cardNamesForGrid}
-                  trumpSuit={d?.currentTrumpSuit ?? null}
-                  onZoneClick={handleGridClick}
-                />
-              )}
+          {showRecentCards && (
+            <PlayedCardsPanel cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []} />
+          )}
 
-              {showDebug && <PlayedCardsPanel cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []} />}
-
-              {showDebug && (
-                <div style={panelStyle({ padding: 16, display: "grid", gap: 10 })}>
-                  <div style={{ fontWeight: 900 }}>Debug log</div>
-                  <DebugLog lines={appState.log} />
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: "grid", gap: 14, order: rightColumnOrder }}>
-              <Scoreboard
-                players={players}
-                scores={scoreboardScores}
-                currentPlayerIndex={currentIndex}
-                flashWinnerIndex={flashWinnerIndex}
-                allowEdit={false}
-                onAdjustScore={(playerIndex, delta) =>
-                  dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
-                }
-              />
-
-              {contractId === "TROEF" && <TrickWinsPanel players={players} trickWins={trickWins} />}
-            </div>
-          </div>
+          {showDebug && (
+            <DevPanel
+              appState={appState}
+              d={d}
+              zonesForGrid={zonesForGrid}
+              DISPLAY_ZONES={DISPLAY_ZONES}
+              turnZoneForGrid={turnZoneForGrid}
+              cardNamesForGrid={cardNamesForGrid}
+              handleGridClick={handleGridClick}
+              onConfirmTurn={onConfirmTurn}
+              onResetPile={onResetPile}
+              dispatchAction={dispatchAction}
+            />
+          )}
         </>
       )}
     </div>

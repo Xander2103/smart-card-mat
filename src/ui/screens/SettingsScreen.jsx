@@ -13,10 +13,17 @@ function ToggleRow({ checked, onChange, title, description }) {
         cursor: "pointer",
       })}
     >
-      <input type="checkbox" checked={checked} onChange={onChange} style={{ marginTop: 2, width: 18, height: 18 }} />
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        style={{ marginTop: 2, width: 18, height: 18 }}
+      />
       <div style={{ display: "grid", gap: 6 }}>
         <div style={{ fontWeight: 900 }}>{title}</div>
-        <div style={{ color: colors.muted, fontSize: 14, lineHeight: 1.5 }}>{description}</div>
+        <div style={{ color: colors.muted, fontSize: 14, lineHeight: 1.5 }}>
+          {description}
+        </div>
       </div>
     </label>
   );
@@ -26,13 +33,15 @@ export function SettingsScreen({ appState, dispatchAction }) {
   const { isMobile } = useViewport();
   const autoConfirm = !!appState.autoConfirm;
   const devMode = !!appState.devMode;
+  const showRecentCards = appState.showRecentCards !== false;
 
   return (
     <div style={panelStyle({ padding: isMobile ? 16 : 22, display: "grid", gap: 16 })}>
       <div style={{ display: "grid", gap: 8 }}>
         <div style={{ fontWeight: 900, fontSize: isMobile ? 24 : 28 }}>Settings</div>
         <div style={{ color: colors.muted, maxWidth: 760 }}>
-          Basisinstellingen voor de Smart Card Mat. Alles blijft werken zoals nu, maar je kunt het spelverloop hier vlotter maken.
+          Basisinstellingen voor de Smart Card Mat. Alles blijft werken zoals nu,
+          maar je kunt het spelverloop hier vlotter en cleaner maken.
         </div>
       </div>
 
@@ -46,6 +55,18 @@ export function SettingsScreen({ appState, dispatchAction }) {
         }}
         title="Auto-confirm plays"
         description="Wanneer ingeschakeld worden geldige plays automatisch bevestigd. Dat is handig voor vlot spelverloop zonder extra bevestigingsknop."
+      />
+
+      <ToggleRow
+        checked={showRecentCards}
+        onChange={(e) => {
+          dispatchAction?.({
+            type: "set_show_recent_cards",
+            value: e.target.checked,
+          });
+        }}
+        title="Recente kaarten zichtbaar"
+        description="Toon onder de tussenstand een blok met recent gespeelde kaarten. Dit is geen dev-only setting, maar een gewone UI-voorkeur."
       />
 
       <ToggleRow
@@ -63,7 +84,8 @@ export function SettingsScreen({ appState, dispatchAction }) {
       <div style={softCardStyle({ padding: 16, display: "grid", gap: 10 })}>
         <div style={{ fontWeight: 900 }}>Aanbevolen instelling</div>
         <div style={{ color: colors.muted, lineHeight: 1.55 }}>
-          Voor een snelle speeltafel laat je auto-confirm aan en gebruik je <b>Undo</b> alleen wanneer een kaart fout werd gescand of verkeerd geplaatst.
+          Voor een snelle speeltafel laat je auto-confirm aan en gebruik je <b>Undo</b>
+          alleen wanneer een kaart fout werd gescand of verkeerd geplaatst.
         </div>
         <div>
           <button

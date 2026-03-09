@@ -20,25 +20,26 @@ export function createInitialState({ zonesCount = 4 } = {}) {
     mapping: loadMapping(),
 
     // mode flow
-    modeId: null,          // "dobbelkingen"
-    activeMode: null,      // "DOBBELKINGEN" (UI label)
-    gameMode: null,        // idem
+    modeId: null,
+    activeMode: null,
+    gameMode: null,
     phase: "HOME",
 
     // settings
     autoConfirm: true,
     devMode: false,
+    showRecentCards: true,
     deckSetup: false,
     deckIndex: 0,
 
     // players
     players,
 
-    // shared runtime (mag blijven)
+    // shared runtime
     confirmedTurnCard: null,
     lastError: null,
 
-    // game-specific state lives here:
+    // game-specific state
     game: {},
   };
 }

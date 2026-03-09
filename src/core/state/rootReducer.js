@@ -2,6 +2,7 @@ import { setUniqueMappingOverwrite } from "../mapping/uniqueMapping";
 import { getEngine } from "../game/registry";
 
 const LOG_MAX = 200;
+
 function pushLog(prevLog, raw) {
   const next = [raw, ...(prevLog ?? [])];
   return next.length > LOG_MAX ? next.slice(0, LOG_MAX) : next;
@@ -43,7 +44,6 @@ export function applyRootAction(state, action) {
     return state;
   }
 
-  
   // ---- mapping ----
   if (action.type === "select_uid") {
     return { ...state, selectedUid: action.uid };
@@ -63,10 +63,21 @@ export function applyRootAction(state, action) {
   }
 
   // ---- settings/deck ----
-  if (action.type === "set_auto_confirm") return { ...state, autoConfirm: !!action.value };
-  if (action.type === "set_dev_mode") return { ...state, devMode: !!action.value };
+  if (action.type === "set_auto_confirm") {
+    return { ...state, autoConfirm: !!action.value };
+  }
 
-  if (action.type === "set_deck_setup") return { ...state, deckSetup: !!action.value };
+  if (action.type === "set_dev_mode") {
+    return { ...state, devMode: !!action.value };
+  }
+
+  if (action.type === "set_show_recent_cards") {
+    return { ...state, showRecentCards: !!action.value };
+  }
+
+  if (action.type === "set_deck_setup") {
+    return { ...state, deckSetup: !!action.value };
+  }
 
   if (action.type === "set_deck_index") {
     const max = action.maxIndex ?? 51;
@@ -78,17 +89,13 @@ export function applyRootAction(state, action) {
 }
 
 /**
- * Router: root action eerst, daarna engine action (of omgekeerd).
- * Regel: game actions worden enkel door game reducer behandeld.
+ * Router: root action eerst, daarna engine action.
  */
 export function rootReducer(state, action) {
-  // 1) root actions (altijd)
   let next = applyRootAction(state, action);
 
-  // 2) engine actions (alleen als active mode)
   const engine = next.modeId ? getEngine(next.modeId) : null;
   if (!engine?.reduce) return next;
 
-  // laat engine alleen reageren op actions die bij die game horen
   return engine.reduce(next, action);
 }
