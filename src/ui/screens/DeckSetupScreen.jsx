@@ -36,7 +36,7 @@ export function DeckSetupScreen({ appState, mapping, selectedUid, dispatchAction
   return (
     <div style={panelStyle({ padding: isMobile ? 16 : 22, display: "grid", gap: 16 })}>
       <div style={{ display: "grid", gap: 8 }}>
-        <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 900 }}>Deck Setup</div>
+        <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 700 }}>Deck Setup</div>
         <div style={{ color: colors.muted, maxWidth: 720 }}>
           Koppel RFID UID's aan je kaartendeck. Scan een kaart, wijs ze toe en spring meteen naar de volgende kaart.
         </div>
@@ -58,12 +58,12 @@ export function DeckSetupScreen({ appState, mapping, selectedUid, dispatchAction
             background: "radial-gradient(circle at top, rgba(251,191,36,0.12), transparent 50%), rgba(255,255,255,0.04)",
           })}
         >
-          <div style={{ color: colors.muted, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 800 }}>
+          <div style={{ color: colors.muted, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>
             Huidige kaart
           </div>
-          <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 900 }}>{card.label}</div>
+          <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 700 }}>{card.label}</div>
           <div style={{ color: colors.muted }}>{card.name}</div>
-          <div style={{ fontSize: 13, color: "#fde68a", fontWeight: 800 }}>Code: {card.code}</div>
+          <div style={{ fontSize: 13, color: "#fde68a", fontWeight: 700 }}>Code: {card.code}</div>
           <div style={{ marginTop: 6, color: colors.muted, fontSize: 13 }}>
             Kaart {idx + 1} / {DECK52.length}
           </div>
@@ -72,14 +72,14 @@ export function DeckSetupScreen({ appState, mapping, selectedUid, dispatchAction
         <div style={{ display: "grid", gap: 12 }}>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0,1fr))", gap: 12 }}>
             <div style={softCardStyle({ padding: 16, display: "grid", gap: 8 })}>
-              <div style={{ color: colors.muted, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 800 }}>
+              <div style={{ color: colors.muted, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>
                 Laatst gescand
               </div>
               <div style={{ fontFamily: "ui-monospace, Menlo, monospace", wordBreak: "break-all" }}>{uid ?? "-"}</div>
             </div>
 
             <div style={softCardStyle({ padding: 16, display: "grid", gap: 8 })}>
-              <div style={{ color: colors.muted, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 800 }}>
+              <div style={{ color: colors.muted, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>
                 Mapping status
               </div>
               <div>
@@ -102,7 +102,7 @@ export function DeckSetupScreen({ appState, mapping, selectedUid, dispatchAction
           </div>
 
           <div style={softCardStyle({ padding: 16, display: "grid", gap: 8 })}>
-            <div style={{ color: colors.muted, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 800 }}>
+            <div style={{ color: colors.muted, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>
               Snel navigeren
             </div>
             <select

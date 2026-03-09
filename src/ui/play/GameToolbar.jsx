@@ -15,8 +15,17 @@ export function GameToolbar({
         justifyContent: "flex-end",
       })}
     >
-      <button onClick={onUndo} style={buttonStyle()}>
-        Undo last play
+      <button
+        onClick={onUndo}
+        style={{
+          ...buttonStyle("primary"),
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <span aria-hidden="true">↻</span>
+        <span>Undo last play</span>
       </button>
 
       <button onClick={onBack} style={buttonStyle("danger")}>

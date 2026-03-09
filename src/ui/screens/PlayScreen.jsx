@@ -1,5 +1,4 @@
-// src/ui/screens/PlayScreen.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ZoneGrid } from "../ZoneGrid";
 import { Scoreboard } from "../Scoreboard";
@@ -10,7 +9,6 @@ import { TableDirection } from "../TableDirection";
 import { ContractEndOverlay } from "../ContractEndOverlay";
 import { computeScoresFromTrickHistory } from "../../core/games/dobbelkingen/scoring";
 import { EndScreen } from "../play/EndScreen";
-import { CARD_BY_CODE } from "../../core/mapping/deck52";
 import { GameToolbar } from "../play/GameToolbar";
 import { useViewport } from "../play/useViewport";
 import { buttonStyle, colors, panelStyle, softCardStyle } from "../play/theme";
@@ -59,29 +57,125 @@ function getTrickWinsByPlayer(trickHistory, playersCount) {
   return wins;
 }
 
-function ErrorBanner({ message }) {
-  if (!message) return null;
+function AnimatedBanner({ type = "info", title, message, compact = false }) {
+  if (!title && !message) return null;
+
+  const tones =
+    type === "error"
+      ? {
+          border: "1px solid rgba(251, 113, 133, 0.34)",
+          background: "linear-gradient(180deg, rgba(127, 29, 29, 0.82), rgba(69, 10, 10, 0.82))",
+          glow: "0 16px 34px rgba(127, 29, 29, 0.22)",
+          icon: "🚫",
+          titleColor: "#ffe4e6",
+          bodyColor: "#fecdd3",
+        }
+      : {
+          border: "1px solid rgba(74, 222, 128, 0.34)",
+          background: "linear-gradient(180deg, rgba(20, 83, 45, 0.84), rgba(22, 101, 52, 0.80))",
+          glow: "0 16px 34px rgba(20, 83, 45, 0.22)",
+          icon: "🏆",
+          titleColor: "#ecfdf5",
+          bodyColor: "#bbf7d0",
+        };
 
   return (
     <div
       style={{
         ...panelStyle({
-          padding: "14px 16px",
-          border: "1px solid rgba(251, 113, 133, 0.34)",
-          background: "rgba(127, 29, 29, 0.52)",
+          padding: compact ? "10px 14px" : "14px 16px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 12,
+          gap: 14,
+          overflow: "hidden",
+          position: "relative",
+          border: tones.border,
+          background: tones.background,
+          boxShadow: tones.glow,
+          animation: "bannerIn 240ms cubic-bezier(.19,1,.22,1)",
         }),
-        color: "#ffe4e6",
       }}
     >
-      <div style={{ fontWeight: 800 }}>🚫 {message}</div>
-      <div style={{ fontSize: 13, color: "#fecdd3" }}>
-        Controleer de huidige beurt en zone.
+      <style>{`
+        @keyframes bannerIn {
+          0% { opacity: 0; transform: translateY(-10px) scale(0.98); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes bannerShine {
+          0% { transform: translateX(-120%); }
+          100% { transform: translateX(220%); }
+        }
+
+        @keyframes bannerTimer {
+          0% { transform: scaleX(1); opacity: 0.95; }
+          100% { transform: scaleX(0); opacity: 0.45; }
+        }
+      `}</style>
+
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.08) 48%, transparent 78%)",
+          animation: "bannerShine 2.6s linear infinite",
+          pointerEvents: "none",
+        }}
+      />
+
+      <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative", zIndex: 1 }}>
+        <div
+          style={{
+            width: compact ? 34 : 42,
+            height: compact ? 34 : 42,
+            borderRadius: 12,
+            display: "grid",
+            placeItems: "center",
+            fontSize: compact ? 16 : 18,
+            fontWeight: 900,
+            background: "rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.10)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
+          }}
+        >
+          {tones.icon}
+        </div>
+
+        <div style={{ display: "grid", gap: 2 }}>
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: compact ? 3 : 4,
+              background:
+                type === "error"
+                  ? "linear-gradient(90deg, rgba(251,113,133,0.95), rgba(254,205,211,0.65))"
+                  : "linear-gradient(90deg, rgba(74,222,128,0.95), rgba(187,247,208,0.65))",
+              transformOrigin: "left center",
+              animation: compact ? "bannerTimer 1.2s linear forwards" : "bannerTimer 3.2s linear forwards",
+            }}
+          />
+
+          <div style={{ fontWeight: 900, color: tones.titleColor }}>{title}</div>
+          {message ? <div style={{ fontSize: 13, color: tones.bodyColor }}>{message}</div> : null}
+        </div>
       </div>
     </div>
+  );
+}
+
+function ErrorBanner({ message }) {
+  if (!message) return null;
+
+  return (
+    <AnimatedBanner
+      type="error"
+      title={message}
+      message="Controleer de huidige beurt, zone en contractregel."
+    />
   );
 }
 
@@ -96,16 +190,14 @@ function PlayedCardsPanel({ cardCodes = [] }) {
       </div>
 
       <div
-        style={{
-          ...softCardStyle({
-            padding: 14,
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 10,
-            minHeight: 56,
-            alignItems: "center",
-          }),
-        }}
+        style={softCardStyle({
+          padding: 14,
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 10,
+          minHeight: 56,
+          alignItems: "center",
+        })}
       >
         {pretty.length === 0 ? (
           <div style={{ color: colors.muted }}>—</div>
@@ -388,6 +480,8 @@ export function PlayScreen({
     return result;
   }, [d?.currentTrick, playersCount]);
 
+  const [flyingCards, setFlyingCards] = useState([]);
+  const prevTrickRef = useRef([]);
   const [trickToast, setTrickToast] = useState(null);
   const [flashWinnerIndex, setFlashWinnerIndex] = useState(null);
 
@@ -400,7 +494,8 @@ export function PlayScreen({
 
     setTrickToast({
       key: `trick-${ts}`,
-      title: `🏆 ${name} wint de slag`,
+      title: `${name} wint de slag`,
+      message: "Volgende speler is nu aan zet.",
     });
 
     setFlashWinnerIndex(winnerIdx);
@@ -414,9 +509,59 @@ export function PlayScreen({
     };
   }, [d?.lastTrick?.timestamp, d?.lastTrickWinnerIndex, players]);
 
+
+  useEffect(() => {
+    const currentTrick = Array.isArray(d?.currentTrick) ? d.currentTrick : [];
+    const prevTrick = Array.isArray(prevTrickRef.current) ? prevTrickRef.current : [];
+
+    if (currentTrick.length < prevTrick.length) {
+      prevTrickRef.current = currentTrick;
+      return;
+    }
+
+    const newPlays = currentTrick.slice(prevTrick.length);
+
+    if (newPlays.length > 0) {
+      const created = newPlays
+        .map((play, index) => {
+          const playerIndex = play?.playerIndex;
+          const cardCode = play?.cardCode;
+          if (typeof playerIndex !== "number" || !cardCode) return null;
+
+          return {
+            id: `fly-${Date.now()}-${prevTrick.length + index}-${playerIndex}-${cardCode}`,
+            seat: playerIndex,
+            label: toPrettyCard(cardCode),
+          };
+        })
+        .filter(Boolean);
+
+      if (created.length > 0) {
+        setFlyingCards((prev) => [...prev, ...created]);
+
+        created.forEach((card) => {
+          window.setTimeout(() => {
+            setFlyingCards((prev) => prev.filter((entry) => entry.id !== card.id));
+          }, 820);
+        });
+      }
+    }
+
+    prevTrickRef.current = currentTrick;
+  }, [d?.currentTrick]);
+
   const { isMobile } = useViewport();
+
   const showRecentCards = appState.showRecentCards !== false;
   const showCenterTrickLabel = appState.showCenterTrickLabel !== false;
+
+  const showTrumpInHeader =
+    d?.roundPhase === 2 || contractId === "TROEF";
+
+  const visibleTrumpLabel =
+    showTrumpInHeader ? getTrumpLabel(d?.currentTrumpSuit) : "—";
+
+  const centerAnimationSeed = `${trickCount}-${JSON.stringify(d?.currentTrick ?? [])}`;
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
@@ -464,8 +609,6 @@ export function PlayScreen({
 
       {showGameUi && (
         <>
-          <ErrorBanner message={appState.lastError} />
-
           <GameToolbar
             onUndo={onUndo}
             onBack={() => {
@@ -476,18 +619,16 @@ export function PlayScreen({
             }}
           />
 
+          <ErrorBanner message={appState.lastError} />
+
           {trickToast && (
-            <div
+            <AnimatedBanner
               key={trickToast.key}
-              style={panelStyle({
-                padding: "10px 12px",
-                border: "1px solid rgba(74, 222, 128, 0.34)",
-                background: "rgba(20, 83, 45, 0.56)",
-                fontWeight: 900,
-              })}
-            >
-              {trickToast.title}
-            </div>
+              type="success"
+              title={trickToast.title}
+              message={trickToast.message}
+              compact
+            />
           )}
 
           <TableDirection
@@ -495,11 +636,14 @@ export function PlayScreen({
             currentPlayerIndex={currentIndex}
             leaderPlayerIndex={leaderPlayerIndex}
             contractLabel={contractId ?? "—"}
-            trumpLabel={getTrumpLabel(d?.currentTrumpSuit)}
+            trumpLabel={visibleTrumpLabel}
             trickLabel={`${trickCount} / 13`}
             seatCards={seatCards}
             centerCards={centerCards}
             showCenterTrickLabel={showCenterTrickLabel}
+            showTopRightTrick={showCenterTrickLabel}
+            animationSeed={centerAnimationSeed}
+            flyingCards={flyingCards}
           />
 
           <Scoreboard
@@ -513,10 +657,14 @@ export function PlayScreen({
             }
           />
 
-          {contractId === "TROEF" && <TrickWinsPanel players={players} trickWins={trickWins} />}
+          {contractId === "TROEF" && (
+            <TrickWinsPanel players={players} trickWins={trickWins} />
+          )}
 
           {showRecentCards && (
-            <PlayedCardsPanel cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []} />
+            <PlayedCardsPanel
+              cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []}
+            />
           )}
 
           {showDebug && appState.devMode && (

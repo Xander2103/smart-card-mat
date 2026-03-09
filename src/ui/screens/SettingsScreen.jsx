@@ -20,7 +20,7 @@ function ToggleRow({ checked, onChange, title, description }) {
         style={{ marginTop: 2, width: 18, height: 18 }}
       />
       <div style={{ display: "grid", gap: 6 }}>
-        <div style={{ fontWeight: 900 }}>{title}</div>
+        <div style={{ fontWeight: 700 }}>{title}</div>
         <div style={{ color: colors.muted, fontSize: 14, lineHeight: 1.5 }}>
           {description}
         </div>
@@ -40,7 +40,7 @@ export function SettingsScreen({ appState, dispatchAction }) {
   return (
     <div style={panelStyle({ padding: isMobile ? 16 : 22, display: "grid", gap: 16 })}>
       <div style={{ display: "grid", gap: 8 }}>
-        <div style={{ fontWeight: 900, fontSize: isMobile ? 24 : 28 }}>Settings</div>
+        <div style={{ fontWeight: 700, fontSize: isMobile ? 24 : 28 }}>Settings</div>
         <div style={{ color: colors.muted, maxWidth: 760 }}>
           Basisinstellingen voor de Smart Card Mat. Alles blijft werken zoals nu,
           maar je kunt het spelverloop hier vlotter en cleaner maken.
@@ -96,7 +96,7 @@ export function SettingsScreen({ appState, dispatchAction }) {
       />
 
       <div style={softCardStyle({ padding: 16, display: "grid", gap: 10 })}>
-        <div style={{ fontWeight: 900 }}>Aanbevolen instelling</div>
+        <div style={{ fontWeight: 700 }}>Aanbevolen instelling</div>
         <div style={{ color: colors.muted, lineHeight: 1.55 }}>
           Voor een snelle speeltafel laat je auto-confirm aan en gebruik je <b>Undo</b>
           alleen wanneer een kaart fout werd gescand of verkeerd geplaatst.

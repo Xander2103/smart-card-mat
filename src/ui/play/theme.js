@@ -54,10 +54,10 @@ export function buttonStyle(variant = "secondary") {
   if (variant === "primary") {
     return {
       ...base,
-      border: "1px solid rgba(251, 191, 36, 0.48)",
-      background: "linear-gradient(180deg, #fbbf24 0%, #d97706 100%)",
+      border: "1px solid rgba(251, 191, 36, 0.52)",
+      background: "linear-gradient(180deg, #fcd34d 0%, #f59e0b 48%, #d97706 100%)",
       color: "#2b1607",
-      boxShadow: "0 12px 24px rgba(217, 119, 6, 0.24)",
+      boxShadow: "0 12px 24px rgba(217, 119, 6, 0.26)",
     };
   }
 

@@ -68,7 +68,7 @@ export function Scoreboard({
         }}
       >
         <div>
-          <div style={{ fontWeight: 900, fontSize: 20 }}>Tussenstand</div>
+          <div style={{ fontWeight: 700, fontSize: 20 }}>Tussenstand</div>
           <div style={{ fontSize: 13, color: colors.muted }}>Totaal of contractscore afhankelijk van de huidige fase.</div>
         </div>
 
@@ -108,7 +108,7 @@ export function Scoreboard({
             }}
           >
             <div style={{ display: "grid", gap: 4, textAlign: "left" }}>
-              <div style={{ fontWeight: 900 }}>{r.name}</div>
+              <div style={{ fontWeight: 700 }}>{r.name}</div>
               <div style={{ fontSize: 12, color: colors.muted }}>
                 {r.isFlash ? "Wint de laatste slag" : r.isCurrent ? "Aan de beurt" : ""}
               </div>
@@ -137,7 +137,7 @@ export function Scoreboard({
                 </>
               )}
 
-              <div style={{ fontWeight: 900, minWidth: 42, textAlign: "right", fontSize: 20 }}>
+              <div style={{ fontWeight: 700, minWidth: 42, textAlign: "right", fontSize: 20 }}>
                 {r.score}
               </div>
             </div>

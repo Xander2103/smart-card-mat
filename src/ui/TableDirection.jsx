@@ -1,4 +1,4 @@
-//Tabledirection.jsx
+import { useLayoutEffect, useRef, useState } from "react";
 import { softCardStyle } from "./play/theme";
 
 function getCardTone(label) {
@@ -11,7 +11,6 @@ function SeatCard({ label, animationName = "seatCardPopIn" }) {
 
   return (
     <div
-      key={`${label}-${animationName}`}
       style={{
         minWidth: 64,
         width: 64,
@@ -19,7 +18,8 @@ function SeatCard({ label, animationName = "seatCardPopIn" }) {
         padding: "8px 10px",
         borderRadius: 16,
         border: "1px solid rgba(255,255,255,0.12)",
-        background: "linear-gradient(180deg, rgba(255,255,255,0.11), rgba(255,255,255,0.04))",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.11), rgba(255,255,255,0.04))",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -27,7 +27,7 @@ function SeatCard({ label, animationName = "seatCardPopIn" }) {
         fontSize: 26,
         color: getCardTone(label),
         boxShadow: "0 12px 30px rgba(0,0,0,0.28)",
-        animation: `${animationName} 180ms ease-out`,
+        animation: `${animationName} 260ms ease-out`,
         flexShrink: 0,
       }}
     >
@@ -36,52 +36,114 @@ function SeatCard({ label, animationName = "seatCardPopIn" }) {
   );
 }
 
-function CenterPlayedCard({ label, seat }) {
+function getCenterCardPosition(seat) {
+  return seat === 0
+    ? { top: "42%", left: "50%" }
+    : seat === 1
+      ? { top: "50%", left: "58%" }
+      : seat === 2
+        ? { top: "58%", left: "50%" }
+        : { top: "50%", left: "42%" };
+}
+
+function getFlyingStartPosition(seat) {
+  return seat === 0
+    ? { top: "102px", left: "56%", rotate: "-10deg" }
+    : seat === 1
+      ? { top: "50%", left: "90%", rotate: "9deg" }
+      : seat === 2
+        ? { top: "348px", left: "56%", rotate: "7deg" }
+        : { top: "50%", left: "10%", rotate: "-9deg" };
+}
+
+function CenterPlayedCard({ label, seat, animationSeed = "0" }) {
   if (!label) return null;
 
-  // EINDPOSITIES dichter bij het echte midden
-  const pos =
-    seat === 0
-      ? { top: "44%", left: "50%", transform: "translate(-50%, -50%)" } // Player 1
-      : seat === 1
-        ? { top: "50%", left: "58%", transform: "translate(-50%, -50%)" } // Player 2
-        : seat === 2
-          ? { top: "56%", left: "50%", transform: "translate(-50%, -50%)" } // Player 3
-          : { top: "50%", left: "42%", transform: "translate(-50%, -50%)" }; // Player 4
-
-  // Wat jij vroeg:
-  // Player 1 en 3 -> naar rechts
-  // Player 2 en 4 -> naar onder
-  const animationName =
-    seat === 0 || seat === 2
-      ? "centerCardSlideRight"
-      : "centerCardSlideDown";
+  const pos = getCenterCardPosition(seat);
 
   return (
     <div
+      key={`${seat}-${label}-${animationSeed}`}
       style={{
         position: "absolute",
-        ...pos,
-        width: 76,
-        height: 100,
+        top: pos.top,
+        left: pos.left,
+        transform: "translate(-50%, -50%)",
+        width: 78,
+        height: 104,
         borderRadius: 18,
         border: "1px solid rgba(255,255,255,0.14)",
-        background: "linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.13), rgba(255,255,255,0.05))",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         fontWeight: 900,
-        fontSize: 30,
+        fontSize: 31,
         color: getCardTone(label),
-        boxShadow: "0 14px 34px rgba(0,0,0,0.30)",
-        animation: `${animationName} 260ms ease-out`,
-        zIndex: 3,
+        boxShadow: "0 16px 42px rgba(0,0,0,0.34)",
+        animation: "centerCardSettle 220ms ease-out 420ms both",
+        zIndex: 4,
+        pointerEvents: "none",
       }}
     >
       {label}
     </div>
   );
 }
+
+function px(value) {
+  return typeof value === "number" ? `${value}px` : value;
+}
+
+function FlyingCard({ label, seat, id, geometry }) {
+  if (!label) return null;
+
+  const fallbackStart = getFlyingStartPosition(seat);
+  const fallbackEnd = getCenterCardPosition(seat);
+  const startTop = geometry?.startTop ?? fallbackStart.top;
+  const startLeft = geometry?.startLeft ?? fallbackStart.left;
+  const endTop = geometry?.endTop ?? fallbackEnd.top;
+  const endLeft = geometry?.endLeft ?? fallbackEnd.left;
+  const rotate = geometry?.rotate ?? fallbackStart.rotate;
+
+  return (
+    <div
+      key={id}
+      style={{
+        position: "absolute",
+        top: px(startTop),
+        left: px(startLeft),
+        transform: "translate(-50%, -50%)",
+        width: 78,
+        height: 104,
+        borderRadius: 18,
+        border: "1px solid rgba(255,255,255,0.18)",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06))",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontWeight: 900,
+        fontSize: 31,
+        color: getCardTone(label),
+        boxShadow: "0 18px 44px rgba(0,0,0,0.34)",
+        zIndex: 7,
+        pointerEvents: "none",
+        opacity: 0,
+        ["--fly-start-top"]: px(startTop),
+        ["--fly-start-left"]: px(startLeft),
+        ["--fly-end-top"]: px(endTop),
+        ["--fly-end-left"]: px(endLeft),
+        ["--fly-rotate"]: rotate,
+        animation: "flyingCardMove 760ms cubic-bezier(.18,.9,.22,1) forwards",
+      }}
+    >
+      {label}
+    </div>
+  );
+}
+
 function Seat({
   zoneLabel,
   playerName,
@@ -90,7 +152,8 @@ function Seat({
   accent = false,
   cardLabel,
   cardAnimationName = "seatCardPopIn",
-  cardPlacement = "bottom", // "right" of "bottom"
+  cardPlacement = "bottom",
+  cardAnchorRef,
   style,
 }) {
   const infoBlock = (
@@ -109,6 +172,7 @@ function Seat({
   return (
     <div
       style={{
+        position: "relative",
         ...softCardStyle({
           padding: 16,
           minHeight: 104,
@@ -116,9 +180,9 @@ function Seat({
           alignContent: "start",
           justifyItems: "start",
           background: active
-            ? "linear-gradient(180deg, rgba(127, 29, 29, 0.82), rgba(93, 24, 24, 0.74))"
+            ? "linear-gradient(180deg, rgba(127, 29, 29, 0.84), rgba(93, 24, 24, 0.76))"
             : accent
-              ? "linear-gradient(180deg, rgba(120, 53, 15, 0.60), rgba(88, 33, 11, 0.52))"
+              ? "linear-gradient(180deg, rgba(120, 53, 15, 0.64), rgba(88, 33, 11, 0.56))"
               : "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))",
           border: active
             ? "1px solid rgba(251, 113, 133, 0.56)"
@@ -133,6 +197,21 @@ function Seat({
         ...style,
       }}
     >
+      <div
+        ref={cardAnchorRef}
+        style={{
+          position: "absolute",
+          width: 78,
+          height: 104,
+          pointerEvents: "none",
+          opacity: 0,
+          right: cardPlacement === "right" ? 14 : undefined,
+          bottom: cardPlacement === "bottom" ? 14 : undefined,
+          top: cardPlacement === "right" ? "50%" : undefined,
+          transform: cardPlacement === "right" ? "translateY(-50%)" : undefined,
+        }}
+      />
+
       {cardPlacement === "right" ? (
         <div
           style={{
@@ -166,16 +245,59 @@ export function TableDirection({
   seatCards = [],
   centerCards = [],
   showCenterTrickLabel = true,
+  showTopRightTrick = true,
+  animationSeed = "0",
+  flyingCards = [],
 }) {
   const safePlayers =
     players.length >= 4
       ? players
       : [
-        { name: "Player 1" },
-        { name: "Player 2" },
-        { name: "Player 3" },
-        { name: "Player 4" },
-      ];
+          { name: "Player 1" },
+          { name: "Player 2" },
+          { name: "Player 3" },
+          { name: "Player 4" },
+        ];
+
+  const boardRef = useRef(null);
+  const seatAnchorRefs = useRef([]);
+  const [flightGeometry, setFlightGeometry] = useState({});
+
+  useLayoutEffect(() => {
+    function updateGeometry() {
+      const boardEl = boardRef.current;
+      if (!boardEl) return;
+
+      const boardRect = boardEl.getBoundingClientRect();
+      const next = {};
+
+      for (let seat = 0; seat < 4; seat += 1) {
+        const anchor = seatAnchorRefs.current[seat];
+        if (!anchor) continue;
+
+        const anchorRect = anchor.getBoundingClientRect();
+        const startTop = anchorRect.top - boardRect.top + anchorRect.height / 2;
+        const startLeft = anchorRect.left - boardRect.left + anchorRect.width / 2;
+        const end = getCenterCardPosition(seat);
+        const endTop = (parseFloat(String(end.top)) / 100) * boardRect.height;
+        const endLeft = (parseFloat(String(end.left)) / 100) * boardRect.width;
+
+        next[seat] = {
+          startTop,
+          startLeft,
+          endTop,
+          endLeft,
+          rotate: getFlyingStartPosition(seat).rotate,
+        };
+      }
+
+      setFlightGeometry(next);
+    }
+
+    updateGeometry();
+    window.addEventListener("resize", updateGeometry);
+    return () => window.removeEventListener("resize", updateGeometry);
+  }, [flyingCards.length, seatCards, centerCards]);
 
   const seatOrder = [
     { seat: 0, zoneLabel: "Zone 1", position: "top" },
@@ -199,73 +321,89 @@ export function TableDirection({
       }}
     >
       <style>{`
-  @keyframes seatCardPopIn {
-    0% {
-      opacity: 0;
-      transform: translateY(10px) scale(0.94);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
+        @keyframes seatCardPopIn {
+          0% {
+            opacity: 0;
+            transform: translateY(10px) scale(0.94);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
 
-  @keyframes seatCardSlideRight {
-    0% {
-      opacity: 0;
-      transform: translateX(-34px) scale(0.92);
-    }
-    100% {
-      opacity: 1;
-      transform: translateX(0) scale(1);
-    }
-  }
+        @keyframes seatCardSlideRight {
+          0% {
+            opacity: 0;
+            transform: translateX(-34px) scale(0.92);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+          }
+        }
 
-  @keyframes seatCardSlideDown {
-    0% {
-      opacity: 0;
-      transform: translateY(-34px) scale(0.92);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
+        @keyframes seatCardSlideDown {
+          0% {
+            opacity: 0;
+            transform: translateY(-34px) scale(0.92);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        @keyframes centerCardSettle {
+          0% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.82);
+            filter: blur(4px);
+          }
+          100% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+            filter: blur(0);
+          }
+        }
 
-  @keyframes centerCardSlideRight {
-    0% {
-      opacity: 0;
-      transform: translate(calc(-50% - 56px), -50%) scale(0.90);
-    }
-    100% {
-      opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
-    }
-  }
+        @keyframes flyingCardMove {
+          0% {
+            top: var(--fly-start-top);
+            left: var(--fly-start-left);
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.76) rotate(var(--fly-rotate));
+            filter: blur(7px);
+          }
+          14% {
+            opacity: 1;
+            filter: blur(0);
+          }
+          72% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.03) rotate(0deg);
+          }
+          100% {
+            top: var(--fly-end-top);
+            left: var(--fly-end-left);
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(1) rotate(0deg);
+            filter: blur(0);
+          }
+        }
 
-  @keyframes centerCardSlideDown {
-    0% {
-      opacity: 0;
-      transform: translate(-50%, calc(-50% - 56px)) scale(0.90);
-    }
-    100% {
-      opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
-    }
-  }
+        @keyframes turnPulse {
+          0% {
+            box-shadow: 0 0 0 1px rgba(251,113,133,0.18), 0 0 14px rgba(251,113,133,0.14), 0 18px 38px rgba(0,0,0,0.20);
+          }
+          50% {
+            box-shadow: 0 0 0 1px rgba(251,113,133,0.28), 0 0 28px rgba(251,113,133,0.26), 0 18px 38px rgba(0,0,0,0.20);
+          }
+          100% {
+            box-shadow: 0 0 0 1px rgba(251,113,133,0.18), 0 0 14px rgba(251,113,133,0.14), 0 18px 38px rgba(0,0,0,0.20);
+          }
+        }
+      `}</style>
 
-  @keyframes turnPulse {
-    0% {
-      box-shadow: 0 0 0 1px rgba(251,113,133,0.18), 0 0 14px rgba(251,113,133,0.14), 0 18px 38px rgba(0,0,0,0.20);
-    }
-    50% {
-      box-shadow: 0 0 0 1px rgba(251,113,133,0.28), 0 0 28px rgba(251,113,133,0.26), 0 18px 38px rgba(0,0,0,0.20);
-    }
-    100% {
-      box-shadow: 0 0 0 1px rgba(251,113,133,0.18), 0 0 14px rgba(251,113,133,0.14), 0 18px 38px rgba(0,0,0,0.20);
-    }
-  }
-`}</style>
       <div
         style={{
           display: "flex",
@@ -282,14 +420,50 @@ export function TableDirection({
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <div style={pillStyle()}>Contract&nbsp; <b>{String(contractLabel || "—").replaceAll("_", " ")}</b></div>
-          <div style={pillStyle()}>Troef&nbsp; <b>{trumpLabel}</b></div>
-          <div style={pillStyle()}>Slag&nbsp; <b>{trickLabel}</b></div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <div
+            style={{
+              ...pillStyle(),
+              border: "1px solid rgba(251, 191, 36, 0.32)",
+              background: "rgba(251, 191, 36, 0.10)",
+              fontSize: 14,
+              fontWeight: 900,
+              padding: "10px 16px",
+            }}
+          >
+            Contract&nbsp; <b>{String(contractLabel || "—").replaceAll("_", " ")}</b>
+          </div>
+
+          {trumpLabel && trumpLabel !== "—" && (
+            <div
+              style={{
+                ...pillStyle(),
+                fontSize: 14,
+                fontWeight: 900,
+                padding: "10px 16px",
+              }}
+            >
+              Troef&nbsp; <b>{trumpLabel}</b>
+            </div>
+          )}
+
+          {showTopRightTrick && (
+            <div
+              style={{
+                ...pillStyle(),
+                fontSize: 14,
+                fontWeight: 900,
+                padding: "10px 16px",
+              }}
+            >
+              Slag&nbsp; <b>{trickLabel}</b>
+            </div>
+          )}
         </div>
       </div>
 
       <div
+        ref={boardRef}
         style={{
           position: "relative",
           minHeight: 450,
@@ -299,7 +473,6 @@ export function TableDirection({
             "radial-gradient(circle at center, rgba(109,40,18,0.26) 0%, rgba(64,24,12,0.16) 38%, rgba(20,8,6,0.10) 72%, rgba(0,0,0,0) 100%)",
         }}
       >
-        {/* GROTE SUBTIELE MIDDENMARKERING */}
         <div
           style={{
             position: "absolute",
@@ -394,49 +567,44 @@ export function TableDirection({
           const style =
             position === "top"
               ? {
-                position: "absolute",
-                top: 18,
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: 184,
-              }
+                  position: "absolute",
+                  top: 18,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: 184,
+                }
               : position === "right"
                 ? {
-                  position: "absolute",
-                  right: 18,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  width: 174,
-                }
-                : position === "bottom"
-                  ? {
                     position: "absolute",
-                    bottom: 18,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    width: 184,
-                  }
-                  : {
-                    position: "absolute",
-                    left: 18,
+                    right: 18,
                     top: "50%",
                     transform: "translateY(-50%)",
-                    width: 164,
-                  };
+                    width: 174,
+                  }
+                : position === "bottom"
+                  ? {
+                      position: "absolute",
+                      bottom: 18,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: 184,
+                    }
+                  : {
+                      position: "absolute",
+                      left: 18,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      width: 164,
+                    };
 
           let badge = null;
           if (isCurrent) badge = "🎯 Aan de beurt";
           else if (isLeader) badge = "👑 Komt uit";
 
           const cardAnimationName =
-            seat === 0 || seat === 2
-              ? "seatCardSlideRight"
-              : "seatCardSlideDown";
+            seat === 0 || seat === 2 ? "seatCardSlideRight" : "seatCardSlideDown";
 
-          const cardPlacement =
-            seat === 0 || seat === 2
-              ? "right"
-              : "bottom";
+          const cardPlacement = seat === 0 || seat === 2 ? "right" : "bottom";
 
           return (
             <Seat
@@ -449,10 +617,32 @@ export function TableDirection({
               cardLabel={centerCards?.[seat] ? null : (seatCards?.[seat] ?? null)}
               cardAnimationName={cardAnimationName}
               cardPlacement={cardPlacement}
+              cardAnchorRef={(node) => {
+                seatAnchorRefs.current[seat] = node;
+              }}
               style={style}
             />
           );
         })}
+
+        {centerCards.map((label, seat) => (
+          <CenterPlayedCard
+            key={`${seat}-${label ?? "empty"}-${animationSeed}`}
+            label={label}
+            seat={seat}
+            animationSeed={animationSeed}
+          />
+        ))}
+
+        {flyingCards.map((card) => (
+          <FlyingCard
+            key={card.id}
+            id={card.id}
+            label={card.label}
+            seat={card.seat}
+            geometry={flightGeometry?.[card.seat]}
+          />
+        ))}
       </div>
     </div>
   );

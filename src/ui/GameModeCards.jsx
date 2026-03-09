@@ -18,10 +18,10 @@ function Card({ title, eyebrow, desc, onClick }) {
         }),
       }}
     >
-      <div style={{ fontSize: 12, color: colors.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 800 }}>
+      <div style={{ fontSize: 12, color: colors.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>
         {eyebrow}
       </div>
-      <div style={{ fontWeight: 900, fontSize: 22, color: colors.text }}>{title}</div>
+      <div style={{ fontWeight: 700, fontSize: 22, color: colors.text }}>{title}</div>
       <div style={{ color: colors.muted, fontSize: 14, lineHeight: 1.55 }}>{desc}</div>
       <div>
         <span style={{ ...buttonStyle("primary"), display: "inline-flex", padding: "8px 12px" }}>
@@ -36,7 +36,7 @@ export function GameModeCards({ onOpenDobbelkingen }) {
   return (
     <div style={panelStyle({ padding: 20, display: "grid", gap: 16 })}>
       <div>
-        <div style={{ fontWeight: 900, fontSize: 28 }}>Game Modes</div>
+        <div style={{ fontWeight: 700, fontSize: 28 }}>Game Modes</div>
         <div style={{ color: colors.muted, marginTop: 4 }}>
           Kies een spelmodus en start je tafel alsof je in een digitale kaartenkroeg zit.
         </div>

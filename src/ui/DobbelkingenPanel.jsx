@@ -42,8 +42,8 @@ function MiniStat({ label, value, accent = colors.blue }) {
         flexWrap: "wrap",
       }}
     >
-      <span style={{ fontSize: 12, color: colors.muted, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.6 }}>{label}</span>
-      <span style={{ fontWeight: 900, color: accent }}>{value}</span>
+      <span style={{ fontSize: 12, color: colors.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }}>{label}</span>
+      <span style={{ fontWeight: 700, color: accent }}>{value}</span>
     </div>
   );
 }
@@ -71,7 +71,7 @@ function ContractCard({ label, desc, count, disabled, reason, hovered, onMouseEn
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <div style={{ fontWeight: 900, fontSize: 17 }}>{label}</div>
+        <div style={{ fontWeight: 700, fontSize: 17 }}>{label}</div>
         <div
           style={{
             borderRadius: 999,
@@ -79,7 +79,7 @@ function ContractCard({ label, desc, count, disabled, reason, hovered, onMouseEn
             background: count >= 2 ? colors.redSoft : colors.accentSoft,
             color: count >= 2 ? "#fecdd3" : "#fcd34d",
             fontSize: 12,
-            fontWeight: 900,
+            fontWeight: 700,
           }}
         >
           {count}/2
@@ -87,7 +87,7 @@ function ContractCard({ label, desc, count, disabled, reason, hovered, onMouseEn
       </div>
 
       <div style={{ color: colors.muted, fontSize: 14, lineHeight: 1.5 }}>{desc}</div>
-      <div style={{ fontSize: 12, fontWeight: 800, color: disabled ? "#fda4af" : colors.muted }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: disabled ? "#fda4af" : colors.muted }}>
         {reason || "Beschikbaar om te kiezen"}
       </div>
     </button>
@@ -165,7 +165,7 @@ export function DobbelkingenPanel({
       <div style={panelStyle({ padding: 20, display: "grid", gap: 16 })}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontWeight: 900, fontSize: 28 }}>Dobbelkingen</div>
+            <div style={{ fontWeight: 700, fontSize: 28 }}>Dobbelkingen</div>
             <div style={{ color: colors.muted, marginTop: 4 }}>
               Contractkeuzes, troefrondes en live score-opvolging op je Smart Card Mat.
             </div>
@@ -210,7 +210,7 @@ export function DobbelkingenPanel({
 
         {appState.phase === "DOBBELKINGEN_READY" && (
           <div style={softCardStyle({ padding: 18, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" })}>
-            <div style={{ fontWeight: 800, color: colors.muted, flex: 1 }}>
+            <div style={{ fontWeight: 700, color: colors.muted, flex: 1 }}>
               Start een nieuwe match. Iedereen begint in fase 1 met contractkeuzes.
             </div>
             <button onClick={onStart} style={buttonStyle("primary")}>
@@ -225,7 +225,7 @@ export function DobbelkingenPanel({
         {appState.phase === "CHOOSING_CONTRACT" && (
           <>
             <div style={softCardStyle({ padding: 14, display: "grid", gap: 2, background: "rgba(251,191,36,0.08)" })}>
-              <div style={{ fontWeight: 900, fontSize: isMobile ? 18 : 20 }}>{chooserName} kiest nu een contract</div>
+              <div style={{ fontWeight: 700, fontSize: isMobile ? 18 : 20 }}>{chooserName} kiest nu een contract</div>
               <div style={{ color: colors.muted, fontSize: 14 }}>
                 Volgende speler komt uit in de eerste slag.
               </div>
@@ -289,7 +289,7 @@ export function DobbelkingenPanel({
         {appState.phase === "CHOOSING_TROEF" && (
           <>
             <div style={softCardStyle({ padding: 14, display: "grid", gap: 2, background: "rgba(74,222,128,0.08)" })}>
-              <div style={{ fontWeight: 900, fontSize: isMobile ? 18 : 20 }}>{chooserName} kiest troef</div>
+              <div style={{ fontWeight: 700, fontSize: isMobile ? 18 : 20 }}>{chooserName} kiest troef</div>
               <div style={{ color: colors.muted, fontSize: 14 }}>{leaderName} komt uit in de eerste slag.</div>
             </div>
 
@@ -316,7 +316,7 @@ export function DobbelkingenPanel({
                       }),
                     }}
                   >
-                    <div style={{ fontWeight: 900, fontSize: 22, color: opt.color }}>
+                    <div style={{ fontWeight: 700, fontSize: 22, color: opt.color }}>
                       {opt.symbol} {opt.label}
                     </div>
                     <div style={{ color: colors.muted, fontSize: 14 }}>Gekozen door {chooserName}</div>
@@ -327,7 +327,7 @@ export function DobbelkingenPanel({
 
             <div style={{ display: "grid", gridTemplateColumns: isTablet ? "minmax(0, 1fr)" : "minmax(0, 1fr) minmax(0, 1fr)", gap: 12 }}>
               <div style={softCardStyle({ padding: 16, display: "grid", gap: 10 })}>
-                <div style={{ fontWeight: 900, fontSize: 18 }}>Troef-keuzes</div>
+                <div style={{ fontWeight: 700, fontSize: 18 }}>Troef-keuzes</div>
                 <div style={{ display: "grid", gap: 8 }}>
                   {players.map((p, index) => (
                     <div
@@ -341,7 +341,7 @@ export function DobbelkingenPanel({
                       })}
                     >
                       <div>{p.name ?? `Player ${index + 1}`}</div>
-                      <div style={{ fontWeight: 900 }}>{troefPickCounts?.[index] ?? 0}/2 gekozen</div>
+                      <div style={{ fontWeight: 700 }}>{troefPickCounts?.[index] ?? 0}/2 gekozen</div>
                     </div>
                   ))}
                 </div>
@@ -375,7 +375,7 @@ export function DobbelkingenPanel({
 
         {history.length > 0 && (
           <div style={{ display: "grid", gap: 8 }}>
-            <div style={{ fontWeight: 900, fontSize: 18 }}>History</div>
+            <div style={{ fontWeight: 700, fontSize: 18 }}>History</div>
             <div style={{ display: "grid", gap: 8 }}>
               {[...history].slice().reverse().map((entry, index) => (
                 <HistoryItem key={`${entry.contract}-${entry.timestamp ?? index}-${index}`}>
