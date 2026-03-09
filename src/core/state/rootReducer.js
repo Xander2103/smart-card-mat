@@ -9,7 +9,6 @@ function pushLog(prevLog, raw) {
 }
 
 export function applyRootAction(state, action) {
-  // ---- mode open/close ----
   if (action.type === "open_mode") {
     const mode = action.mode ?? null;
 
@@ -44,7 +43,6 @@ export function applyRootAction(state, action) {
     return state;
   }
 
-  // ---- mapping ----
   if (action.type === "select_uid") {
     return { ...state, selectedUid: action.uid };
   }
@@ -62,7 +60,6 @@ export function applyRootAction(state, action) {
     };
   }
 
-  // ---- settings/deck ----
   if (action.type === "set_auto_confirm") {
     return { ...state, autoConfirm: !!action.value };
   }
@@ -73,6 +70,10 @@ export function applyRootAction(state, action) {
 
   if (action.type === "set_show_recent_cards") {
     return { ...state, showRecentCards: !!action.value };
+  }
+
+  if (action.type === "set_show_center_trick_label") {
+    return { ...state, showCenterTrickLabel: !!action.value };
   }
 
   if (action.type === "set_deck_setup") {
@@ -88,9 +89,6 @@ export function applyRootAction(state, action) {
   return state;
 }
 
-/**
- * Router: root action eerst, daarna engine action.
- */
 export function rootReducer(state, action) {
   let next = applyRootAction(state, action);
 

@@ -30,6 +30,22 @@ function getTrumpLabel(suit) {
   }
 }
 
+function toPrettyCard(code) {
+  if (!code) return "—";
+
+  const suit = code.slice(-1).toUpperCase();
+  const rank = code.slice(0, -1).toUpperCase();
+
+  const suitMap = {
+    S: "♠",
+    H: "♥",
+    D: "♦",
+    C: "♣",
+  };
+
+  return `${rank}${suitMap[suit] ?? suit}`;
+}
+
 function getTrickWinsByPlayer(trickHistory, playersCount) {
   const wins = Array(playersCount).fill(0);
 
@@ -70,22 +86,51 @@ function ErrorBanner({ message }) {
 }
 
 function PlayedCardsPanel({ cardCodes = [] }) {
+  const pretty = cardCodes.slice(-20).map((code) => toPrettyCard(code));
+
   return (
     <div style={panelStyle({ padding: 16, display: "grid", gap: 8 })}>
       <div style={{ fontWeight: 900 }}>Recent gespeelde kaarten</div>
       <div style={{ color: colors.muted, fontSize: 13 }}>
         Laatste 20 gescande kaartcodes uit deze matchflow.
       </div>
+
       <div
-        style={softCardStyle({
-          padding: 14,
-          fontFamily: "ui-monospace, Menlo, monospace",
-          fontSize: 13,
-          lineHeight: 1.6,
-          color: colors.text,
-        })}
+        style={{
+          ...softCardStyle({
+            padding: 14,
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 10,
+            minHeight: 56,
+            alignItems: "center",
+          }),
+        }}
       >
-        {cardCodes.slice(-20).join(" • ") || "—"}
+        {pretty.length === 0 ? (
+          <div style={{ color: colors.muted }}>—</div>
+        ) : (
+          pretty.map((label, index) => {
+            const isRed = label.includes("♥") || label.includes("♦");
+
+            return (
+              <div
+                key={`${label}-${index}`}
+                style={{
+                  borderRadius: 999,
+                  padding: "8px 12px",
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  background: "rgba(255,255,255,0.04)",
+                  fontWeight: 900,
+                  color: isRed ? "#ff9aa8" : colors.text,
+                  boxShadow: "0 6px 14px rgba(0,0,0,0.12)",
+                }}
+              >
+                {label}
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
@@ -132,7 +177,7 @@ function DevPanel({
     <div style={panelStyle({ padding: 16, display: "grid", gap: 14 })}>
       <div style={{ fontWeight: 900, fontSize: 20 }}>Dev panel</div>
       <div style={{ color: colors.muted, fontSize: 13 }}>
-        Ontwikkeltools, debugacties en speelzones. Dit hoort niet in de normale gameplay UI.
+        Ontwikkeltools, debugacties en speelzones.
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
@@ -320,14 +365,28 @@ export function PlayScreen({
             ? d.leaderIndex
             : (chooserIndex + 1) % playersCount;
 
-  const tableSeatCards = useMemo(() => {
+  const seatCards = useMemo(() => {
     return Array.from({ length: playersCount }, (_, index) => {
       const uid = zones?.[index] ?? null;
       const code = uid ? appState.mapping?.[uid] ?? null : null;
-      const card = code ? CARD_BY_CODE?.[code] ?? null : null;
-      return card?.label ?? null;
+      return code ? toPrettyCard(code) : null;
     });
   }, [appState.mapping, playersCount, zones]);
+
+  const centerCards = useMemo(() => {
+    const currentTrick = d?.currentTrick ?? [];
+    const result = Array(playersCount).fill(null);
+
+    for (const play of currentTrick) {
+      const playerIndex = play?.playerIndex;
+      const cardCode = play?.cardCode;
+      if (typeof playerIndex === "number" && cardCode) {
+        result[playerIndex] = toPrettyCard(cardCode);
+      }
+    }
+
+    return result;
+  }, [d?.currentTrick, playersCount]);
 
   const [trickToast, setTrickToast] = useState(null);
   const [flashWinnerIndex, setFlashWinnerIndex] = useState(null);
@@ -356,49 +415,11 @@ export function PlayScreen({
   }, [d?.lastTrick?.timestamp, d?.lastTrickWinnerIndex, players]);
 
   const { isMobile } = useViewport();
-
   const showRecentCards = appState.showRecentCards !== false;
+  const showCenterTrickLabel = appState.showCenterTrickLabel !== false;
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
-      <style>{`
-        .table-ornament-wrap {
-          position: relative;
-        }
-
-        .table-center-ornament {
-          position: absolute;
-          width: 180px;
-          height: 180px;
-          border-radius: 50%;
-          border: 2px solid rgba(255, 200, 120, 0.18);
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          pointer-events: none;
-          opacity: 0.42;
-          box-shadow:
-            inset 0 0 24px rgba(255, 180, 60, 0.10),
-            0 0 40px rgba(255, 180, 60, 0.05);
-          background:
-            radial-gradient(circle at center, rgba(255, 180, 60, 0.05) 0%, rgba(255, 180, 60, 0.015) 48%, transparent 72%);
-          z-index: 0;
-        }
-
-        .table-ornament-core {
-          position: absolute;
-          width: 74px;
-          height: 74px;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          border-radius: 18px;
-          border: 1px solid rgba(255, 220, 170, 0.12);
-          background: rgba(255, 255, 255, 0.03);
-          box-shadow: inset 0 0 16px rgba(255, 190, 90, 0.08);
-        }
-      `}</style>
-
       <ContractEndOverlay
         open={showContractOverlay}
         title={overlayTitle}
@@ -469,20 +490,17 @@ export function PlayScreen({
             </div>
           )}
 
-          <div className="table-ornament-wrap">
-            <div className="table-center-ornament" />
-            <div className="table-ornament-core" />
-
-            <TableDirection
-              players={players}
-              currentPlayerIndex={currentIndex}
-              leaderPlayerIndex={leaderPlayerIndex}
-              contractLabel={contractId ?? "—"}
-              trumpLabel={getTrumpLabel(d?.currentTrumpSuit)}
-              trickLabel={`${trickCount} / 13`}
-              seatCards={tableSeatCards}
-            />
-          </div>
+          <TableDirection
+            players={players}
+            currentPlayerIndex={currentIndex}
+            leaderPlayerIndex={leaderPlayerIndex}
+            contractLabel={contractId ?? "—"}
+            trumpLabel={getTrumpLabel(d?.currentTrumpSuit)}
+            trickLabel={`${trickCount} / 13`}
+            seatCards={seatCards}
+            centerCards={centerCards}
+            showCenterTrickLabel={showCenterTrickLabel}
+          />
 
           <Scoreboard
             players={players}
@@ -501,7 +519,7 @@ export function PlayScreen({
             <PlayedCardsPanel cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []} />
           )}
 
-          {showDebug && (
+          {showDebug && appState.devMode && (
             <DevPanel
               appState={appState}
               d={d}

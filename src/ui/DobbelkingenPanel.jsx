@@ -172,6 +172,9 @@ export function DobbelkingenPanel({
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+
+
+
             <button onClick={() => setShowInfo(true)} style={buttonStyle()}>
               Info
             </button>
@@ -273,13 +276,13 @@ export function DobbelkingenPanel({
               }
             />
 
-            {appState.devMode && (
+            
               <div style={{ display: "flex", justifyContent: "flex-start" }}>
                 <button onClick={() => dispatchAction?.({ type: "debug_go_to_phase2" })} style={buttonStyle("success")}>
                   Doorgaan naar fase 2
                 </button>
               </div>
-            )}
+            
           </>
         )}
 

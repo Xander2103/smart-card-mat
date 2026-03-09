@@ -31,9 +31,11 @@ function ToggleRow({ checked, onChange, title, description }) {
 
 export function SettingsScreen({ appState, dispatchAction }) {
   const { isMobile } = useViewport();
+
   const autoConfirm = !!appState.autoConfirm;
   const devMode = !!appState.devMode;
   const showRecentCards = appState.showRecentCards !== false;
+  const showCenterTrickLabel = appState.showCenterTrickLabel !== false;
 
   return (
     <div style={panelStyle({ padding: isMobile ? 16 : 22, display: "grid", gap: 16 })}>
@@ -54,7 +56,7 @@ export function SettingsScreen({ appState, dispatchAction }) {
           });
         }}
         title="Auto-confirm plays"
-        description="Wanneer ingeschakeld worden geldige plays automatisch bevestigd. Dat is handig voor vlot spelverloop zonder extra bevestigingsknop."
+        description="Wanneer ingeschakeld worden geldige plays automatisch bevestigd."
       />
 
       <ToggleRow
@@ -66,7 +68,19 @@ export function SettingsScreen({ appState, dispatchAction }) {
           });
         }}
         title="Recente kaarten zichtbaar"
-        description="Toon onder de tussenstand een blok met recent gespeelde kaarten. Dit is geen dev-only setting, maar een gewone UI-voorkeur."
+        description="Toon onder de tussenstand een blok met recent gespeelde kaarten."
+      />
+
+      <ToggleRow
+        checked={showCenterTrickLabel}
+        onChange={(e) => {
+          dispatchAction?.({
+            type: "set_show_center_trick_label",
+            value: e.target.checked,
+          });
+        }}
+        title="Slagnummer in het midden zichtbaar"
+        description="Toon in het midden van de speeltafel een subtiel label met het huidige slagnummer."
       />
 
       <ToggleRow
@@ -78,7 +92,7 @@ export function SettingsScreen({ appState, dispatchAction }) {
           });
         }}
         title="Dev mode"
-        description="Toon ontwikkeltools zoals speelzones, debuglog en debugknoppen. Voor normale gameplay mag dit uit staan zodat de speeltafel proper blijft."
+        description="Toon ontwikkeltools zoals speelzones, debuglog en debugknoppen."
       />
 
       <div style={softCardStyle({ padding: 16, display: "grid", gap: 10 })}>

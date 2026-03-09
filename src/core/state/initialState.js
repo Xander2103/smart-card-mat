@@ -9,37 +9,31 @@ export function createInitialState({ zonesCount = 4 } = {}) {
   ];
 
   return {
-    // zones / mat
     zonesCount,
     zones: Array.from({ length: zonesCount }, () => null),
-    turnZone: null, // legacy/debug
+    turnZone: null,
 
-    // ui/debug/mapping
     log: [],
     selectedUid: null,
     mapping: loadMapping(),
 
-    // mode flow
     modeId: null,
     activeMode: null,
     gameMode: null,
     phase: "HOME",
 
-    // settings
     autoConfirm: true,
     devMode: false,
     showRecentCards: true,
+    showCenterTrickLabel: true,
     deckSetup: false,
     deckIndex: 0,
 
-    // players
     players,
 
-    // shared runtime
     confirmedTurnCard: null,
     lastError: null,
 
-    // game-specific state
     game: {},
   };
 }
