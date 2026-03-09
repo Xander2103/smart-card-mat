@@ -1,4 +1,3 @@
-// src/app/App.jsx
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import "../styles/app.css";
 
@@ -8,7 +7,7 @@ import { applyRootEvent } from "../core/state/rootEvents";
 import { createInitialState } from "../core/state/initialState";
 import { saveMapping } from "../core/mapping/mappingStore";
 
-import { connectSerial } from "../transport/serialTransport";
+import { connectBluetooth } from "../transport/bluetoothTransport";
 import { computeGameState } from "../core/game/computeGameState";
 
 import { Tabs } from "../ui/tabs";
@@ -34,19 +33,30 @@ const theme = {
     fontWeight: 900,
     cursor: "pointer",
     border: "1px solid rgba(255,255,255,0.08)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%)",
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%)",
     color: "#f5efe6",
   },
 };
 
+const ZONES = 4;
+const AUTO_CONFIRM_DELAY_MS = 400;
+const AUTO_CONFIRM_MS = 650;
+
 export default function App() {
-  const ZONES = 4;
   const { isMobile } = useViewport();
 
   const [tab, setTab] = useState("play");
-  const [serialStatus, setSerialStatus] = useState("disconnected");
-  const [serialConn, setSerialConn] = useState(null);
-  const [appState, setAppState] = useState(() => createInitialState({ zonesCount: ZONES }));
+
+  const [bleStatus, setBleStatus] = useState("disconnected");
+  const [bleConn, setBleConn] = useState(null);
+
+  const [appState, setAppState] = useState(() =>
+    createInitialState({ zonesCount: ZONES })
+  );
+
+  const timerRef = useRef(null);
+  const armedKeyRef = useRef(null);
 
   const dispatchAction = useCallback((action) => {
     setAppState((prev) => rootReducer(prev, action));
@@ -62,66 +72,82 @@ export default function App() {
 
   const gameState = useMemo(() => computeGameState(appState), [appState]);
 
-  const cardNames = useMemo(
-    () =>
-      zones.map((uid) => {
-        if (!uid) return null;
-        const code = mapping[uid] ?? null;
-        if (!code) return null;
-        const card = CARD_BY_CODE?.[code];
-        return card ? `${card.label} (${card.name})` : code;
-      }),
-    [zones, mapping]
-  );
+  const cardNames = useMemo(() => {
+    return zones.map((uid) => {
+      if (!uid) return null;
 
-  async function connectUsb() {
-    try {
-      setSerialStatus("connecting...");
-      const conn = await connectSerial({
-        onLine: (line) => handleLine(line),
-        baudRate: 115200,
-      });
-      setSerialConn(conn);
-      setSerialStatus("connected");
-    } catch (e) {
-      console.error(e);
-      setSerialStatus("error");
-      alert(e?.message ?? "Failed to connect serial");
-    }
-  }
+      const code = mapping[uid] ?? null;
+      if (!code) return null;
 
-  async function disconnectUsb() {
-    if (!serialConn) return;
-    await serialConn.disconnect();
-    setSerialConn(null);
-    setSerialStatus("disconnected");
-  }
+      const card = CARD_BY_CODE?.[code];
+      return card ? `${card.label} (${card.name})` : code;
+    });
+  }, [zones, mapping]);
 
-  const AUTO_CONFIRM_DELAY_MS = 400;
-
-  function handleLine(line) {
+  const handleLine = useCallback((line) => {
     const cleaned = (line ?? "").trim();
     if (!cleaned) return;
+
+    console.log("[BLE IN]", cleaned);
 
     const ev = parseEvent(cleaned);
     if (!ev) return;
 
     setAppState((prev) => {
-      const s = applyRootEvent(prev, ev);
+      const nextState = applyRootEvent(prev, ev);
 
-      if (s.phase === "PLAYING_TRICK" && s.autoConfirm && ev.type === "placed") {
+      if (
+        nextState.phase === "PLAYING_TRICK" &&
+        nextState.autoConfirm &&
+        ev.type === "placed"
+      ) {
         window.setTimeout(() => {
           setAppState((prev2) => rootReducer(prev2, { type: "confirm_turn" }));
         }, AUTO_CONFIRM_DELAY_MS);
       }
 
-      return s;
+      return nextState;
     });
-  }
+  }, []);
+
+  const connectBle = useCallback(async () => {
+    try {
+      setBleStatus("connecting...");
+
+      const conn = await connectBluetooth({
+        onLine: handleLine,
+        onDisconnected: () => {
+          setBleConn(null);
+          setBleStatus("disconnected");
+        },
+      });
+
+      setBleConn(conn);
+      setBleStatus("connected");
+    } catch (error) {
+      console.error(error);
+      setBleStatus("error");
+      alert(error?.message ?? "Failed to connect Bluetooth");
+    }
+  }, [handleLine]);
+
+  const disconnectBle = useCallback(async () => {
+    if (!bleConn) return;
+
+    try {
+      await bleConn.disconnect();
+    } catch (error) {
+      console.error(error);
+    }
+
+    setBleConn(null);
+    setBleStatus("disconnected");
+  }, [bleConn]);
 
   function handleZoneClick(realZoneNumber) {
     const uid = zones?.[realZoneNumber - 1] ?? null;
     if (!uid) return;
+
     dispatchAction({ type: "select_uid", uid });
   }
 
@@ -136,10 +162,6 @@ export default function App() {
   const undoLastPlay = useCallback(() => {
     dispatchAction({ type: "undo_last_play" });
   }, [dispatchAction]);
-
-  const AUTO_CONFIRM_MS = 650;
-  const timerRef = useRef(null);
-  const armedKeyRef = useRef(null);
 
   function clearAutoTimer() {
     if (timerRef.current) {
@@ -156,12 +178,17 @@ export default function App() {
     }
 
     const playersCount = appState.players?.length ?? 4;
-    const cpi = appState.currentPlayerIndex ?? 0;
-    const expectedZone = (cpi % playersCount) + 1;
+    const currentPlayerIndex = appState.currentPlayerIndex ?? 0;
+    const expectedZone = (currentPlayerIndex % playersCount) + 1;
 
     const uidInExpected = appState.zones?.[expectedZone - 1] ?? null;
-    const cardInExpected = uidInExpected ? appState.mapping?.[uidInExpected] ?? null : null;
-    const alreadyPlayed = (appState.currentTrick ?? []).some((p) => p.playerIndex === cpi);
+    const cardInExpected = uidInExpected
+      ? appState.mapping?.[uidInExpected] ?? null
+      : null;
+
+    const alreadyPlayed = (appState.currentTrick ?? []).some(
+      (play) => play.playerIndex === currentPlayerIndex
+    );
 
     if (!uidInExpected || !cardInExpected || alreadyPlayed) {
       clearAutoTimer();
@@ -169,15 +196,18 @@ export default function App() {
       return;
     }
 
-    const key = `${cpi}|${uidInExpected}|${cardInExpected}`;
-    if (armedKeyRef.current === key && timerRef.current) return;
+    const key = `${currentPlayerIndex}|${uidInExpected}|${cardInExpected}`;
+
+    if (armedKeyRef.current === key && timerRef.current) {
+      return;
+    }
 
     armedKeyRef.current = key;
     clearAutoTimer();
 
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
-      setAppState((p) => rootReducer(p, { type: "confirm_turn" }));
+      setAppState((prev) => rootReducer(prev, { type: "confirm_turn" }));
     }, AUTO_CONFIRM_MS);
   }, [
     appState?.autoConfirm,
@@ -189,12 +219,18 @@ export default function App() {
     appState?.players,
   ]);
 
+  useEffect(() => {
+    return () => {
+      clearAutoTimer();
+    };
+  }, []);
+
   const statusColor =
-    serialStatus === "connected"
+    bleStatus === "connected"
       ? "#4ade80"
-      : serialStatus === "connecting..."
+      : bleStatus === "connecting..."
         ? "#fbbf24"
-        : serialStatus === "error"
+        : bleStatus === "error"
           ? "#fb7185"
           : "#94a3b8";
 
@@ -206,7 +242,8 @@ export default function App() {
           padding: isMobile ? 16 : 20,
           display: "grid",
           gap: 14,
-          background: "linear-gradient(180deg, rgba(39, 27, 21, 0.94) 0%, rgba(28, 20, 16, 0.94) 100%)",
+          background:
+            "linear-gradient(180deg, rgba(39, 27, 21, 0.94) 0%, rgba(28, 20, 16, 0.94) 100%)",
           border: "1px solid rgba(251, 191, 36, 0.18)",
         }}
       >
@@ -221,9 +258,12 @@ export default function App() {
           }}
         >
           <div style={{ minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: isMobile ? 30 : 34 }}>Smart Card Mat</h1>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 30 : 34 }}>
+              Smart Card Mat
+            </h1>
             <div style={{ marginTop: 6, color: "#c8b6a1", maxWidth: 740 }}>
-              RFID kaartdetectie, spelmodi en live scoring in een donkere tavern card-table look.
+              RFID kaartdetectie, spelmodi en live scoring in een donkere tavern
+              card-table look.
             </div>
           </div>
 
@@ -249,22 +289,41 @@ export default function App() {
                 fontWeight: 800,
               }}
             >
-              <span style={{ width: 10, height: 10, borderRadius: 999, background: statusColor, boxShadow: `0 0 14px ${statusColor}` }} />
-              USB {serialStatus}
+              <span
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 999,
+                  background: statusColor,
+                  boxShadow: `0 0 14px ${statusColor}`,
+                }}
+              />
+              BLE {bleStatus}
             </div>
 
             <button
-              onClick={connectUsb}
-              disabled={serialStatus === "connected" || serialStatus === "connecting..."}
-              style={{ ...theme.button, opacity: serialStatus === "connected" || serialStatus === "connecting..." ? 0.55 : 1, flex: isMobile ? 1 : "0 1 auto" }}
+              onClick={connectBle}
+              disabled={bleStatus === "connected" || bleStatus === "connecting..."}
+              style={{
+                ...theme.button,
+                opacity:
+                  bleStatus === "connected" || bleStatus === "connecting..."
+                    ? 0.55
+                    : 1,
+                flex: isMobile ? 1 : "0 1 auto",
+              }}
             >
-              Connect USB
+              Connect BLE
             </button>
 
             <button
-              onClick={disconnectUsb}
-              disabled={serialStatus !== "connected"}
-              style={{ ...theme.button, opacity: serialStatus !== "connected" ? 0.55 : 1, flex: isMobile ? 1 : "0 1 auto" }}
+              onClick={disconnectBle}
+              disabled={bleStatus !== "connected"}
+              style={{
+                ...theme.button,
+                opacity: bleStatus !== "connected" ? 0.55 : 1,
+                flex: isMobile ? 1 : "0 1 auto",
+              }}
             >
               Disconnect
             </button>
@@ -294,11 +353,19 @@ export default function App() {
           onUndo={undoLastPlay}
           onResetPile={resetPile}
           showDebug={true}
-          onOpenDobbelkingen={() => dispatchAction({ type: "open_mode", mode: "DOBBELKINGEN" })}
+          onOpenDobbelkingen={() =>
+            dispatchAction({ type: "open_mode", mode: "DOBBELKINGEN" })
+          }
           onCloseMode={() => dispatchAction({ type: "open_mode", mode: null })}
-          onStartDobbelkingen={() => dispatchAction({ type: "start_dobbelkingen" })}
-          onChooseDobbelkingenContract={(c) => dispatchAction({ type: "choose_contract", contract: c })}
-          onBackFromContract={() => dispatchAction({ type: "abort_contract" })}
+          onStartDobbelkingen={() =>
+            dispatchAction({ type: "start_dobbelkingen" })
+          }
+          onChooseDobbelkingenContract={(contract) =>
+            dispatchAction({ type: "choose_contract", contract })
+          }
+          onBackFromContract={() =>
+            dispatchAction({ type: "abort_contract" })
+          }
           dispatchAction={dispatchAction}
         />
       )}
@@ -312,7 +379,12 @@ export default function App() {
         />
       )}
 
-      {tab === "settings" && <SettingsScreen appState={appState} dispatchAction={dispatchAction} />}
+      {tab === "settings" && (
+        <SettingsScreen
+          appState={appState}
+          dispatchAction={dispatchAction}
+        />
+      )}
     </div>
   );
 }
