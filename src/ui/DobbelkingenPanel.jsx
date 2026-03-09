@@ -129,11 +129,11 @@ export function DobbelkingenPanel({
         : 0;
 
   const leaderIndex =
-    phase === "CHOOSING_TROEF"
+    phase === "CHOOSING_TROEF" || phase === "CHOOSING_CONTRACT"
       ? (chooserIndex + 1) % playersCount
       : typeof d?.leaderIndex === "number"
         ? d.leaderIndex
-        : 0;
+        : (chooserIndex + 1) % playersCount;
 
   const currentIndex = typeof d?.currentPlayerIndex === "number" ? d.currentPlayerIndex : 0;
 
@@ -176,7 +176,7 @@ export function DobbelkingenPanel({
               Info
             </button>
 
-            {appState.phase === "CHOOSING_TROEF" && (
+            {appState.devMode && appState.phase === "CHOOSING_TROEF" && (
               <button onClick={() => dispatchAction?.({ type: "debug_finish_phase2_match" })} style={buttonStyle("success")}>
                 Match afronden
               </button>
@@ -273,11 +273,13 @@ export function DobbelkingenPanel({
               }
             />
 
-            <div style={{ display: "flex", justifyContent: "flex-start" }}>
-              <button onClick={() => dispatchAction?.({ type: "debug_go_to_phase2" })} style={buttonStyle("success")}>
-                Doorgaan naar fase 2
-              </button>
-            </div>
+            {appState.devMode && (
+              <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                <button onClick={() => dispatchAction?.({ type: "debug_go_to_phase2" })} style={buttonStyle("success")}>
+                  Doorgaan naar fase 2
+                </button>
+              </div>
+            )}
           </>
         )}
 
@@ -358,11 +360,13 @@ export function DobbelkingenPanel({
               />
             </div>
 
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={() => dispatchAction?.({ type: "debug_finish_phase2_match" })} style={buttonStyle("success")}>
-                Match direct afronden
-              </button>
-            </div>
+            {appState.devMode && (
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button onClick={() => dispatchAction?.({ type: "debug_finish_phase2_match" })} style={buttonStyle("success")}>
+                  Match direct afronden
+                </button>
+              </div>
+            )}
           </>
         )}
 

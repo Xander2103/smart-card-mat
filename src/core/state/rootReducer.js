@@ -64,8 +64,8 @@ export function applyRootAction(state, action) {
 
   // ---- settings/deck ----
   if (action.type === "set_auto_confirm") return { ...state, autoConfirm: !!action.value };
+  if (action.type === "set_dev_mode") return { ...state, devMode: !!action.value };
 
-  
   if (action.type === "set_deck_setup") return { ...state, deckSetup: !!action.value };
 
   if (action.type === "set_deck_index") {

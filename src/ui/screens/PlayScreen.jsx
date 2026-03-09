@@ -10,6 +10,7 @@ import { TableDirection } from "../TableDirection";
 import { ContractEndOverlay } from "../ContractEndOverlay";
 import { computeScoresFromTrickHistory } from "../../core/games/dobbelkingen/scoring";
 import { EndScreen } from "../play/EndScreen";
+import { CARD_BY_CODE } from "../../core/mapping/deck52";
 import { GameToolbar } from "../play/GameToolbar";
 import { useViewport } from "../play/useViewport";
 import { colors, panelStyle, softCardStyle } from "../play/theme";
@@ -262,19 +263,30 @@ export function PlayScreen({
         : currentIndex;
 
   const leaderPlayerIndex =
-    typeof d?.lastTrickWinnerIndex === "number"
-      ? d.lastTrickWinnerIndex
-      : typeof d?.currentContractStarterIndex === "number"
-        ? d.currentContractStarterIndex
-        : typeof d?.leaderIndex === "number"
-          ? d.leaderIndex
-          : null;
+    appState.phase === "CHOOSING_CONTRACT"
+      ? (chooserIndex + 1) % playersCount
+      : typeof d?.lastTrickWinnerIndex === "number"
+        ? d.lastTrickWinnerIndex
+        : typeof d?.currentContractStarterIndex === "number"
+          ? d.currentContractStarterIndex
+          : typeof d?.leaderIndex === "number"
+            ? d.leaderIndex
+            : (chooserIndex + 1) % playersCount;
 
   const chooserName = players?.[chooserIndex]?.name ?? `Player ${chooserIndex + 1}`;
   const leaderName =
     leaderPlayerIndex !== null
       ? players?.[leaderPlayerIndex]?.name ?? `Player ${leaderPlayerIndex + 1}`
       : "—";
+
+  const tableSeatCards = useMemo(() => {
+    return Array.from({ length: playersCount }, (_, index) => {
+      const uid = zones?.[index] ?? null;
+      const code = uid ? appState.mapping?.[uid] ?? null : null;
+      const card = code ? CARD_BY_CODE?.[code] ?? null : null;
+      return card?.label ?? null;
+    });
+  }, [appState.mapping, playersCount, zones]);
 
   const [trickToast, setTrickToast] = useState(null);
   const [flashWinnerIndex, setFlashWinnerIndex] = useState(null);
@@ -378,8 +390,8 @@ export function PlayScreen({
             onResetPile={onResetPile}
             onDebugNextPhase={() => dispatchAction?.({ type: "debug_go_to_phase2" })}
             onFinishMatch={() => dispatchAction?.({ type: "debug_finish_phase2_match" })}
-            showNextPhaseButton={d?.roundPhase !== 2}
-            showFinishMatchButton={d?.roundPhase === 2}
+            showNextPhaseButton={showDebug && d?.roundPhase !== 2}
+            showFinishMatchButton={showDebug && d?.roundPhase === 2}
             meta={toolbarMeta}
             onBack={() => {
               const ok = window.confirm(
@@ -410,6 +422,7 @@ export function PlayScreen({
             contractLabel={contractId ?? "—"}
             trumpLabel={getTrumpLabel(d?.currentTrumpSuit)}
             trickLabel={`${trickCount} / 13`}
+            seatCards={tableSeatCards}
           />
 
           <div
@@ -422,16 +435,18 @@ export function PlayScreen({
           >
             <div style={{ display: "grid", gap: 14, order: leftColumnOrder }}>
 
-              <ZoneGrid
-                zones={zonesForGrid}
-                zoneNumbers={DISPLAY_ZONES}
-                turnZone={turnZoneForGrid}
-                cardNames={cardNamesForGrid}
-                trumpSuit={d?.currentTrumpSuit ?? null}
-                onZoneClick={handleGridClick}
-              />
+              {showDebug && (
+                <ZoneGrid
+                  zones={zonesForGrid}
+                  zoneNumbers={DISPLAY_ZONES}
+                  turnZone={turnZoneForGrid}
+                  cardNames={cardNamesForGrid}
+                  trumpSuit={d?.currentTrumpSuit ?? null}
+                  onZoneClick={handleGridClick}
+                />
+              )}
 
-              <PlayedCardsPanel cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []} />
+              {showDebug && <PlayedCardsPanel cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []} />}
 
               {showDebug && (
                 <div style={panelStyle({ padding: 16, display: "grid", gap: 10 })}>

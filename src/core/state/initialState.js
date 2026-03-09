@@ -27,6 +27,7 @@ export function createInitialState({ zonesCount = 4 } = {}) {
 
     // settings
     autoConfirm: true,
+    devMode: false,
     deckSetup: false,
     deckIndex: 0,
 

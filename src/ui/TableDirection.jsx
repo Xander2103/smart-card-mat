@@ -2,7 +2,18 @@
 import { colors, panelStyle, softCardStyle } from "./play/theme";
 import { useViewport } from "./play/useViewport";
 
-function Seat({ label, name, active, leader, style = {} }) {
+function getCardTone(cardLabel) {
+  if (!cardLabel) return { color: colors.text, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)" };
+
+  const isRed = cardLabel.includes("♥") || cardLabel.includes("♦");
+  return {
+    color: isRed ? "#ffb4c1" : colors.text,
+    border: isRed ? "1px solid rgba(251, 113, 133, 0.28)" : "1px solid rgba(255,255,255,0.12)",
+    background: isRed ? "rgba(127, 29, 29, 0.34)" : "rgba(15, 23, 42, 0.30)",
+  };
+}
+
+function Seat({ label, name, active, leader, cardLabel = null, style = {} }) {
   const border = active
     ? "1px solid rgba(251, 113, 133, 0.40)"
     : leader
@@ -40,6 +51,27 @@ function Seat({ label, name, active, leader, style = {} }) {
       ) : leader ? (
         <div style={{ fontSize: 12, color: "#fcd34d" }}>👑 Komt uit</div>
       ) : null}
+
+      {cardLabel && (
+        <div
+          style={{
+            ...getCardTone(cardLabel),
+            borderRadius: 16,
+            padding: "10px 12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: 54,
+            fontWeight: 900,
+            fontSize: 28,
+            boxShadow: "0 12px 28px rgba(0,0,0,0.22)",
+            animation: "cardPopIn .18s ease-out",
+            transformOrigin: "center",
+          }}
+        >
+          {cardLabel}
+        </div>
+      )}
     </div>
   );
 }
@@ -51,6 +83,7 @@ export function TableDirection({
   contractLabel = "—",
   trumpLabel = "—",
   trickLabel = "0 / 13",
+  seatCards = [],
 }) {
   const p = (i) => players?.[i]?.name ?? `P${i + 1}`;
   const { width } = useViewport();
@@ -71,6 +104,11 @@ export function TableDirection({
             70% { box-shadow: 0 0 0 12px rgba(245,158,11,0); }
             100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
           }
+
+          @keyframes cardPopIn {
+            0% { opacity: 0; transform: translateY(8px) scale(.94); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+          }
         `}</style>
 
         <div>
@@ -81,10 +119,10 @@ export function TableDirection({
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
-          <Seat label="Zone 1" name={p(0)} active={currentPlayerIndex === 0} leader={leaderPlayerIndex === 0} />
-          <Seat label="Zone 2" name={p(1)} active={currentPlayerIndex === 1} leader={leaderPlayerIndex === 1} />
-          <Seat label="Zone 4" name={p(3)} active={currentPlayerIndex === 3} leader={leaderPlayerIndex === 3} />
-          <Seat label="Zone 3" name={p(2)} active={currentPlayerIndex === 2} leader={leaderPlayerIndex === 2} />
+          <Seat label="Zone 1" name={p(0)} active={currentPlayerIndex === 0} leader={leaderPlayerIndex === 0} cardLabel={seatCards?.[0] ?? null} />
+          <Seat label="Zone 2" name={p(1)} active={currentPlayerIndex === 1} leader={leaderPlayerIndex === 1} cardLabel={seatCards?.[1] ?? null} />
+          <Seat label="Zone 4" name={p(3)} active={currentPlayerIndex === 3} leader={leaderPlayerIndex === 3} cardLabel={seatCards?.[3] ?? null} />
+          <Seat label="Zone 3" name={p(2)} active={currentPlayerIndex === 2} leader={leaderPlayerIndex === 2} cardLabel={seatCards?.[2] ?? null} />
         </div>
 
         <div
@@ -120,6 +158,11 @@ export function TableDirection({
           70% { box-shadow: 0 0 0 12px rgba(245,158,11,0); }
           100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
         }
+
+        @keyframes cardPopIn {
+          0% { opacity: 0; transform: translateY(8px) scale(.94); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
       `}</style>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
@@ -148,10 +191,10 @@ export function TableDirection({
           boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03), inset 0 0 60px rgba(245, 158, 11, 0.05)",
         }}
       >
-        <Seat label="Zone 1" name={p(0)} active={currentPlayerIndex === 0} leader={leaderPlayerIndex === 0} style={{ position: "absolute", top: 20, left: "50%", transform: "translateX(-50%)", width: 220 }} />
-        <Seat label="Zone 2" name={p(1)} active={currentPlayerIndex === 1} leader={leaderPlayerIndex === 1} style={{ position: "absolute", top: "50%", right: 20, transform: "translateY(-50%)", width: 220 }} />
-        <Seat label="Zone 3" name={p(2)} active={currentPlayerIndex === 2} leader={leaderPlayerIndex === 2} style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", width: 220 }} />
-        <Seat label="Zone 4" name={p(3)} active={currentPlayerIndex === 3} leader={leaderPlayerIndex === 3} style={{ position: "absolute", top: "50%", left: 20, transform: "translateY(-50%)", width: 220 }} />
+        <Seat label="Zone 1" name={p(0)} active={currentPlayerIndex === 0} leader={leaderPlayerIndex === 0} cardLabel={seatCards?.[0] ?? null} style={{ position: "absolute", top: 20, left: "50%", transform: "translateX(-50%)", width: 220 }} />
+        <Seat label="Zone 2" name={p(1)} active={currentPlayerIndex === 1} leader={leaderPlayerIndex === 1} cardLabel={seatCards?.[1] ?? null} style={{ position: "absolute", top: "50%", right: 20, transform: "translateY(-50%)", width: 220 }} />
+        <Seat label="Zone 3" name={p(2)} active={currentPlayerIndex === 2} leader={leaderPlayerIndex === 2} cardLabel={seatCards?.[2] ?? null} style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", width: 220 }} />
+        <Seat label="Zone 4" name={p(3)} active={currentPlayerIndex === 3} leader={leaderPlayerIndex === 3} cardLabel={seatCards?.[3] ?? null} style={{ position: "absolute", top: "50%", left: 20, transform: "translateY(-50%)", width: 220 }} />
 
         <div
           style={{

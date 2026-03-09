@@ -352,7 +352,7 @@ export default function App() {
           onConfirmTurn={confirmTurnNow}
           onUndo={undoLastPlay}
           onResetPile={resetPile}
-          showDebug={true}
+          showDebug={!!appState.devMode}
           onOpenDobbelkingen={() =>
             dispatchAction({ type: "open_mode", mode: "DOBBELKINGEN" })
           }

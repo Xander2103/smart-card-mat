@@ -25,6 +25,7 @@ function ToggleRow({ checked, onChange, title, description }) {
 export function SettingsScreen({ appState, dispatchAction }) {
   const { isMobile } = useViewport();
   const autoConfirm = !!appState.autoConfirm;
+  const devMode = !!appState.devMode;
 
   return (
     <div style={panelStyle({ padding: isMobile ? 16 : 22, display: "grid", gap: 16 })}>
@@ -45,6 +46,18 @@ export function SettingsScreen({ appState, dispatchAction }) {
         }}
         title="Auto-confirm plays"
         description="Wanneer ingeschakeld worden geldige plays automatisch bevestigd. Dat is handig voor vlot spelverloop zonder extra bevestigingsknop."
+      />
+
+      <ToggleRow
+        checked={devMode}
+        onChange={(e) => {
+          dispatchAction?.({
+            type: "set_dev_mode",
+            value: e.target.checked,
+          });
+        }}
+        title="Dev mode"
+        description="Toon ontwikkeltools zoals speelzones, debuglog en debugknoppen. Voor normale gameplay mag dit uit staan zodat de speeltafel proper blijft."
       />
 
       <div style={softCardStyle({ padding: 16, display: "grid", gap: 10 })}>
