@@ -1,3 +1,4 @@
+//rootReducer.js
 import { setUniqueMappingOverwrite } from "../mapping/uniqueMapping";
 import { getEngine } from "../game/registry";
 

@@ -7,7 +7,7 @@ import {
   clampIndex,
 } from "../state";
 import { canPickContract } from "../contractsRules";
-import { normalizeTroefSuit, getTroefStarterIndex } from "../troefFlow";
+import { normalizeTroefSuit, getTroefStarterIndex } from "../troefFlow.js";
 
 function buildRanking(finalScores, players) {
   return [...finalScores]

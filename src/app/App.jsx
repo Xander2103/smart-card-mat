@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import "../styles/app.css";
 
 import { parseEvent } from "../core/protocol/parseEvent";
-import { rootReducer } from "../core/state/rootReducer";
+import { applyAppAction } from "../core/state/applyAppAction";
 import { applyRootEvent } from "../core/state/rootEvents";
 import { createInitialState } from "../core/state/initialState";
 import { saveMapping } from "../core/mapping/mappingStore";
@@ -59,7 +59,7 @@ export default function App() {
   const armedKeyRef = useRef(null);
 
   const dispatchAction = useCallback((action) => {
-    setAppState((prev) => rootReducer(prev, action));
+    setAppState((prev) => applyAppAction(prev, action));
   }, []);
 
   const zones = appState?.zones ?? Array.from({ length: ZONES }, () => null);
@@ -102,7 +102,9 @@ export default function App() {
         ev.type === "placed"
       ) {
         window.setTimeout(() => {
-          setAppState((prev2) => rootReducer(prev2, { type: "confirm_turn" }));
+          setAppState((prev2) =>
+            applyAppAction(prev2, { type: "confirm_turn" })
+          );
         }, AUTO_CONFIRM_DELAY_MS);
       }
 
@@ -207,7 +209,7 @@ export default function App() {
 
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
-      setAppState((prev) => rootReducer(prev, { type: "confirm_turn" }));
+      setAppState((prev) => applyAppAction(prev, { type: "confirm_turn" }));
     }, AUTO_CONFIRM_MS);
   }, [
     appState?.autoConfirm,

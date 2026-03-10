@@ -11,7 +11,7 @@ import { anyPhase1ContractLeft } from "./contractsRules";
 import {
   allPlayersPickedTroefTwice,
   getNextTroefChooserIndex,
-} from "./troefFlow";
+} from "./troefFlow.js";
 import { computeScoresFromTrickHistory } from "../scoring";
 import { getContract } from "../contracts";
 
