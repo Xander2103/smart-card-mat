@@ -45,6 +45,16 @@ const ZONES = 4;
 const AUTO_CONFIRM_DELAY_MS = 400;
 const AUTO_CONFIRM_MS = 650;
 
+function isMatchLocked(appState) {
+  const phase = appState?.phase ?? "HOME";
+
+  return (
+    phase === "CHOOSING_CONTRACT" ||
+    phase === "CHOOSING_TROEF" ||
+    phase === "PLAYING_TRICK"
+  );
+}
+
 export default function App() {
   const { isMobile } = useViewport();
 
@@ -67,6 +77,9 @@ export default function App() {
   const zones = appState?.zones ?? Array.from({ length: ZONES }, () => null);
   const selectedUid = appState?.selectedUid ?? null;
   const mapping = appState?.mapping ?? {};
+  const selectedPlayers = appState?.players ?? [];
+  const hasEnoughPlayers = selectedPlayers.length === 4;
+  const playersLocked = isMatchLocked(appState);
 
   useEffect(() => {
     saveMapping(mapping);
@@ -166,6 +179,15 @@ export default function App() {
   const undoLastPlay = useCallback(() => {
     dispatchAction({ type: "undo_last_play" });
   }, [dispatchAction]);
+
+  const handleStartDobbelkingen = useCallback(() => {
+    if (!hasEnoughPlayers) {
+      setTab("players");
+      return;
+    }
+
+    dispatchAction({ type: "start_dobbelkingen" });
+  }, [dispatchAction, hasEnoughPlayers]);
 
   function clearAutoTimer() {
     if (timerRef.current) {
@@ -348,6 +370,37 @@ export default function App() {
             { value: "settings", label: "Settings" },
           ]}
         />
+
+        {!hasEnoughPlayers ? (
+          <div
+            style={{
+              borderRadius: 16,
+              padding: "10px 12px",
+              background: "rgba(127, 29, 29, 0.35)",
+              border: "1px solid rgba(248, 113, 113, 0.25)",
+              color: "#fee2e2",
+              fontWeight: 700,
+            }}
+          >
+            Kies eerst exact 4 spelers in de Players tab voordat je een match
+            start.
+          </div>
+        ) : null}
+
+        {playersLocked ? (
+          <div
+            style={{
+              borderRadius: 16,
+              padding: "10px 12px",
+              background: "rgba(180, 83, 9, 0.18)",
+              border: "1px solid rgba(251, 191, 36, 0.22)",
+              color: "#fde68a",
+              fontWeight: 700,
+            }}
+          >
+            Players zijn vergrendeld terwijl een match bezig is.
+          </div>
+        ) : null}
       </div>
 
       {tab === "play" && (
@@ -366,9 +419,7 @@ export default function App() {
             dispatchAction({ type: "open_mode", mode: "DOBBELKINGEN" })
           }
           onCloseMode={() => dispatchAction({ type: "open_mode", mode: null })}
-          onStartDobbelkingen={() =>
-            dispatchAction({ type: "start_dobbelkingen" })
-          }
+          onStartDobbelkingen={handleStartDobbelkingen}
           onChooseDobbelkingenContract={(contract) =>
             dispatchAction({ type: "choose_contract", contract })
           }
@@ -380,7 +431,11 @@ export default function App() {
       )}
 
       {tab === "players" && (
-        <PlayersScreen appState={appState} dispatchAction={dispatchAction} />
+        <PlayersScreen
+          appState={appState}
+          dispatchAction={dispatchAction}
+          locked={playersLocked}
+        />
       )}
 
       {tab === "history" && <HistoryScreen appState={appState} />}
