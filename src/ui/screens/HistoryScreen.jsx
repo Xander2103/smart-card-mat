@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { storageService } from "../../core/storage/services/storageService";
 
 const panelStyle = {
@@ -37,7 +37,7 @@ function formatDate(dateString) {
   }
 }
 
-export function HistoryScreen({ appState }) {
+export function HistoryScreen() {
   const [matches, setMatches] = useState([]);
 
   function refreshMatches() {
@@ -47,17 +47,6 @@ export function HistoryScreen({ appState }) {
   useEffect(() => {
     refreshMatches();
   }, []);
-
-  const selectedPlayers = appState?.players ?? [];
-
-  const selectedStats = useMemo(
-    () =>
-      selectedPlayers.map((player) => ({
-        player,
-        stats: storageService.getPlayerStats(player.id),
-      })),
-    [selectedPlayers, matches]
-  );
 
   function handleDeleteMatch(matchId) {
     storageService.deleteMatch(matchId);
@@ -93,59 +82,7 @@ export function HistoryScreen({ appState }) {
         </div>
 
         <div style={{ color: "#c8b6a1", marginBottom: 18 }}>
-          Overzicht van gespeelde matches en globale spelerstatistieken.
-        </div>
-
-        <div style={{ marginBottom: 22 }}>
-          <div style={{ fontWeight: 900, marginBottom: 10 }}>
-            Stats van huidige selectie
-          </div>
-
-          {selectedStats.length === 0 ? (
-            <div style={{ color: "#c8b6a1" }}>
-              Kies eerst spelers in de Players tab.
-            </div>
-          ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {selectedStats.map(({ player, stats }) => (
-                <div
-                  key={player.id}
-                  style={{
-                    borderRadius: 18,
-                    padding: 14,
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    background: "rgba(255,255,255,0.03)",
-                    display: "grid",
-                    gap: 10,
-                  }}
-                >
-                  <div style={{ fontWeight: 900, fontSize: 18 }}>{player.name}</div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 8,
-                      flexWrap: "wrap",
-                      color: "#e8d9c9",
-                      fontSize: 13,
-                    }}
-                  >
-                    <span>Matches: {stats.matchesPlayed}</span>
-                    <span>Wins: {stats.wins}</span>
-                    <span>Losses: {stats.losses}</span>
-                    <span>Winrate: {stats.winRate.toFixed(1)}%</span>
-                    <span>Podiums: {stats.podiums}</span>
-                    <span>Podiumrate: {stats.podiumRate.toFixed(1)}%</span>
-                    <span>Last places: {stats.lastPlaces}</span>
-                    <span>Total score: {stats.totalScore}</span>
-                    <span>Avg score: {stats.averageScore.toFixed(1)}</span>
-                    <span>Best: {stats.bestScore}</span>
-                    <span>Worst: {stats.worstScore}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          Overzicht van gespeelde matches.
         </div>
 
         <div style={{ fontWeight: 900, marginBottom: 10 }}>Recente matches</div>
