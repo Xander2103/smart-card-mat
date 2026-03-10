@@ -115,25 +115,32 @@ export function HistoryScreen({ appState }) {
                     padding: 14,
                     border: "1px solid rgba(255,255,255,0.08)",
                     background: "rgba(255,255,255,0.03)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    flexWrap: "wrap",
+                    display: "grid",
+                    gap: 10,
                   }}
                 >
                   <div style={{ fontWeight: 900, fontSize: 18 }}>{player.name}</div>
+
                   <div
                     style={{
                       display: "flex",
-                      gap: 10,
+                      gap: 8,
                       flexWrap: "wrap",
                       color: "#e8d9c9",
+                      fontSize: 13,
                     }}
                   >
                     <span>Matches: {stats.matchesPlayed}</span>
                     <span>Wins: {stats.wins}</span>
+                    <span>Losses: {stats.losses}</span>
                     <span>Winrate: {stats.winRate.toFixed(1)}%</span>
+                    <span>Podiums: {stats.podiums}</span>
+                    <span>Podiumrate: {stats.podiumRate.toFixed(1)}%</span>
+                    <span>Last places: {stats.lastPlaces}</span>
                     <span>Total score: {stats.totalScore}</span>
+                    <span>Avg score: {stats.averageScore.toFixed(1)}</span>
+                    <span>Best: {stats.bestScore}</span>
+                    <span>Worst: {stats.worstScore}</span>
                   </div>
                 </div>
               ))}

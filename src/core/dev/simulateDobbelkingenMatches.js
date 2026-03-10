@@ -1,5 +1,12 @@
 import { storageService } from "../storage/services/storageService";
 
+const DEV_PLAYERS = [
+  { name: "DEV 1" },
+  { name: "DEV 2" },
+  { name: "DEV 3" },
+  { name: "DEV 4" },
+];
+
 function shuffle(array) {
   const copy = [...array];
 
@@ -11,60 +18,71 @@ function shuffle(array) {
   return copy;
 }
 
-function createRandomScores(players) {
-  const base = players.map((player) => ({
+function ensureDevPlayersExist() {
+  const existingPlayers = storageService.getPlayers();
+
+  for (const devPlayer of DEV_PLAYERS) {
+    const exists = existingPlayers.some((player) => player.name === devPlayer.name);
+
+    if (!exists) {
+      storageService.createPlayer(devPlayer.name);
+    }
+  }
+}
+
+function getDevPlayersFromStorage() {
+  const storedPlayers = storageService.getPlayers();
+
+  return DEV_PLAYERS.map((devPlayer) => {
+    const found = storedPlayers.find((player) => player.name === devPlayer.name);
+
+    return {
+      id: found?.id ?? devPlayer.name.toLowerCase().replace(/\s+/g, "_"),
+      name: found?.name ?? devPlayer.name,
+    };
+  });
+}
+
+function createZeroSumScores(players) {
+  const shuffled = shuffle(players);
+
+  const a = Math.floor(Math.random() * 121) - 60;
+  const b = Math.floor(Math.random() * 121) - 60;
+  const c = Math.floor(Math.random() * 121) - 60;
+  const d = -(a + b + c);
+
+  let rawScores = [a, b, c, d];
+
+  if (Math.abs(d) > 100) {
+    const values = [a, b, c, d].sort((x, y) => y - x);
+    rawScores = [
+      values[0],
+      values[1],
+      values[2],
+      -(values[0] + values[1] + values[2]),
+    ];
+  }
+
+  const combined = shuffled.map((player, index) => ({
     playerId: player.id,
     name: player.name,
-    score: Math.floor(Math.random() * 101), // 0 - 100
+    score: rawScores[index],
   }));
 
-  const sorted = [...base].sort((a, b) => b.score - a.score);
+  const ranked = [...combined].sort((x, y) => y.score - x.score);
 
-  return sorted.map((row, index) => ({
+  return ranked.map((row, index) => ({
     playerId: row.playerId,
     score: row.score,
     rank: index + 1,
   }));
 }
 
-function ensureFourPlayers(appState) {
-  const selectedPlayers = Array.isArray(appState?.players)
-    ? appState.players.filter(Boolean)
-    : [];
+function buildSimulatedMatchRecord(matchIndex = 0) {
+  ensureDevPlayersExist();
 
-  const storedPlayers = storageService.getPlayers();
-
-  const merged = [];
-  const usedIds = new Set();
-
-  function pushUnique(player) {
-    if (!player?.id || usedIds.has(player.id)) return;
-    usedIds.add(player.id);
-    merged.push({
-      id: player.id,
-      name: player.name ?? "Unknown Player",
-    });
-  }
-
-  selectedPlayers.forEach(pushUnique);
-  storedPlayers.forEach(pushUnique);
-
-  let simIndex = 1;
-  while (merged.length < 4) {
-    merged.push({
-      id: `sim_player_${Date.now()}_${simIndex}`,
-      name: `Sim Player ${simIndex}`,
-    });
-    simIndex += 1;
-  }
-
-  return merged.slice(0, 4);
-}
-
-function buildSimulatedMatchRecord(appState, matchIndex = 0) {
-  const players = ensureFourPlayers(appState);
-  const shuffledPlayers = shuffle(players);
-  const scores = createRandomScores(shuffledPlayers);
+  const players = getDevPlayersFromStorage();
+  const scores = createZeroSumScores(players);
   const winner = scores.find((row) => row.rank === 1) ?? null;
 
   return {
@@ -79,6 +97,8 @@ function buildSimulatedMatchRecord(appState, matchIndex = 0) {
     metadata: {
       simulated: true,
       source: "dev-tools",
+      devPlayersOnly: true,
+      zeroSum: true,
     },
     gameData: {
       simulated: true,
@@ -86,9 +106,9 @@ function buildSimulatedMatchRecord(appState, matchIndex = 0) {
   };
 }
 
-export function simulateDobbelkingenMatches(appState, count = 1) {
+export function simulateDobbelkingenMatches(count = 1) {
   for (let i = 0; i < count; i += 1) {
-    const matchRecord = buildSimulatedMatchRecord(appState, i);
+    const matchRecord = buildSimulatedMatchRecord(i);
     storageService.saveMatch(matchRecord);
   }
 }

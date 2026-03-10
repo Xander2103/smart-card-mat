@@ -17,6 +17,7 @@ import { DeckSetupScreen } from "../ui/screens/DeckSetupScreen";
 import { SettingsScreen } from "../ui/screens/SettingsScreen";
 import { PlayersScreen } from "../ui/screens/PlayersScreen";
 import { HistoryScreen } from "../ui/screens/HistoryScreen";
+import { StatsScreen } from "../ui/screens/StatsScreen";
 
 import { CARD_BY_CODE } from "../core/mapping/deck52";
 
@@ -367,6 +368,7 @@ export default function App() {
             { value: "play", label: "Play" },
             { value: "players", label: "Players" },
             { value: "history", label: "History" },
+            { value: "stats", label: "Stats" },
             { value: "deck", label: "Deck Setup" },
             { value: "settings", label: "Settings" },
           ]}
@@ -441,6 +443,8 @@ export default function App() {
       )}
 
       {tab === "history" && <HistoryScreen appState={appState} />}
+
+      {tab === "stats" && <StatsScreen />}
 
       {tab === "deck" && (
         <DeckSetupScreen

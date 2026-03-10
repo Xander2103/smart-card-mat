@@ -1,6 +1,6 @@
 import { buttonStyle, colors, panelStyle, softCardStyle } from "../play/theme";
 import { useViewport } from "../play/useViewport";
-
+import { storageService } from "../../core/storage/services/storageService";
 import { simulateDobbelkingenMatches } from "../../core/dev/simulateDobbelkingenMatches";
 
 function ToggleRow({ checked, onChange, title, description }) {
@@ -128,30 +128,37 @@ export function SettingsScreen({ appState, dispatchAction }) {
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
                 style={buttonStyle("secondary")}
-                onClick={() => simulateDobbelkingenMatches(appState, 1)}
+                onClick={() => simulateDobbelkingenMatches(1)}
               >
                 Simulate 1 match
               </button>
 
               <button
                 style={buttonStyle("secondary")}
-                onClick={() => simulateDobbelkingenMatches(appState, 20)}
+                onClick={() => simulateDobbelkingenMatches(20)}
               >
                 Simulate 20 matches
               </button>
 
               <button
                 style={buttonStyle("secondary")}
-                onClick={() => simulateDobbelkingenMatches(appState, 100)}
+                onClick={() => simulateDobbelkingenMatches(100)}
               >
                 Simulate 100 matches
               </button>
 
               <button
                 style={buttonStyle("secondary")}
-                onClick={() => simulateDobbelkingenMatches(appState, 1000)}
+                onClick={() => {
+                  const ok = window.confirm(
+                    "Ben je zeker dat je alle gesimuleerde matches wilt verwijderen?"
+                  );
+                  if (!ok) return;
+
+                  storageService.clearSimulatedMatches();
+                }}
               >
-                Simulate 1000 matches
+                Clear simulated matches
               </button>
             </div>
           </div>

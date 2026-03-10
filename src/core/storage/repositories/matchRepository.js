@@ -60,4 +60,10 @@ export const matchRepository = {
   clearMatches() {
     localStorageAdapter.set(STORAGE_KEYS.MATCHES, []);
   },
+
+  clearSimulatedMatches() {
+    const matches = localStorageAdapter.get(STORAGE_KEYS.MATCHES, []);
+    const updated = matches.filter((match) => !match?.metadata?.simulated);
+    localStorageAdapter.set(STORAGE_KEYS.MATCHES, updated);
+  },
 };

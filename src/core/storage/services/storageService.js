@@ -15,6 +15,10 @@ export const storageService = {
     return playerRepository.createPlayer(name);
   },
 
+  deletePlayer(playerId) {
+    return playerRepository.deletePlayer(playerId);
+  },
+
   getMatchHistory() {
     return matchRepository.getMatches();
   },
@@ -35,12 +39,12 @@ export const storageService = {
     return matchRepository.clearMatches();
   },
 
+  clearSimulatedMatches() {
+    return matchRepository.clearSimulatedMatches();
+  },
+
   getPlayerStats(playerId) {
     const matches = matchRepository.getMatches();
     return computePlayerStats(playerId, matches);
-  },
-
-  deletePlayer(playerId) {
-    return playerRepository.deletePlayer(playerId);
   },
 };
