@@ -1,13 +1,6 @@
 import { loadMapping } from "../mapping/mappingStore";
 
 export function createInitialState({ zonesCount = 4 } = {}) {
-  const players = [
-    { id: 0, name: "Player 1" },
-    { id: 1, name: "Player 2" },
-    { id: 2, name: "Player 3" },
-    { id: 3, name: "Player 4" },
-  ];
-
   return {
     zonesCount,
     zones: Array.from({ length: zonesCount }, () => null),
@@ -29,7 +22,8 @@ export function createInitialState({ zonesCount = 4 } = {}) {
     deckSetup: false,
     deckIndex: 0,
 
-    players,
+    // spelers worden nu gekozen via PlayersScreen
+    players: [],
 
     confirmedTurnCard: null,
     lastError: null,

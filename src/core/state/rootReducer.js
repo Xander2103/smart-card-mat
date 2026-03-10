@@ -1,4 +1,3 @@
-//rootReducer.js
 import { setUniqueMappingOverwrite } from "../mapping/uniqueMapping";
 import { getEngine } from "../game/registry";
 
@@ -7,6 +6,17 @@ const LOG_MAX = 200;
 function pushLog(prevLog, raw) {
   const next = [raw, ...(prevLog ?? [])];
   return next.length > LOG_MAX ? next.slice(0, LOG_MAX) : next;
+}
+
+function normalizePlayers(players) {
+  if (!Array.isArray(players)) return [];
+
+  return players
+    .slice(0, 4)
+    .map((player, index) => ({
+      id: player?.id ?? `player_${index}`,
+      name: player?.name ?? `Player ${index + 1}`,
+    }));
 }
 
 export function applyRootAction(state, action) {
@@ -44,11 +54,26 @@ export function applyRootAction(state, action) {
     return state;
   }
 
+  if (action.type === "set_players") {
+    return {
+      ...state,
+      players: normalizePlayers(action.players),
+      lastError: null,
+      log: pushLog(
+        state.log,
+        `PLAYERS|SET|COUNT=${normalizePlayers(action.players).length}`
+      ),
+    };
+  }
+
   if (action.type === "select_uid") {
     return { ...state, selectedUid: action.uid };
   }
 
-  if (action.type === "register_mapping" || action.type === "assign_uid_to_card") {
+  if (
+    action.type === "register_mapping" ||
+    action.type === "assign_uid_to_card"
+  ) {
     const uid = action.uid ?? state.selectedUid;
     const cardName = action.cardName;
     if (!uid || !cardName) return state;

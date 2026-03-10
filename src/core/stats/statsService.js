@@ -1,29 +1,31 @@
-export function getPlayerStats(playerId, matches) {
-
-  const playedMatches = matches.filter(match =>
-    match.players.some(p => p.playerId === playerId)
+export function getPlayerStats(playerId, matches = []) {
+  const playedMatches = matches.filter((match) =>
+    (match.players ?? []).some((player) => player.playerId === playerId)
   );
 
-  const wins = matches.filter(match =>
+  const wins = playedMatches.filter((match) =>
     (match.winnerIds ?? []).includes(playerId)
-  );
+  ).length;
 
   const totalScore = playedMatches.reduce((sum, match) => {
-
-    const entry = match.scores.find(
-      s => s.playerId === playerId
-    );
-
-    return sum + (entry?.score ?? 0);
-
+    const row = (match.scores ?? []).find((entry) => entry.playerId === playerId);
+    return sum + Number(row?.score ?? 0);
   }, 0);
 
+  const matchesPlayed = playedMatches.length;
+  const winRate = matchesPlayed === 0 ? 0 : (wins / matchesPlayed) * 100;
+
   return {
-    matchesPlayed: playedMatches.length,
-    wins: wins.length,
-    winRate: playedMatches.length
-      ? wins.length / playedMatches.length
-      : 0,
-    totalScore
+    matchesPlayed,
+    wins,
+    winRate,
+    totalScore,
   };
+}
+
+export function getAllPlayerStats(players = [], matches = []) {
+  return players.map((player) => ({
+    player,
+    stats: getPlayerStats(player.id, matches),
+  }));
 }

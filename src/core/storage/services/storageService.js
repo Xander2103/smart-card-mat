@@ -1,37 +1,42 @@
 import { playerRepository } from "../repositories/playerRepository";
 import { matchRepository } from "../repositories/matchRepository";
-import { getPlayerStats } from "../../stats/statsService";
+import { getPlayerStats as computePlayerStats } from "../../stats/statsService";
 
 export const storageService = {
-
-  // Players
   getPlayers() {
     return playerRepository.getPlayers();
-  },
-
-  createPlayer(name) {
-    return playerRepository.createPlayer(name);
   },
 
   getPlayerById(playerId) {
     return playerRepository.getPlayerById(playerId);
   },
 
-  // Matches
+  createPlayer(name) {
+    return playerRepository.createPlayer(name);
+  },
+
   getMatchHistory() {
     return matchRepository.getMatches();
+  },
+
+  getMatchById(matchId) {
+    return matchRepository.getMatchById(matchId);
   },
 
   saveMatch(matchData) {
     return matchRepository.saveMatch(matchData);
   },
 
-  // Stats
+  deleteMatch(matchId) {
+    return matchRepository.deleteMatch(matchId);
+  },
+
+  clearMatchHistory() {
+    return matchRepository.clearMatches();
+  },
+
   getPlayerStats(playerId) {
-
     const matches = matchRepository.getMatches();
-
-    return getPlayerStats(playerId, matches);
-  }
-
+    return computePlayerStats(playerId, matches);
+  },
 };

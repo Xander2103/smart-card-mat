@@ -7,7 +7,6 @@ function safeParse(json, fallback) {
 }
 
 export const localStorageAdapter = {
-
   get(key, fallback = null) {
     const raw = localStorage.getItem(key);
     return safeParse(raw, fallback);
@@ -19,6 +18,5 @@ export const localStorageAdapter = {
 
   remove(key) {
     localStorage.removeItem(key);
-  }
-
+  },
 };

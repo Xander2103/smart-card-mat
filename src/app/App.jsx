@@ -15,6 +15,8 @@ import { useViewport } from "../ui/play/useViewport";
 import { PlayScreen } from "../ui/screens/PlayScreen";
 import { DeckSetupScreen } from "../ui/screens/DeckSetupScreen";
 import { SettingsScreen } from "../ui/screens/SettingsScreen";
+import { PlayersScreen } from "../ui/screens/PlayersScreen";
+import { HistoryScreen } from "../ui/screens/HistoryScreen";
 
 import { CARD_BY_CODE } from "../core/mapping/deck52";
 
@@ -180,7 +182,8 @@ export default function App() {
     }
 
     const playersCount = appState.players?.length ?? 4;
-    const currentPlayerIndex = appState.currentPlayerIndex ?? 0;
+    const currentPlayerIndex =
+      appState.game?.dobbelkingen?.currentPlayerIndex ?? 0;
     const expectedZone = (currentPlayerIndex % playersCount) + 1;
 
     const uidInExpected = appState.zones?.[expectedZone - 1] ?? null;
@@ -188,9 +191,9 @@ export default function App() {
       ? appState.mapping?.[uidInExpected] ?? null
       : null;
 
-    const alreadyPlayed = (appState.currentTrick ?? []).some(
-      (play) => play.playerIndex === currentPlayerIndex
-    );
+    const alreadyPlayed = (
+      appState.game?.dobbelkingen?.currentTrick ?? []
+    ).some((play) => play.playerIndex === currentPlayerIndex);
 
     if (!uidInExpected || !cardInExpected || alreadyPlayed) {
       clearAutoTimer();
@@ -214,11 +217,11 @@ export default function App() {
   }, [
     appState?.autoConfirm,
     appState?.phase,
-    appState?.currentPlayerIndex,
     appState?.zones,
     appState?.mapping,
-    appState?.currentTrick,
     appState?.players,
+    appState?.game?.dobbelkingen?.currentPlayerIndex,
+    appState?.game?.dobbelkingen?.currentTrick,
   ]);
 
   useEffect(() => {
@@ -305,7 +308,9 @@ export default function App() {
 
             <button
               onClick={connectBle}
-              disabled={bleStatus === "connected" || bleStatus === "connecting..."}
+              disabled={
+                bleStatus === "connected" || bleStatus === "connecting..."
+              }
               style={{
                 ...theme.button,
                 opacity:
@@ -337,6 +342,8 @@ export default function App() {
           onChange={setTab}
           items={[
             { value: "play", label: "Play" },
+            { value: "players", label: "Players" },
+            { value: "history", label: "History" },
             { value: "deck", label: "Deck Setup" },
             { value: "settings", label: "Settings" },
           ]}
@@ -372,6 +379,12 @@ export default function App() {
         />
       )}
 
+      {tab === "players" && (
+        <PlayersScreen appState={appState} dispatchAction={dispatchAction} />
+      )}
+
+      {tab === "history" && <HistoryScreen appState={appState} />}
+
       {tab === "deck" && (
         <DeckSetupScreen
           appState={appState}
@@ -382,10 +395,7 @@ export default function App() {
       )}
 
       {tab === "settings" && (
-        <SettingsScreen
-          appState={appState}
-          dispatchAction={dispatchAction}
-        />
+        <SettingsScreen appState={appState} dispatchAction={dispatchAction} />
       )}
     </div>
   );
