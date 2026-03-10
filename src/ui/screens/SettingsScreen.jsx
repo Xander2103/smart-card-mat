@@ -146,6 +146,13 @@ export function SettingsScreen({ appState, dispatchAction }) {
               >
                 Simulate 100 matches
               </button>
+
+              <button
+                style={buttonStyle("secondary")}
+                onClick={() => simulateDobbelkingenMatches(appState, 1000)}
+              >
+                Simulate 1000 matches
+              </button>
             </div>
           </div>
         )}
