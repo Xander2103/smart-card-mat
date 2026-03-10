@@ -39,4 +39,8 @@ export const storageService = {
     const matches = matchRepository.getMatches();
     return computePlayerStats(playerId, matches);
   },
+
+  deletePlayer(playerId) {
+    return playerRepository.deletePlayer(playerId);
+  },
 };

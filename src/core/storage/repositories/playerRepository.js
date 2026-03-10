@@ -46,4 +46,10 @@ export const playerRepository = {
 
     return player;
   },
+
+  deletePlayer(playerId) {
+    const players = this.getPlayers();
+    const updated = players.filter((player) => player.id !== playerId);
+    localStorageAdapter.set(STORAGE_KEYS.PLAYERS, updated);
+  },
 };
