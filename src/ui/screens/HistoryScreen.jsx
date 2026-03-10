@@ -46,11 +46,20 @@ export function HistoryScreen() {
 
   useEffect(() => {
     refreshMatches();
+
+    function handleDataChanged() {
+      refreshMatches();
+    }
+
+    window.addEventListener("smartcardmat:data-changed", handleDataChanged);
+
+    return () => {
+      window.removeEventListener("smartcardmat:data-changed", handleDataChanged);
+    };
   }, []);
 
   function handleDeleteMatch(matchId) {
     storageService.deleteMatch(matchId);
-    refreshMatches();
   }
 
   function handleClearAll() {
@@ -58,7 +67,6 @@ export function HistoryScreen() {
     if (!ok) return;
 
     storageService.clearMatchHistory();
-    refreshMatches();
   }
 
   return (

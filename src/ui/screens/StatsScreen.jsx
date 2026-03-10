@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { storageService } from "../../core/storage/services/storageService";
 
 const panelStyle = {
@@ -11,19 +11,32 @@ const panelStyle = {
   padding: 20,
 };
 
-const selectStyle = {
+const sortButtonBaseStyle = {
+  borderRadius: 999,
+  padding: "8px 12px",
+  fontWeight: 800,
+  fontSize: 13,
+  cursor: "pointer",
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "rgba(255,255,255,0.04)",
+  color: "#f5efe6",
+};
+
+const inputStyle = {
   borderRadius: 12,
   padding: "10px 12px",
   border: "1px solid rgba(255,255,255,0.08)",
   background: "rgba(255,255,255,0.04)",
   color: "#f5efe6",
   outline: "none",
+  minWidth: 260,
 };
 
 function getMedalStyle(place) {
   if (place === 1) {
     return {
-      background: "linear-gradient(180deg, rgba(251, 191, 36, 0.30) 0%, rgba(217, 119, 6, 0.16) 100%)",
+      background:
+        "linear-gradient(180deg, rgba(251, 191, 36, 0.30) 0%, rgba(217, 119, 6, 0.16) 100%)",
       border: "1px solid rgba(251, 191, 36, 0.45)",
       color: "#fde68a",
     };
@@ -31,7 +44,8 @@ function getMedalStyle(place) {
 
   if (place === 2) {
     return {
-      background: "linear-gradient(180deg, rgba(226, 232, 240, 0.18) 0%, rgba(148, 163, 184, 0.12) 100%)",
+      background:
+        "linear-gradient(180deg, rgba(226, 232, 240, 0.18) 0%, rgba(148, 163, 184, 0.12) 100%)",
       border: "1px solid rgba(203, 213, 225, 0.32)",
       color: "#e2e8f0",
     };
@@ -39,7 +53,8 @@ function getMedalStyle(place) {
 
   if (place === 3) {
     return {
-      background: "linear-gradient(180deg, rgba(180, 83, 9, 0.26) 0%, rgba(120, 53, 15, 0.16) 100%)",
+      background:
+        "linear-gradient(180deg, rgba(180, 83, 9, 0.26) 0%, rgba(120, 53, 15, 0.16) 100%)",
       border: "1px solid rgba(217, 119, 6, 0.34)",
       color: "#fdba74",
     };
@@ -66,12 +81,14 @@ function sortPlayers(rows, sortBy) {
     const aStats = a.stats;
     const bStats = b.stats;
 
+    if (sortBy === "matchesPlayed") return bStats.matchesPlayed - aStats.matchesPlayed;
     if (sortBy === "wins") return bStats.wins - aStats.wins;
     if (sortBy === "winRate") return bStats.winRate - aStats.winRate;
     if (sortBy === "totalScore") return bStats.totalScore - aStats.totalScore;
     if (sortBy === "averageScore") return bStats.averageScore - aStats.averageScore;
     if (sortBy === "podiums") return bStats.podiums - aStats.podiums;
-    if (sortBy === "matchesPlayed") return bStats.matchesPlayed - aStats.matchesPlayed;
+    if (sortBy === "bestScore") return bStats.bestScore - aStats.bestScore;
+    if (sortBy === "worstScore") return aStats.worstScore - bStats.worstScore;
 
     return bStats.wins - aStats.wins;
   });
@@ -79,11 +96,45 @@ function sortPlayers(rows, sortBy) {
   return copy;
 }
 
+function StatPill({ label, value, highlight = false }) {
+  return (
+    <div
+      style={{
+        borderRadius: 12,
+        padding: "8px 10px",
+        background: highlight ? "rgba(217, 119, 6, 0.14)" : "rgba(255,255,255,0.04)",
+        border: highlight
+          ? "1px solid rgba(251, 191, 36, 0.18)"
+          : "1px solid rgba(255,255,255,0.06)",
+        display: "grid",
+        gap: 2,
+        minWidth: 110,
+      }}
+    >
+      <div style={{ fontSize: 11, color: "#c8b6a1" }}>{label}</div>
+      <div style={{ fontSize: 14, fontWeight: 800, color: "#f5efe6" }}>{value}</div>
+    </div>
+  );
+}
+
 export function StatsScreen() {
   const [sortBy, setSortBy] = useState("wins");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [players, setPlayers] = useState(() => storageService.getPlayers());
+  const [matches, setMatches] = useState(() => storageService.getMatchHistory());
 
-  const players = useMemo(() => storageService.getPlayers(), []);
-  const matches = useMemo(() => storageService.getMatchHistory(), []);
+  useEffect(() => {
+    function refreshData() {
+      setPlayers(storageService.getPlayers());
+      setMatches(storageService.getMatchHistory());
+    }
+
+    window.addEventListener("smartcardmat:data-changed", refreshData);
+
+    return () => {
+      window.removeEventListener("smartcardmat:data-changed", refreshData);
+    };
+  }, []);
 
   const rows = useMemo(() => {
     const mapped = players.map((player) => ({
@@ -91,20 +142,32 @@ export function StatsScreen() {
       stats: storageService.getPlayerStats(player.id),
     }));
 
-    return sortPlayers(mapped, sortBy);
-  }, [players, matches, sortBy]);
+    const filtered = mapped.filter(({ player }) =>
+      player.name.toLowerCase().includes(searchTerm.trim().toLowerCase())
+    );
+
+    return sortPlayers(filtered, sortBy);
+  }, [players, matches, sortBy, searchTerm]);
+
+  const sortOptions = [
+    { value: "wins", label: "Wins" },
+    { value: "matchesPlayed", label: "Matches" },
+    { value: "winRate", label: "Winrate" },
+    { value: "totalScore", label: "Total score" },
+    { value: "averageScore", label: "Average score" },
+    { value: "podiums", label: "Podiums" },
+    { value: "bestScore", label: "Best score" },
+    { value: "worstScore", label: "Worst score" },
+  ];
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <div style={panelStyle}>
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 12,
-            flexWrap: "wrap",
-            alignItems: "center",
-            marginBottom: 6,
+            display: "grid",
+            gap: 14,
+            marginBottom: 14,
           }}
         >
           <div>
@@ -114,32 +177,70 @@ export function StatsScreen() {
             </div>
           </div>
 
-          <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontSize: 13, color: "#c8b6a1" }}>Sort by</label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              style={selectStyle}
-            >
-              <option value="wins">Wins</option>
-              <option value="winRate">Winrate</option>
-              <option value="totalScore">Total score</option>
-              <option value="averageScore">Average score</option>
-              <option value="podiums">Podiums</option>
-              <option value="matchesPlayed">Matches played</option>
-            </select>
+          <div style={{ display: "grid", gap: 10 }}>
+            <div style={{ fontSize: 13, color: "#c8b6a1" }}>Zoek speler</div>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Zoek op spelernaam..."
+              style={inputStyle}
+            />
+          </div>
+
+          <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ fontSize: 13, color: "#c8b6a1" }}>Sort by</div>
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {sortOptions.map((option) => {
+                const active = sortBy === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setSortBy(option.value)}
+                    style={{
+                      ...sortButtonBaseStyle,
+                      background: active
+                        ? "rgba(217, 119, 6, 0.18)"
+                        : "rgba(255,255,255,0.04)",
+                      border: active
+                        ? "1px solid rgba(251, 191, 36, 0.32)"
+                        : "1px solid rgba(255,255,255,0.08)",
+                      color: active ? "#fde68a" : "#f5efe6",
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
         <div style={{ fontWeight: 900, marginBottom: 10 }}>Leaderboard</div>
 
         {rows.length === 0 ? (
-          <div style={{ color: "#c8b6a1" }}>Nog geen spelers of stats beschikbaar.</div>
+          <div style={{ color: "#c8b6a1" }}>Geen spelers gevonden.</div>
         ) : (
-          <div style={{ display: "grid", gap: 10 }}>
+          <div style={{ display: "grid", gap: 12 }}>
             {rows.map(({ player, stats }, index) => {
               const place = index + 1;
               const medalStyle = getMedalStyle(place);
+
+              const statItems = [
+                { label: "Matches played", value: stats.matchesPlayed, highlight: true },
+                { label: "Wins", value: stats.wins },
+                { label: "Losses", value: stats.losses },
+                { label: "Winrate", value: `${stats.winRate.toFixed(1)}%` },
+                { label: "Podiums", value: stats.podiums },
+                { label: "Last places", value: stats.lastPlaces },
+                { label: "Total score", value: stats.totalScore },
+                { label: "Avg score", value: stats.averageScore.toFixed(1) },
+                { label: "Best score", value: stats.bestScore },
+                { label: "Worst score", value: stats.worstScore },
+              ];
 
               return (
                 <div
@@ -156,7 +257,7 @@ export function StatsScreen() {
                         ? "rgba(217, 119, 6, 0.14)"
                         : "rgba(255,255,255,0.03)",
                     display: "grid",
-                    gap: 10,
+                    gap: 12,
                   }}
                 >
                   <div
@@ -171,8 +272,8 @@ export function StatsScreen() {
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                       <div
                         style={{
-                          minWidth: 42,
-                          height: 42,
+                          minWidth: 44,
+                          height: 44,
                           borderRadius: 999,
                           display: "grid",
                           placeItems: "center",
@@ -188,35 +289,39 @@ export function StatsScreen() {
                           {player.name}
                         </div>
                         <div style={{ color: "#c8b6a1", fontSize: 13 }}>
-                          {stats.matchesPlayed} matches gespeeld
+                          Rank #{place}
                         </div>
                       </div>
                     </div>
 
-                    <div style={{ color: "#fde68a", fontWeight: 800 }}>
+                    <div
+                      style={{
+                        borderRadius: 999,
+                        padding: "8px 12px",
+                        background: "rgba(255,255,255,0.05)",
+                        fontWeight: 800,
+                        color: "#fde68a",
+                      }}
+                    >
                       Wins: {stats.wins}
                     </div>
                   </div>
 
                   <div
                     style={{
-                      display: "flex",
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
                       gap: 8,
-                      flexWrap: "wrap",
-                      color: "#e8d9c9",
-                      fontSize: 13,
                     }}
                   >
-                    <span>Wins: {stats.wins}</span>
-                    <span>Losses: {stats.losses}</span>
-                    <span>Winrate: {stats.winRate.toFixed(1)}%</span>
-                    <span>Podiums: {stats.podiums}</span>
-                    <span>Podiumrate: {stats.podiumRate.toFixed(1)}%</span>
-                    <span>Last places: {stats.lastPlaces}</span>
-                    <span>Total score: {stats.totalScore}</span>
-                    <span>Avg score: {stats.averageScore.toFixed(1)}</span>
-                    <span>Best: {stats.bestScore}</span>
-                    <span>Worst: {stats.worstScore}</span>
+                    {statItems.map((item) => (
+                      <StatPill
+                        key={item.label}
+                        label={item.label}
+                        value={item.value}
+                        highlight={!!item.highlight}
+                      />
+                    ))}
                   </div>
                 </div>
               );

@@ -442,7 +442,7 @@ export default function App() {
         />
       )}
 
-      {tab === "history" && <HistoryScreen appState={appState} />}
+      {tab === "history" && <HistoryScreen/>}
 
       {tab === "stats" && <StatsScreen />}
 
