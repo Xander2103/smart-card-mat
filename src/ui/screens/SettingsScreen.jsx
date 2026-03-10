@@ -1,6 +1,8 @@
 import { buttonStyle, colors, panelStyle, softCardStyle } from "../play/theme";
 import { useViewport } from "../play/useViewport";
 
+import { simulateDobbelkingenMatches } from "../../core/dev/simulateDobbelkingenMatches";
+
 function ToggleRow({ checked, onChange, title, description }) {
   return (
     <label
@@ -109,6 +111,44 @@ export function SettingsScreen({ appState, dispatchAction }) {
             Zet tournament mode aan
           </button>
         </div>
+        {appState?.devMode && (
+          <div
+            style={{
+              marginTop: 24,
+              borderRadius: 18,
+              padding: 16,
+              border: "1px solid rgba(251,191,36,0.18)",
+              background: "rgba(217,119,6,0.08)",
+              display: "grid",
+              gap: 10,
+            }}
+          >
+            <div style={{ fontWeight: 900 }}>DEV Tools</div>
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                style={buttonStyle("secondary")}
+                onClick={() => simulateDobbelkingenMatches(appState, 1)}
+              >
+                Simulate 1 match
+              </button>
+
+              <button
+                style={buttonStyle("secondary")}
+                onClick={() => simulateDobbelkingenMatches(appState, 20)}
+              >
+                Simulate 20 matches
+              </button>
+
+              <button
+                style={buttonStyle("secondary")}
+                onClick={() => simulateDobbelkingenMatches(appState, 100)}
+              >
+                Simulate 100 matches
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

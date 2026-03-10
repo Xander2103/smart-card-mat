@@ -32,6 +32,8 @@ function Card({ title, eyebrow, desc, onClick }) {
   );
 }
 
+
+
 export function GameModeCards({ onOpenDobbelkingen }) {
   return (
     <div style={panelStyle({ padding: 20, display: "grid", gap: 16 })}>

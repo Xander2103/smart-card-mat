@@ -20,6 +20,7 @@ import { HistoryScreen } from "../ui/screens/HistoryScreen";
 
 import { CARD_BY_CODE } from "../core/mapping/deck52";
 
+
 const theme = {
   panel: {
     border: "1px solid rgba(251, 191, 36, 0.18)",
@@ -402,6 +403,7 @@ export default function App() {
           </div>
         ) : null}
       </div>
+
 
       {tab === "play" && (
         <PlayScreen
