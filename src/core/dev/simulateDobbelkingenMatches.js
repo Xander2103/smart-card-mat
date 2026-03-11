@@ -18,6 +18,10 @@ function shuffle(array) {
   return copy;
 }
 
+function randomFrom(array) {
+  return array[Math.floor(Math.random() * array.length)];
+}
+
 function ensureDevPlayersExist() {
   const existingPlayers = storageService.getPlayers();
 
@@ -78,12 +82,40 @@ function createZeroSumScores(players) {
   }));
 }
 
+function buildSimulatedContracts(players) {
+  const contractPool = [
+    "MINSTE_HARTEN",
+    "LAATSTE_SLAG",
+    "GEEN_SLAGEN",
+    "MINSTE_BOEREN_KONINGEN",
+    "MINSTE_QUEENS",
+    "HARTEN_KONING",
+    "TROEF",
+  ];
+
+  const entries = [];
+  const rounds = Math.floor(Math.random() * 6) + 4;
+
+  for (let i = 0; i < rounds; i += 1) {
+    const chooser = players[i % players.length];
+
+    entries.push({
+      chooserPlayerId: chooser.id,
+      contract: randomFrom(contractPool),
+      scoreDelta: Math.floor(Math.random() * 41) - 20,
+    });
+  }
+
+  return entries;
+}
+
 function buildSimulatedMatchRecord(matchIndex = 0) {
   ensureDevPlayersExist();
 
   const players = getDevPlayersFromStorage();
   const scores = createZeroSumScores(players);
   const winner = scores.find((row) => row.rank === 1) ?? null;
+  const contracts = buildSimulatedContracts(players);
 
   return {
     gameType: "dobbelkingen",
@@ -102,6 +134,7 @@ function buildSimulatedMatchRecord(matchIndex = 0) {
     },
     gameData: {
       simulated: true,
+      contracts,
     },
   };
 }
