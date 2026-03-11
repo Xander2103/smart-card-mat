@@ -123,7 +123,7 @@ export function SettingsScreen({ appState, dispatchAction }) {
               gap: 10,
             }}
           >
-            <div style={{ fontWeight: 900 }}>DEV Tools</div>
+            <div style={{ fontWeight: 900 }}>DEV Tools : Dobbelkingen </div>
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
