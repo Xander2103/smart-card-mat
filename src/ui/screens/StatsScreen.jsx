@@ -301,9 +301,22 @@ export function StatsScreen() {
       dobbelkingenContracts: getDobbelkingenContractInsights(player.id, matches),
     }));
 
-    const filtered = mapped.filter(({ player }) =>
-      player.name.toLowerCase().includes(searchTerm.trim().toLowerCase())
-    );
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    const filtered = mapped.filter(({ player, generalStats, gameModeStats }) => {
+      const matchesForSection =
+        activeSection === "dobbelkingen"
+          ? (gameModeStats?.dobbelkingen?.matchesPlayed ?? 0)
+          : activeSection === "wiezen"
+            ? (gameModeStats?.wiezen?.matchesPlayed ?? 0)
+            : generalStats.matchesPlayed;
+
+      const matchesSearch =
+        normalizedSearch.length === 0 ||
+        player.name.toLowerCase().includes(normalizedSearch);
+
+      return matchesForSection > 0 && matchesSearch;
+    });
 
     return sortPlayers(filtered, sortBy, activeSection);
   }, [players, matches, sortBy, searchTerm, activeSection]);
@@ -343,6 +356,15 @@ export function StatsScreen() {
     { value: "dobbelkingen", label: "Dobbelkingen" },
     { value: "wiezen", label: "Wiezen" },
   ];
+
+  const emptyMessage =
+    searchTerm.trim().length > 0
+      ? "Geen spelers gevonden."
+      : activeSection === "dobbelkingen"
+        ? "Nog geen spelers met gespeelde Dobbelkingen matches."
+        : activeSection === "wiezen"
+          ? "Nog geen spelers met gespeelde Wiezen matches."
+          : "Nog geen spelers met gespeelde matches.";
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -435,7 +457,7 @@ export function StatsScreen() {
         <div style={{ fontWeight: 900, marginBottom: 10 }}>Leaderboard</div>
 
         {rows.length === 0 ? (
-          <div style={{ color: "#c8b6a1" }}>Geen spelers gevonden.</div>
+          <div style={{ color: "#c8b6a1" }}>{emptyMessage}</div>
         ) : (
           <div style={{ display: "grid", gap: 14 }}>
             {rows.map(

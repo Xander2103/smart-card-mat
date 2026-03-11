@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { storageService } from "../../core/storage/services/storageService";
 
 const panelStyle = {
@@ -27,6 +27,14 @@ const dangerButtonStyle = {
   background:
     "linear-gradient(180deg, rgba(127, 29, 29, 0.75) 0%, rgba(80, 20, 20, 0.75) 100%)",
   border: "1px solid rgba(248, 113, 113, 0.35)",
+};
+
+const warningButtonStyle = {
+  ...buttonStyle,
+  background:
+    "linear-gradient(180deg, rgba(120, 53, 15, 0.78) 0%, rgba(92, 33, 14, 0.78) 100%)",
+  border: "1px solid rgba(251, 191, 36, 0.28)",
+  color: "#fde68a",
 };
 
 function formatDate(dateString) {
@@ -69,6 +77,18 @@ export function HistoryScreen() {
     storageService.clearMatchHistory();
   }
 
+  function handleClearSimulated() {
+    const ok = window.confirm("Ben je zeker dat je alle simulated matches wilt wissen?");
+    if (!ok) return;
+
+    storageService.clearSimulatedMatches();
+  }
+
+  const simulatedCount = useMemo(
+    () => matches.filter((match) => match?.metadata?.simulated).length,
+    [matches]
+  );
+
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <div style={panelStyle}>
@@ -84,9 +104,17 @@ export function HistoryScreen() {
         >
           <h2 style={{ margin: 0 }}>Match history</h2>
 
-          <button onClick={handleClearAll} style={dangerButtonStyle}>
-            Clear all
-          </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {simulatedCount > 0 && (
+              <button onClick={handleClearSimulated} style={warningButtonStyle}>
+                Clear simulated matches ({simulatedCount})
+              </button>
+            )}
+
+            <button onClick={handleClearAll} style={dangerButtonStyle}>
+              Clear all
+            </button>
+          </div>
         </div>
 
         <div style={{ color: "#c8b6a1", marginBottom: 18 }}>
@@ -103,6 +131,8 @@ export function HistoryScreen() {
               const winnerId = match.winnerIds?.[0] ?? null;
               const winnerPlayer =
                 match.players?.find((player) => player.playerId === winnerId) ?? null;
+
+              const isSimulated = !!match?.metadata?.simulated;
 
               return (
                 <div
@@ -125,10 +155,27 @@ export function HistoryScreen() {
                       alignItems: "center",
                     }}
                   >
-                    <div>
-                      <div style={{ fontWeight: 900, fontSize: 18 }}>
-                        {match.gameType}
+                    <div style={{ display: "grid", gap: 6 }}>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                        <div style={{ fontWeight: 900, fontSize: 18 }}>{match.gameType}</div>
+
+                        {isSimulated && (
+                          <div
+                            style={{
+                              borderRadius: 999,
+                              padding: "4px 10px",
+                              background: "rgba(217, 119, 6, 0.14)",
+                              border: "1px solid rgba(251, 191, 36, 0.24)",
+                              fontWeight: 800,
+                              fontSize: 12,
+                              color: "#fde68a",
+                            }}
+                          >
+                            Simulated
+                          </div>
+                        )}
                       </div>
+
                       <div style={{ color: "#c8b6a1", fontSize: 13 }}>
                         {formatDate(match.playedAt)}
                       </div>
