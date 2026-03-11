@@ -170,6 +170,41 @@ export function handleDobbelFlowAction(state, action) {
     );
   }
 
+  if (action.type === "go_back_to_phase1") {
+    const now = Date.now();
+
+    return setDobbelState(
+      {
+        ...state,
+        phase: "CHOOSING_CONTRACT",
+        turnZone: null,
+        lastError: null,
+        log: pushLog(state.log, "DOBBELKINGEN|BACK_TO_PHASE1"),
+      },
+      {
+        ...d,
+        chooserIndex: 0,
+        leaderIndex: 0,
+        currentPlayerIndex: 0,
+        contract: null,
+        contractPlays: {},
+        lastContract: null,
+        roundPhase: 1,
+        troefPickCounts: Array(playersCount).fill(0),
+        troefChooserIndex: 0,
+        currentTrumpSuit: null,
+        currentContractStarterIndex: 0,
+        totalScores: Array(playersCount).fill(0),
+        lastResult: null,
+        history: [],
+        matchSummary: null,
+        matchStartedAt: now,
+        matchFinishedAt: null,
+        ...clearHandRuntimeFields(),
+      }
+    );
+  }
+
   if (action.type === "finish_dobbelkingen_match") {
     const finishedAt = Date.now();
     const finalScores = [...(d.totalScores ?? Array(playersCount).fill(0))];

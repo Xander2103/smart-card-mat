@@ -168,7 +168,7 @@ function PlayerProgressBoard({
               style={softCardStyle({
                 padding: "12px 14px",
                 display: "grid",
-                gap: 4,
+                gap: 8,
                 background: isCurrent
                   ? "rgba(251,191,36,0.08)"
                   : "rgba(255,255,255,0.04)",
@@ -185,21 +185,24 @@ function PlayerProgressBoard({
                   alignItems: "center",
                 }}
               >
-                <div style={{ fontWeight: 800 }}>
+                <div style={{ fontWeight: 800, fontSize: 18 }}>
                   {player.name ?? `Player ${index + 1}`}
                 </div>
 
-                <div style={{ fontWeight: 900, fontSize: 18 }}>
+                <div style={{ fontWeight: 900, fontSize: 20 }}>
                   {totalScores[index] ?? 0}
                 </div>
               </div>
 
               <div
                 style={{
-                  fontSize: 13,
-                  color: colors.muted,
+                  fontSize: 14,
+                  color: "#e5d7c7",
+                  textAlign: "center",
+                  fontWeight: 700,
                   display: "flex",
-                  gap: 8,
+                  justifyContent: "center",
+                  gap: 10,
                   flexWrap: "wrap",
                 }}
               >
@@ -239,7 +242,6 @@ export function DobbelkingenPanel({
   const isChoosingContract = phase === "CHOOSING_CONTRACT";
   const isChoosingTroef = phase === "CHOOSING_TROEF";
   const isPlaying = phase === "PLAYING_TRICK";
-  const isLiveMatch = isChoosingContract || isChoosingTroef || isPlaying;
 
   const chooserIndex =
     phase === "CHOOSING_TROEF"
@@ -289,13 +291,44 @@ export function DobbelkingenPanel({
     return !getContractDisabledReason(contractId);
   }
 
+  function handleBackClick() {
+    if (isChoosingTroef || (isPlaying && d?.roundPhase === 2)) {
+      const ok = window.confirm(
+        "Ben je zeker dat je terug naar fase 1 wilt gaan? De huidige fase 2 voortgang gaat verloren."
+      );
+      if (!ok) return;
+
+      dispatchAction?.({ type: "go_back_to_phase1" });
+      return;
+    }
+
+    if (isChoosingContract || (isPlaying && d?.roundPhase === 1)) {
+      const ok = window.confirm(
+        "Ben je zeker dat je Dobbelkingen wilt verlaten? De huidige voortgang gaat verloren."
+      );
+      if (!ok) return;
+
+      onClose?.();
+      return;
+    }
+
+    onClose?.();
+  }
+
+  function handleFinishMatch() {
+    const ok = window.confirm(
+      "Ben je zeker dat je deze match direct wilt afronden?"
+    );
+    if (!ok) return;
+
+    dispatchAction?.({ type: "finish_dobbelkingen_match" });
+  }
+
   const phase1PickCounts = players.map((_, index) =>
     Math.min(
       2,
       history.filter(
-        (entry) =>
-          entry?.contract !== "TROEF" &&
-          entry?.chooserIndex === index
+        (entry) => entry?.contract !== "TROEF" && entry?.chooserIndex === index
       ).length
     )
   );
@@ -325,16 +358,7 @@ export function DobbelkingenPanel({
               Info
             </button>
 
-            {isLiveMatch && (
-              <button
-                onClick={() => dispatchAction?.({ type: "finish_dobbelkingen_match" })}
-                style={buttonStyle()}
-              >
-                Match direct afronden
-              </button>
-            )}
-
-            <button onClick={onClose} style={buttonStyle("danger")}>
+            <button onClick={handleBackClick} style={buttonStyle("danger")}>
               Terug
             </button>
           </div>
@@ -449,16 +473,14 @@ export function DobbelkingenPanel({
               trickCounts={currentRoundTrickCounts}
             />
 
-            
-              <div style={{ display: "flex", justifyContent: "flex-start" }}>
-                <button
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+               <button
                   onClick={() => dispatchAction?.({ type: "debug_go_to_phase2" })}
                   style={buttonStyle("success")}
                 >
                   Doorgaan naar fase 2
                 </button>
-              </div>
-            
+            </div>
           </>
         )}
 
@@ -538,6 +560,12 @@ export function DobbelkingenPanel({
               progressLabel="troef gekozen"
               trickCounts={currentRoundTrickCounts}
             />
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button onClick={handleFinishMatch} style={buttonStyle("success")}>
+                Match afronden
+              </button>
+            </div>
           </>
         )}
 
