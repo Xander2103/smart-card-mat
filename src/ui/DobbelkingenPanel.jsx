@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { getContract } from "../core/games/dobbelkingen/contracts";
 import { DobbelkingenInfo } from "./dobbelkingen/DobbelkingenInfo";
-import { Scoreboard } from "./Scoreboard";
 import { buttonStyle, colors, panelStyle, softCardStyle } from "./play/theme";
 import { useViewport } from "./play/useViewport";
 
@@ -28,27 +27,17 @@ const TROEF_OPTIONS = [
   { suit: "S", label: "Schoppen", symbol: "♠", color: "#e5eefb" },
 ];
 
-function MiniStat({ label, value, accent = colors.blue }) {
-  return (
-    <div
-      style={{
-        borderRadius: 999,
-        padding: "8px 12px",
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        flexWrap: "wrap",
-      }}
-    >
-      <span style={{ fontSize: 12, color: colors.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }}>{label}</span>
-      <span style={{ fontWeight: 700, color: accent }}>{value}</span>
-    </div>
-  );
-}
-
-function ContractCard({ label, desc, count, disabled, reason, hovered, onMouseEnter, onMouseLeave, onClick }) {
+function ContractCard({
+  label,
+  desc,
+  count,
+  disabled,
+  reason,
+  hovered,
+  onMouseEnter,
+  onMouseLeave,
+  onClick,
+}) {
   return (
     <button
       onClick={onClick}
@@ -65,12 +54,23 @@ function ContractCard({ label, desc, count, disabled, reason, hovered, onMouseEn
           opacity: disabled ? 0.5 : 1,
           transform: hovered && !disabled ? "translateY(-2px)" : "none",
           transition: "all 0.16s ease",
-          background: hovered && !disabled ? "rgba(251, 191, 36, 0.10)" : "rgba(255,255,255,0.04)",
-          border: hovered && !disabled ? "1px solid rgba(251, 191, 36, 0.30)" : "1px solid rgba(255,255,255,0.08)",
+          background: hovered && !disabled
+            ? "rgba(251, 191, 36, 0.10)"
+            : "rgba(255,255,255,0.04)",
+          border: hovered && !disabled
+            ? "1px solid rgba(251, 191, 36, 0.30)"
+            : "1px solid rgba(255,255,255,0.08)",
         }),
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+        }}
+      >
         <div style={{ fontWeight: 700, fontSize: 17 }}>{label}</div>
         <div
           style={{
@@ -86,8 +86,17 @@ function ContractCard({ label, desc, count, disabled, reason, hovered, onMouseEn
         </div>
       </div>
 
-      <div style={{ color: colors.muted, fontSize: 14, lineHeight: 1.5 }}>{desc}</div>
-      <div style={{ fontSize: 12, fontWeight: 700, color: disabled ? "#fda4af" : colors.muted }}>
+      <div style={{ color: colors.muted, fontSize: 14, lineHeight: 1.5 }}>
+        {desc}
+      </div>
+
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 700,
+          color: disabled ? "#fda4af" : colors.muted,
+        }}
+      >
         {reason || "Beschikbaar om te kiezen"}
       </div>
     </button>
@@ -96,8 +105,116 @@ function ContractCard({ label, desc, count, disabled, reason, hovered, onMouseEn
 
 function HistoryItem({ children }) {
   return (
-    <div style={softCardStyle({ padding: "10px 12px", background: "rgba(255,255,255,0.04)" })}>
+    <div
+      style={softCardStyle({
+        padding: "10px 12px",
+        background: "rgba(255,255,255,0.04)",
+      })}
+    >
       {children}
+    </div>
+  );
+}
+
+function getCurrentRoundTrickCounts(trickHistory, playersCount) {
+  const counts = Array(playersCount).fill(0);
+
+  for (const trick of trickHistory ?? []) {
+    const winnerIndex = trick?.winnerIndex;
+
+    if (
+      typeof winnerIndex === "number" &&
+      winnerIndex >= 0 &&
+      winnerIndex < playersCount
+    ) {
+      counts[winnerIndex] += 1;
+    }
+  }
+
+  return counts;
+}
+
+function formatRoundDelta(value) {
+  const n = Number(value ?? 0);
+
+  if (n > 0) return `+${n}`;
+  if (n < 0) return `${n}`;
+  return "0";
+}
+
+function PlayerProgressBoard({
+  players,
+  currentIndex,
+  totalScores,
+  roundDeltas,
+  progressCounts,
+  progressLabel,
+  trickCounts,
+}) {
+  return (
+    <div style={softCardStyle({ padding: 16, display: "grid", gap: 10 })}>
+      <div style={{ fontWeight: 700, fontSize: 18 }}>Rondestatus</div>
+      <div style={{ color: colors.muted, fontSize: 13 }}>
+        Per speler: deze ronde, voortgang en totaalscore.
+      </div>
+
+      <div style={{ display: "grid", gap: 8 }}>
+        {players.map((player, index) => {
+          const isCurrent = index === currentIndex;
+
+          return (
+            <div
+              key={player.id ?? index}
+              style={softCardStyle({
+                padding: "12px 14px",
+                display: "grid",
+                gap: 4,
+                background: isCurrent
+                  ? "rgba(251,191,36,0.08)"
+                  : "rgba(255,255,255,0.04)",
+                border: isCurrent
+                  ? "1px solid rgba(251,191,36,0.22)"
+                  : "1px solid rgba(255,255,255,0.08)",
+              })}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  alignItems: "center",
+                }}
+              >
+                <div style={{ fontWeight: 800 }}>
+                  {player.name ?? `Player ${index + 1}`}
+                </div>
+
+                <div style={{ fontWeight: 900, fontSize: 18 }}>
+                  {totalScores[index] ?? 0}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  fontSize: 13,
+                  color: colors.muted,
+                  display: "flex",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span>{formatRoundDelta(roundDeltas[index] ?? 0)} deze ronde</span>
+                <span>·</span>
+                <span>
+                  {progressCounts[index] ?? 0}/2 {progressLabel}
+                </span>
+                <span>·</span>
+                <span>{trickCounts[index] ?? 0} slagen</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -112,12 +229,17 @@ export function DobbelkingenPanel({
   const [hoveredContract, setHoveredContract] = useState(null);
   const [hoveredTroef, setHoveredTroef] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
-  const { isMobile, isTablet } = useViewport();
+  const { isMobile } = useViewport();
 
   const d = appState?.game?.dobbelkingen ?? null;
   const players = appState?.players ?? [];
   const playersCount = players.length || 4;
   const phase = appState?.phase ?? "-";
+  const isReady = phase === "DOBBELKINGEN_READY";
+  const isChoosingContract = phase === "CHOOSING_CONTRACT";
+  const isChoosingTroef = phase === "CHOOSING_TROEF";
+  const isPlaying = phase === "PLAYING_TRICK";
+  const isLiveMatch = isChoosingContract || isChoosingTroef || isPlaying;
 
   const chooserIndex =
     phase === "CHOOSING_TROEF"
@@ -135,7 +257,8 @@ export function DobbelkingenPanel({
         ? d.leaderIndex
         : (chooserIndex + 1) % playersCount;
 
-  const currentIndex = typeof d?.currentPlayerIndex === "number" ? d.currentPlayerIndex : 0;
+  const currentIndex =
+    typeof d?.currentPlayerIndex === "number" ? d.currentPlayerIndex : 0;
 
   const chooserName = players?.[chooserIndex]?.name ?? `Player ${chooserIndex + 1}`;
   const leaderName = players?.[leaderIndex]?.name ?? `Player ${leaderIndex + 1}`;
@@ -146,6 +269,14 @@ export function DobbelkingenPanel({
   const lastContract = d?.lastContract ?? null;
   const troefPickCounts = d?.troefPickCounts ?? [];
   const history = d?.history ?? [];
+  const trickHistory = d?.trickHistory ?? [];
+  const totalScores = d?.totalScores ?? Array(playersCount).fill(0);
+  const roundDeltas = d?.lastResult?.contractScores ?? Array(playersCount).fill(0);
+
+  const currentRoundTrickCounts = getCurrentRoundTrickCounts(
+    trickHistory,
+    playersCount
+  );
 
   function getContractDisabledReason(contractId) {
     if (lastContract === contractId) return "Niet 2× na elkaar";
@@ -158,12 +289,30 @@ export function DobbelkingenPanel({
     return !getContractDisabledReason(contractId);
   }
 
+  const phase1PickCounts = players.map((_, index) =>
+    Math.min(
+      2,
+      history.filter(
+        (entry) =>
+          entry?.contract !== "TROEF" &&
+          entry?.chooserIndex === index
+      ).length
+    )
+  );
+
   return (
     <>
       <DobbelkingenInfo open={showInfo} onClose={() => setShowInfo(false)} />
 
       <div style={panelStyle({ padding: 20, display: "grid", gap: 16 })}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
           <div>
             <div style={{ fontWeight: 700, fontSize: 28 }}>Dobbelkingen</div>
             <div style={{ color: colors.muted, marginTop: 4 }}>
@@ -172,16 +321,16 @@ export function DobbelkingenPanel({
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-
-
-
             <button onClick={() => setShowInfo(true)} style={buttonStyle()}>
               Info
             </button>
 
-            {appState.devMode && appState.phase === "CHOOSING_TROEF" && (
-              <button onClick={() => dispatchAction?.({ type: "debug_finish_phase2_match" })} style={buttonStyle("success")}>
-                Match afronden
+            {isLiveMatch && (
+              <button
+                onClick={() => dispatchAction?.({ type: "finish_dobbelkingen_match" })}
+                style={buttonStyle()}
+              >
+                Match direct afronden
               </button>
             )}
 
@@ -191,47 +340,76 @@ export function DobbelkingenPanel({
           </div>
         </div>
 
-        <div
-          style={softCardStyle({
-            padding: 12,
-            display: "flex",
-            gap: 8,
-            flexWrap: "wrap",
-            alignItems: "center",
-            background: "rgba(255,255,255,0.03)",
-          })}
-        >
-          <MiniStat label="Fase" value={phase === "CHOOSING_CONTRACT" ? "Contractkeuze" : phase === "CHOOSING_TROEF" ? "Troefkeuze" : phase} accent={colors.accent} />
-          <MiniStat label="Ronde" value={String(d?.roundPhase ?? 1)} accent={colors.green} />
-          <MiniStat label="Kiest" value={chooserName} accent={colors.blue} />
-          <MiniStat label="Komt uit" value={leaderName} accent={colors.red} />
-          <MiniStat label="Troef" value={getTrumpLabel(d?.currentTrumpSuit)} accent={colors.accent} />
-        </div>
+        {isReady && (
+          <>
+            <div
+              style={softCardStyle({
+                padding: 18,
+                display: "grid",
+                gap: 10,
+                background: "rgba(255,255,255,0.03)",
+              })}
+            >
+              <div style={{ fontWeight: 800, fontSize: 18 }}>
+                Start een nieuwe match
+              </div>
 
-        {appState.phase === "DOBBELKINGEN_READY" && (
-          <div style={softCardStyle({ padding: 18, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" })}>
-            <div style={{ fontWeight: 700, color: colors.muted, flex: 1 }}>
-              Start een nieuwe match. Iedereen begint in fase 1 met contractkeuzes.
+              <div style={{ color: colors.muted, lineHeight: 1.6 }}>
+                Iedere speler kiest 2 contracten.
+                <br />
+                Na fase 1 volgt fase 2 waarin troef gekozen wordt.
+                <br />
+                De speler na de troefkiezer komt uit in de eerste slag.
+              </div>
             </div>
-            <button onClick={onStart} style={buttonStyle("primary")}>
-              Start Dobbelkingen
-            </button>
-            <button onClick={() => setShowInfo(true)} style={buttonStyle()}>
-              Lees regels
-            </button>
-          </div>
+
+            <div
+              style={softCardStyle({
+                padding: 18,
+                display: "flex",
+                gap: 10,
+                flexWrap: "wrap",
+                alignItems: "center",
+              })}
+            >
+              <button onClick={onStart} style={buttonStyle("primary")}>
+                Start Dobbelkingen
+              </button>
+
+              <button onClick={() => setShowInfo(true)} style={buttonStyle()}>
+                Lees regels
+              </button>
+            </div>
+          </>
         )}
 
-        {appState.phase === "CHOOSING_CONTRACT" && (
+        {isChoosingContract && (
           <>
-            <div style={softCardStyle({ padding: 14, display: "grid", gap: 2, background: "rgba(251,191,36,0.08)" })}>
-              <div style={{ fontWeight: 700, fontSize: isMobile ? 18 : 20 }}>{chooserName} kiest nu een contract</div>
+            <div
+              style={softCardStyle({
+                padding: 14,
+                display: "grid",
+                gap: 2,
+                background: "rgba(251,191,36,0.08)",
+              })}
+            >
+              <div style={{ fontWeight: 700, fontSize: isMobile ? 18 : 20 }}>
+                {chooserName} kiest nu een contract
+              </div>
               <div style={{ color: colors.muted, fontSize: 14 }}>
                 Volgende speler komt uit in de eerste slag.
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "repeat(auto-fit, minmax(250px, 1fr))", gap: 12 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "minmax(0, 1fr)"
+                  : "repeat(3, minmax(0, 1fr))",
+                gap: 14,
+              }}
+            >
               {contractList.map((id) => {
                 const c = getContract(id);
                 const label = c?.label ?? id;
@@ -261,24 +439,22 @@ export function DobbelkingenPanel({
               })}
             </div>
 
-            <Scoreboard
+            <PlayerProgressBoard
               players={players}
-              scores={d?.totalScores ?? Array(playersCount).fill(0)}
-              currentPlayerIndex={currentIndex}
-              flashWinnerIndex={null}
-              allowEdit={true}
-              onAdjustScore={(playerIndex, delta) =>
-                dispatchAction?.({
-                  type: "adjust_total_score",
-                  playerIndex,
-                  delta,
-                })
-              }
+              currentIndex={currentIndex}
+              totalScores={totalScores}
+              roundDeltas={roundDeltas}
+              progressCounts={phase1PickCounts}
+              progressLabel="gekozen"
+              trickCounts={currentRoundTrickCounts}
             />
 
             
               <div style={{ display: "flex", justifyContent: "flex-start" }}>
-                <button onClick={() => dispatchAction?.({ type: "debug_go_to_phase2" })} style={buttonStyle("success")}>
+                <button
+                  onClick={() => dispatchAction?.({ type: "debug_go_to_phase2" })}
+                  style={buttonStyle("success")}
+                >
                   Doorgaan naar fase 2
                 </button>
               </div>
@@ -286,22 +462,44 @@ export function DobbelkingenPanel({
           </>
         )}
 
-        {appState.phase === "CHOOSING_TROEF" && (
+        {isChoosingTroef && (
           <>
-            <div style={softCardStyle({ padding: 14, display: "grid", gap: 2, background: "rgba(74,222,128,0.08)" })}>
-              <div style={{ fontWeight: 700, fontSize: isMobile ? 18 : 20 }}>{chooserName} kiest troef</div>
-              <div style={{ color: colors.muted, fontSize: 14 }}>{leaderName} komt uit in de eerste slag.</div>
+            <div
+              style={softCardStyle({
+                padding: 14,
+                display: "grid",
+                gap: 2,
+                background: "rgba(74,222,128,0.08)",
+              })}
+            >
+              <div style={{ fontWeight: 700, fontSize: isMobile ? 18 : 20 }}>
+                {chooserName} kiest troef
+              </div>
+              <div style={{ color: colors.muted, fontSize: 14 }}>
+                {leaderName} komt uit in de eerste slag.
+              </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "repeat(2, minmax(0, 1fr))"
+                  : "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: 12,
+              }}
+            >
               {TROEF_OPTIONS.map((opt) => {
                 const hovered = hoveredTroef === opt.suit;
+
                 return (
                   <button
                     key={opt.suit}
                     onMouseEnter={() => setHoveredTroef(opt.suit)}
                     onMouseLeave={() => setHoveredTroef(null)}
-                    onClick={() => dispatchAction?.({ type: "choose_troef_suit", suit: opt.suit })}
+                    onClick={() =>
+                      dispatchAction?.({ type: "choose_troef_suit", suit: opt.suit })
+                    }
                     style={{
                       ...softCardStyle({
                         padding: 18,
@@ -311,79 +509,57 @@ export function DobbelkingenPanel({
                         gap: 8,
                         transform: hovered ? "translateY(-2px)" : "none",
                         transition: "all 0.16s ease",
-                        background: hovered ? "rgba(96, 165, 250, 0.10)" : "rgba(255,255,255,0.04)",
-                        border: hovered ? "1px solid rgba(96, 165, 250, 0.28)" : "1px solid rgba(255,255,255,0.08)",
+                        background: hovered
+                          ? "rgba(96, 165, 250, 0.10)"
+                          : "rgba(255,255,255,0.04)",
+                        border: hovered
+                          ? "1px solid rgba(96, 165, 250, 0.28)"
+                          : "1px solid rgba(255,255,255,0.08)",
                       }),
                     }}
                   >
                     <div style={{ fontWeight: 700, fontSize: 22, color: opt.color }}>
                       {opt.symbol} {opt.label}
                     </div>
-                    <div style={{ color: colors.muted, fontSize: 14 }}>Gekozen door {chooserName}</div>
+                    <div style={{ color: colors.muted, fontSize: 14 }}>
+                      Gekozen door {chooserName}
+                    </div>
                   </button>
                 );
               })}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: isTablet ? "minmax(0, 1fr)" : "minmax(0, 1fr) minmax(0, 1fr)", gap: 12 }}>
-              <div style={softCardStyle({ padding: 16, display: "grid", gap: 10 })}>
-                <div style={{ fontWeight: 700, fontSize: 18 }}>Troef-keuzes</div>
-                <div style={{ display: "grid", gap: 8 }}>
-                  {players.map((p, index) => (
-                    <div
-                      key={p.id ?? index}
-                      style={softCardStyle({
-                        padding: "10px 12px",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 12,
-                        background: "rgba(255,255,255,0.04)",
-                      })}
-                    >
-                      <div>{p.name ?? `Player ${index + 1}`}</div>
-                      <div style={{ fontWeight: 700 }}>{troefPickCounts?.[index] ?? 0}/2 gekozen</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <Scoreboard
-                players={players}
-                scores={d?.totalScores ?? Array(playersCount).fill(0)}
-                currentPlayerIndex={currentIndex}
-                flashWinnerIndex={null}
-                allowEdit={true}
-                onAdjustScore={(playerIndex, delta) =>
-                  dispatchAction?.({
-                    type: "adjust_total_score",
-                    playerIndex,
-                    delta,
-                  })
-                }
-              />
-            </div>
-
-            {appState.devMode && (
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <button onClick={() => dispatchAction?.({ type: "debug_finish_phase2_match" })} style={buttonStyle("success")}>
-                  Match direct afronden
-                </button>
-              </div>
-            )}
+            <PlayerProgressBoard
+              players={players}
+              currentIndex={currentIndex}
+              totalScores={totalScores}
+              roundDeltas={roundDeltas}
+              progressCounts={troefPickCounts}
+              progressLabel="troef gekozen"
+              trickCounts={currentRoundTrickCounts}
+            />
           </>
         )}
 
         {history.length > 0 && (
           <div style={{ display: "grid", gap: 8 }}>
             <div style={{ fontWeight: 700, fontSize: 18 }}>History</div>
+
             <div style={{ display: "grid", gap: 8 }}>
-              {[...history].slice().reverse().map((entry, index) => (
-                <HistoryItem key={`${entry.contract}-${entry.timestamp ?? index}-${index}`}>
-                  <b>{entry.label ?? entry.contract}</b>{" "}
-                  {entry.trumpSuit ? `(${getTrumpLabel(entry.trumpSuit)}) ` : ""}
-                  — gespeeld door <b>{players?.[entry.chooserIndex]?.name ?? `Player ${(entry.chooserIndex ?? 0) + 1}`}</b>
-                </HistoryItem>
-              ))}
+              {[...history]
+                .slice()
+                .reverse()
+                .map((entry, index) => (
+                  <HistoryItem key={`${entry.contract}-${entry.timestamp ?? index}-${index}`}>
+                    <b>{entry.label ?? entry.contract}</b>{" "}
+                    {entry.trumpSuit ? `(${getTrumpLabel(entry.trumpSuit)}) ` : ""}
+                    — gespeeld door{" "}
+                    <b>
+                      {players?.[entry.chooserIndex]?.name ??
+                        `Player ${(entry.chooserIndex ?? 0) + 1}`}
+                    </b>
+                  </HistoryItem>
+                ))}
             </div>
           </div>
         )}

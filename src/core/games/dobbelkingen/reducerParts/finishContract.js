@@ -52,14 +52,57 @@ function buildRanking(finalScores, players) {
     }));
 }
 
-function buildMatchSummary({
-  players,
-  d,
-  finalScores,
-  finishedAt,
-}) {
+function sumScoresByPhaseEntries(entries, players) {
+  const totals = Array(players.length).fill(0);
+
+  for (const entry of entries ?? []) {
+    for (let i = 0; i < players.length; i += 1) {
+      totals[i] += Number(entry?.contractScores?.[i] ?? 0);
+    }
+  }
+
+  return totals.map((score, playerIndex) => ({
+    playerIndex,
+    name: players?.[playerIndex]?.name ?? `Player ${playerIndex + 1}`,
+    score,
+  }));
+}
+
+function buildPhaseEntries(entries, players) {
+  return (entries ?? []).map((entry) => {
+    const chooserIndex = entry?.chooserIndex ?? null;
+    const chooserName =
+      typeof chooserIndex === "number"
+        ? players?.[chooserIndex]?.name ?? `Player ${chooserIndex + 1}`
+        : "Onbekend";
+
+    const scoreDelta =
+      typeof chooserIndex === "number"
+        ? Number(entry?.contractScores?.[chooserIndex] ?? 0)
+        : 0;
+
+    return {
+      ...entry,
+      chooserName,
+      scoreDelta,
+    };
+  });
+}
+
+function buildMatchSummary({ players, d, finalScores, finishedAt }) {
   const ranking = buildRanking(finalScores, players);
   const winner = ranking[0] ?? null;
+  const history = [...(d.history ?? [])];
+
+  const phase1Contracts = buildPhaseEntries(
+    history.filter((entry) => entry?.contract && entry.contract !== "TROEF"),
+    players
+  );
+
+  const phase2Contracts = buildPhaseEntries(
+    history.filter((entry) => entry?.contract === "TROEF"),
+    players
+  );
 
   return {
     matchId: `dobbelkingen_${finishedAt}`,
@@ -74,7 +117,12 @@ function buildMatchSummary({
       playerIndex: index,
       name: p?.name ?? `Player ${index + 1}`,
     })),
-    contracts: [...(d.history ?? [])],
+    contracts: history,
+    phase1Contracts,
+    phase2Contracts,
+    phase1Totals: sumScoresByPhaseEntries(phase1Contracts, players),
+    phase2Totals: sumScoresByPhaseEntries(phase2Contracts, players),
+    totalRounds: history.length,
   };
 }
 

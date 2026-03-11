@@ -6,6 +6,39 @@ function getCardTone(label) {
   return label.includes("♥") || label.includes("♦") ? "#ff9aa8" : "#f5efe6";
 }
 
+function getPrettyContractLabel(label) {
+  return String(label ?? "—")
+    .replaceAll("_", " ")
+    .trim();
+}
+
+function getTrumpSymbol(label) {
+  const value = String(label ?? "").toUpperCase();
+
+  if (value.includes("♥") || value.includes("HARTEN")) return "♥";
+  if (value.includes("♦") || value.includes("RUITEN")) return "♦";
+  if (value.includes("♣") || value.includes("KLAVEREN")) return "♣";
+  if (value.includes("♠") || value.includes("SCHOPPEN")) return "♠";
+
+  return null;
+}
+
+function getTrumpTone(symbol) {
+  if (symbol === "♥" || symbol === "♦") {
+    return {
+      color: "rgba(255, 150, 170, 0.28)",
+      shadow:
+        "0 0 10px rgba(255, 110, 140, 0.10), 0 0 22px rgba(255, 160, 180, 0.06)",
+    };
+  }
+
+  return {
+    color: "rgba(255, 235, 205, 0.24)",
+    shadow:
+      "0 0 10px rgba(255, 235, 205, 0.08), 0 0 20px rgba(255, 210, 120, 0.05)",
+  };
+}
+
 function SeatCard({ label, animationName = "seatCardPopIn" }) {
   if (!label) return null;
 
@@ -235,6 +268,119 @@ function Seat({
   );
 }
 
+function TableOrnaments({ contractLabel, trumpLabel }) {
+  const prettyContract = getPrettyContractLabel(contractLabel);
+  const trumpSymbol = getTrumpSymbol(trumpLabel);
+  const showTrump = !!trumpSymbol && trumpLabel !== "—";
+  const showContract =
+    !showTrump &&
+    prettyContract &&
+    prettyContract !== "—" &&
+    prettyContract !== "TROEF";
+
+  const leftBaseStyle = {
+    position: "absolute",
+    top: "50.5%",
+    left: "31.5%",
+    transform: "translate(-50%, -50%)",
+    pointerEvents: "none",
+    zIndex: 1,
+    userSelect: "none",
+    whiteSpace: "nowrap",
+  };
+
+  const rightBaseStyle = {
+    position: "absolute",
+    top: "50.5%",
+    left: "68.5%",
+    transform: "translate(-50%, -50%)",
+    pointerEvents: "none",
+    zIndex: 1,
+    userSelect: "none",
+    whiteSpace: "nowrap",
+  };
+
+  if (showTrump) {
+    const tone = getTrumpTone(trumpSymbol);
+
+    return (
+      <>
+        <div
+          style={{
+            ...leftBaseStyle,
+            fontSize: 54,
+            fontWeight: 900,
+            letterSpacing: "0.04em",
+            color: tone.color,
+            textShadow: tone.shadow,
+            filter: "drop-shadow(0 0 10px rgba(255, 210, 120, 0.08))",
+          }}
+        >
+          {trumpSymbol}
+        </div>
+
+        <div
+          style={{
+            ...rightBaseStyle,
+            fontSize: 54,
+            fontWeight: 900,
+            letterSpacing: "0.04em",
+            color: tone.color,
+            textShadow: tone.shadow,
+            filter: "drop-shadow(0 0 10px rgba(255, 210, 120, 0.08))",
+          }}
+        >
+          {trumpSymbol}
+        </div>
+      </>
+    );
+  }
+
+  if (showContract) {
+    return (
+      <>
+        <div
+          style={{
+            ...leftBaseStyle,
+            maxWidth: 210,
+            textAlign: "center",
+            fontSize: 21,
+            fontWeight: 900,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            lineHeight: 1.15,
+            color: "rgba(255, 225, 180, 0.17)",
+            textShadow:
+              "0 0 8px rgba(255, 200, 120, 0.07), 0 0 18px rgba(255, 180, 90, 0.03)",
+          }}
+        >
+          {prettyContract}
+        </div>
+
+        <div
+          style={{
+            ...rightBaseStyle,
+            maxWidth: 210,
+            textAlign: "center",
+            fontSize: 21,
+            fontWeight: 900,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            lineHeight: 1.15,
+            color: "rgba(255, 225, 180, 0.17)",
+            textShadow:
+              "0 0 8px rgba(255, 200, 120, 0.07), 0 0 18px rgba(255, 180, 90, 0.03)",
+          }}
+        >
+          {prettyContract}
+        </div>
+      </>
+    );
+  }
+
+  return null;
+}
+
 export function TableDirection({
   players = [],
   currentPlayerIndex = 0,
@@ -353,6 +499,7 @@ export function TableDirection({
             transform: translateY(0) scale(1);
           }
         }
+
         @keyframes centerCardSettle {
           0% {
             opacity: 0;
@@ -434,19 +581,6 @@ export function TableDirection({
             Contract&nbsp; <b>{String(contractLabel || "—").replaceAll("_", " ")}</b>
           </div>
 
-          {trumpLabel && trumpLabel !== "—" && (
-            <div
-              style={{
-                ...pillStyle(),
-                fontSize: 14,
-                fontWeight: 900,
-                padding: "10px 16px",
-              }}
-            >
-              Troef&nbsp; <b>{trumpLabel}</b>
-            </div>
-          )}
-
           {showTopRightTrick && (
             <div
               style={{
@@ -492,6 +626,7 @@ export function TableDirection({
             opacity: 0.72,
           }}
         />
+
         <div
           style={{
             position: "absolute",
@@ -507,6 +642,9 @@ export function TableDirection({
             opacity: 0.88,
           }}
         />
+
+        <TableOrnaments contractLabel={contractLabel} trumpLabel={trumpLabel} />
+
         <div
           style={{
             position: "absolute",
