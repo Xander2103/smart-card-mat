@@ -29,6 +29,13 @@ const actionButtonStyle = {
   border: "1px solid rgba(251, 191, 36, 0.3)",
 };
 
+const dangerButtonStyle = {
+  ...buttonStyle,
+  background:
+    "linear-gradient(180deg, rgba(127, 29, 29, 0.78) 0%, rgba(80, 20, 20, 0.78) 100%)",
+  border: "1px solid rgba(248, 113, 113, 0.35)",
+};
+
 const guestButtonStyle = {
   ...buttonStyle,
   width: "100%",
@@ -73,6 +80,10 @@ function moveItem(array, fromIndex, toIndex) {
   return next;
 }
 
+function isDevProfileName(name) {
+  return /^DEV\b/i.test(String(name ?? "").trim());
+}
+
 export function PlayersScreen({ appState, dispatchAction, locked = false }) {
   const [profiles, setProfiles] = useState([]);
   const [newPlayerName, setNewPlayerName] = useState("");
@@ -89,6 +100,18 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
 
   useEffect(() => {
     refreshProfiles();
+  }, []);
+
+  useEffect(() => {
+    function handleDataChanged() {
+      refreshProfiles();
+    }
+
+    window.addEventListener("smartcardmat:data-changed", handleDataChanged);
+
+    return () => {
+      window.removeEventListener("smartcardmat:data-changed", handleDataChanged);
+    };
   }, []);
 
   function handleCreatePlayer(event) {
@@ -227,10 +250,44 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
     refreshProfiles();
   }
 
+  function handleDeleteDevData() {
+    if (locked) {
+      setError("Spelers zijn vergrendeld terwijl een match bezig is.");
+      return;
+    }
+
+    const ok = window.confirm(
+      "Delete all DEV accounts and clear simulated matches? This cannot be undone."
+    );
+    if (!ok) return;
+
+    const devProfiles = profiles.filter((profile) => isDevProfileName(profile.name));
+    const devProfileIds = new Set(devProfiles.map((profile) => profile.id));
+
+    const nextPlayers = selectedPlayers.filter(
+      (player) => !devProfileIds.has(player.id) && !isDevProfileName(player.name)
+    );
+
+    dispatchAction({ type: "set_players", players: nextPlayers });
+
+    storageService.clearSimulatedMatches();
+
+    for (const profile of devProfiles) {
+      if (typeof storageService.deletePlayer === "function") {
+        storageService.deletePlayer(profile.id);
+      }
+    }
+
+    setError("");
+    refreshProfiles();
+  }
+
   const profileStats = profiles.map((profile) => ({
     profile,
     stats: storageService.getPlayerStats(profile.id),
   }));
+
+  const hasDevProfiles = profiles.some((profile) => isDevProfileName(profile.name));
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -247,17 +304,33 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
         >
           <h2 style={{ margin: 0 }}>Players</h2>
 
-          <button
-            onClick={handleClearSelection}
-            style={{
-              ...buttonStyle,
-              opacity: locked ? 0.5 : 1,
-              cursor: locked ? "not-allowed" : "pointer",
-            }}
-            disabled={locked}
-          >
-            Clear selection
-          </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {appState?.devMode && hasDevProfiles && (
+              <button
+                onClick={handleDeleteDevData}
+                style={{
+                  ...dangerButtonStyle,
+                  opacity: locked ? 0.5 : 1,
+                  cursor: locked ? "not-allowed" : "pointer",
+                }}
+                disabled={locked}
+              >
+                Delete DEV accounts
+              </button>
+            )}
+
+            <button
+              onClick={handleClearSelection}
+              style={{
+                ...buttonStyle,
+                opacity: locked ? 0.5 : 1,
+                cursor: locked ? "not-allowed" : "pointer",
+              }}
+              disabled={locked}
+            >
+              Clear selection
+            </button>
+          </div>
         </div>
 
         <div style={{ color: "#c8b6a1", marginBottom: 10 }}>
@@ -380,11 +453,13 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
                     onMouseEnter={(e) => {
                       if (locked) return;
                       e.currentTarget.style.background = "rgba(127, 29, 29, 0.55)";
-                      e.currentTarget.style.borderColor = "rgba(248, 113, 113, 0.35)";
+                      e.currentTarget.style.borderColor =
+                        "rgba(248, 113, 113, 0.35)";
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                      e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.18)";
+                      e.currentTarget.style.borderColor =
+                        "rgba(251, 191, 36, 0.18)";
                     }}
                     style={{
                       position: "absolute",
@@ -446,19 +521,23 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
                       disabled={locked || index === 0}
                       onMouseEnter={(e) => {
                         if (locked || index === 0) return;
-                        e.currentTarget.style.background = "rgba(217, 119, 6, 0.18)";
-                        e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.35)";
+                        e.currentTarget.style.background =
+                          "rgba(217, 119, 6, 0.18)";
+                        e.currentTarget.style.borderColor =
+                          "rgba(251, 191, 36, 0.35)";
                         e.currentTarget.style.transform = "translateY(-1px)";
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)";
+                        e.currentTarget.style.borderColor =
+                          "rgba(255,255,255,0.10)";
                         e.currentTarget.style.transform = "translateY(0)";
                       }}
                       style={{
                         ...seatMoveButtonStyle,
                         opacity: locked || index === 0 ? 0.4 : 1,
-                        cursor: locked || index === 0 ? "not-allowed" : "pointer",
+                        cursor:
+                          locked || index === 0 ? "not-allowed" : "pointer",
                         transition:
                           "background 0.15s ease, border-color 0.15s ease, transform 0.15s ease",
                       }}
@@ -472,13 +551,16 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
                       disabled={locked || index === selectedPlayers.length - 1}
                       onMouseEnter={(e) => {
                         if (locked || index === selectedPlayers.length - 1) return;
-                        e.currentTarget.style.background = "rgba(217, 119, 6, 0.18)";
-                        e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.35)";
+                        e.currentTarget.style.background =
+                          "rgba(217, 119, 6, 0.18)";
+                        e.currentTarget.style.borderColor =
+                          "rgba(251, 191, 36, 0.35)";
                         e.currentTarget.style.transform = "translateY(-1px)";
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)";
+                        e.currentTarget.style.borderColor =
+                          "rgba(255,255,255,0.10)";
                         e.currentTarget.style.transform = "translateY(0)";
                       }}
                       style={{
@@ -544,11 +626,13 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
                     onMouseEnter={(e) => {
                       if (locked) return;
                       e.currentTarget.style.background = "rgba(127, 29, 29, 0.55)";
-                      e.currentTarget.style.borderColor = "rgba(248, 113, 113, 0.35)";
+                      e.currentTarget.style.borderColor =
+                        "rgba(248, 113, 113, 0.35)";
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                      e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.18)";
+                      e.currentTarget.style.borderColor =
+                        "rgba(251, 191, 36, 0.18)";
                     }}
                     style={{
                       position: "absolute",
@@ -569,7 +653,8 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
                       padding: "0 12px",
                       lineHeight: 1,
                       textAlign: "center",
-                      transition: "background 0.15s ease, border-color 0.15s ease",
+                      transition:
+                        "background 0.15s ease, border-color 0.15s ease",
                     }}
                     title="Account verwijderen"
                     aria-label="Account verwijderen"

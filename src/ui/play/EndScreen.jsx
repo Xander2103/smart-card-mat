@@ -1,5 +1,13 @@
 import { buttonStyle, colors, panelStyle, softCardStyle } from "./theme";
 
+function getPlayerName(summary, playerIndex) {
+  return (
+    summary?.players?.find((player) => player.playerIndex === playerIndex)?.name ??
+    summary?.ranking?.find((row) => row.playerIndex === playerIndex)?.name ??
+    `Player ${playerIndex + 1}`
+  );
+}
+
 export function EndScreen({ summary, onNewGame, onBackHome }) {
   const ranking = summary?.ranking ?? [];
   const finalScores = summary?.finalScores ?? [];
@@ -15,7 +23,14 @@ export function EndScreen({ summary, onNewGame, onBackHome }) {
     >
       <div style={{ textAlign: "center" }}>
         <div style={{ fontSize: 30, fontWeight: 900 }}>Dobbelkingen klaar</div>
-        <div style={{ marginTop: 8, fontSize: 18, fontWeight: 800, color: colors.accent }}>
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 18,
+            fontWeight: 800,
+            color: colors.accent,
+          }}
+        >
           🏆 Winnaar: {winnerName}
         </div>
       </div>
@@ -29,6 +44,7 @@ export function EndScreen({ summary, onNewGame, onBackHome }) {
       >
         <div style={softCardStyle({ padding: 16, display: "grid", gap: 10 })}>
           <div style={{ fontWeight: 900, fontSize: 18 }}>Eindranking</div>
+
           {ranking.map((row) => (
             <div
               key={row.playerIndex}
@@ -37,7 +53,8 @@ export function EndScreen({ summary, onNewGame, onBackHome }) {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                background: row.place === 1 ? colors.accentSoft : "rgba(255,255,255,0.04)",
+                background:
+                  row.place === 1 ? colors.accentSoft : "rgba(255,255,255,0.04)",
               })}
             >
               <div>
@@ -50,6 +67,7 @@ export function EndScreen({ summary, onNewGame, onBackHome }) {
 
         <div style={softCardStyle({ padding: 16, display: "grid", gap: 10 })}>
           <div style={{ fontWeight: 900, fontSize: 18 }}>Totaalscores</div>
+
           {finalScores.map((score, index) => (
             <div
               key={index}
@@ -61,14 +79,21 @@ export function EndScreen({ summary, onNewGame, onBackHome }) {
                 background: "rgba(255,255,255,0.04)",
               })}
             >
-              <div>Player {index + 1}</div>
+              <div>{getPlayerName(summary, index)}</div>
               <div style={{ fontWeight: 900 }}>{score}</div>
             </div>
           ))}
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          justifyContent: "center",
+          flexWrap: "wrap",
+        }}
+      >
         <button onClick={onNewGame} style={buttonStyle("primary")}>
           Nieuw spel
         </button>
