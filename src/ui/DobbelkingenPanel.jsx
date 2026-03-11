@@ -65,15 +65,30 @@ function ContractCard({
     >
       <div
         style={{
+          position: "relative",
+          minHeight: 24,
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          gap: 10,
+          justifyContent: "center",
         }}
       >
-        <div style={{ fontWeight: 700, fontSize: 17 }}>{label}</div>
         <div
           style={{
+            fontWeight: 700,
+            fontSize: 17,
+            textAlign: "center",
+            width: "100%",
+            paddingRight: 42,
+          }}
+        >
+          {label}
+        </div>
+
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
             borderRadius: 999,
             padding: "4px 8px",
             background: count >= 2 ? colors.redSoft : colors.accentSoft,
@@ -86,7 +101,14 @@ function ContractCard({
         </div>
       </div>
 
-      <div style={{ color: colors.muted, fontSize: 14, lineHeight: 1.5 }}>
+      <div
+        style={{
+          color: colors.muted,
+          fontSize: 14,
+          lineHeight: 1.5,
+          textAlign: "center",
+        }}
+      >
         {desc}
       </div>
 
@@ -95,6 +117,7 @@ function ContractCard({
           fontSize: 12,
           fontWeight: 700,
           color: disabled ? "#fda4af" : colors.muted,
+          textAlign: "center",
         }}
       >
         {reason || "Beschikbaar om te kiezen"}
@@ -152,12 +175,13 @@ function PlayerProgressBoard({
   trickCounts,
 }) {
   return (
-    <div style={softCardStyle({ padding: 16, display: "grid", gap: 10 })}>
-      <div style={{ fontWeight: 700, fontSize: 18 }}>Rondestatus</div>
-      <div style={{ color: colors.muted, fontSize: 13 }}>
+    <div style={softCardStyle({ padding: 16, display: "grid", gap: 7 })}>
+      <div style={{ fontWeight: 700, fontSize: 18, textAlign: "center" }}>
+        Rondestatus
+      </div>
+      <div style={{ color: colors.muted, fontSize: 13, textAlign: "center" }}>
         Per speler: deze ronde, voortgang en totaalscore.
       </div>
-
       <div style={{ display: "grid", gap: 8 }}>
         {players.map((player, index) => {
           const isCurrent = index === currentIndex;
@@ -166,9 +190,12 @@ function PlayerProgressBoard({
             <div
               key={player.id ?? index}
               style={softCardStyle({
-                padding: "12px 14px",
+                padding: "14px 16px",
                 display: "grid",
-                gap: 8,
+                gridTemplateColumns: "1fr auto 1fr",
+                alignItems: "center",
+                gap: 16,
+                minHeight: 72,
                 background: isCurrent
                   ? "rgba(251,191,36,0.08)"
                   : "rgba(255,255,255,0.04)",
@@ -179,31 +206,28 @@ function PlayerProgressBoard({
             >
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  alignItems: "center",
+                  justifySelf: "start",
+                  alignSelf: "center",
+                  fontWeight: 800,
+                  fontSize: 18,
                 }}
               >
-                <div style={{ fontWeight: 800, fontSize: 18 }}>
-                  {player.name ?? `Player ${index + 1}`}
-                </div>
-
-                <div style={{ fontWeight: 900, fontSize: 20 }}>
-                  {totalScores[index] ?? 0}
-                </div>
+                {player.name ?? `Player ${index + 1}`}
               </div>
 
               <div
                 style={{
+                  justifySelf: "center",
+                  alignSelf: "center",
                   fontSize: 14,
                   color: "#e5d7c7",
-                  textAlign: "center",
                   fontWeight: 700,
                   display: "flex",
+                  alignItems: "center",
                   justifyContent: "center",
-                  gap: 10,
+                  gap: 14,
                   flexWrap: "wrap",
+                  textAlign: "center",
                 }}
               >
                 <span>{formatRoundDelta(roundDeltas[index] ?? 0)} deze ronde</span>
@@ -213,6 +237,19 @@ function PlayerProgressBoard({
                 </span>
                 <span>·</span>
                 <span>{trickCounts[index] ?? 0} slagen</span>
+              </div>
+
+              <div
+                style={{
+                  justifySelf: "end",
+                  alignSelf: "center",
+                  fontWeight: 900,
+                  fontSize: 22,
+                  minWidth: 32,
+                  textAlign: "right",
+                }}
+              >
+                {totalScores[index] ?? 0}
               </div>
             </div>
           );
@@ -340,20 +377,35 @@ export function DobbelkingenPanel({
       <div style={panelStyle({ padding: 20, display: "grid", gap: 16 })}>
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
+            display: "grid",
+            gridTemplateColumns: "1fr auto 1fr",
+            alignItems: "center",
             gap: 12,
-            flexWrap: "wrap",
           }}
         >
-          <div>
+          <div />
+
+          <div
+            style={{
+              textAlign: "center",
+              display: "grid",
+              justifyItems: "center",
+            }}
+          >
             <div style={{ fontWeight: 700, fontSize: 28 }}>Dobbelkingen</div>
             <div style={{ color: colors.muted, marginTop: 4 }}>
               Contractkeuzes, troefrondes en live score-opvolging op je Smart Card Mat.
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              justifyContent: "flex-end",
+              flexWrap: "wrap",
+            }}
+          >
             <button onClick={() => setShowInfo(true)} style={buttonStyle()}>
               Info
             </button>
@@ -412,19 +464,68 @@ export function DobbelkingenPanel({
             <div
               style={softCardStyle({
                 padding: 14,
-                display: "grid",
-                gap: 2,
                 background: "rgba(251,191,36,0.08)",
               })}
             >
-              <div style={{ fontWeight: 700, fontSize: isMobile ? 18 : 20 }}>
-                {chooserName} kiest nu een contract
-              </div>
-              <div style={{ color: colors.muted, fontSize: 14 }}>
-                Volgende speler komt uit in de eerste slag.
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr auto 1fr",
+                  alignItems: "center",
+                  gap: 16,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-start",
+                    gap: 12,
+                    fontSize: isMobile ? 18 : 22,
+                    fontWeight: 900,
+                    color: "rgba(255, 220, 170, 0.72)",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  <span style={{ color: "#fb7185" }}>♥</span>
+                  <span style={{ color: "#fb7185" }}>♦</span>
+                  <span style={{ color: "#f5efe6" }}>♣</span>
+                  <span style={{ color: "#f5efe6" }}>♠</span>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 4,
+                    justifyItems: "center",
+                    textAlign: "center",
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: isMobile ? 18 : 20 }}>
+                    {chooserName} kiest nu een contract
+                  </div>
+                  <div style={{ color: colors.muted, fontSize: 14 }}>
+                    Volgende speler komt uit in de eerste slag.
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: 12,
+                    fontSize: isMobile ? 18 : 22,
+                    fontWeight: 900,
+                    color: "rgba(255, 220, 170, 0.72)",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  <span style={{ color: "#fb7185" }}>♥</span>
+                  <span style={{ color: "#fb7185" }}>♦</span>
+                  <span style={{ color: "#f5efe6" }}>♣</span>
+                  <span style={{ color: "#f5efe6" }}>♠</span>
+                </div>
               </div>
             </div>
-
             <div
               style={{
                 display: "grid",
@@ -474,12 +575,12 @@ export function DobbelkingenPanel({
             />
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-               <button
-                  onClick={() => dispatchAction?.({ type: "debug_go_to_phase2" })}
-                  style={buttonStyle("success")}
-                >
-                  Doorgaan naar fase 2
-                </button>
+              <button
+                onClick={() => dispatchAction?.({ type: "debug_go_to_phase2" })}
+                style={buttonStyle("success")}
+              >
+                Doorgaan naar fase 2
+              </button>
             </div>
           </>
         )}
@@ -494,11 +595,22 @@ export function DobbelkingenPanel({
                 background: "rgba(74,222,128,0.08)",
               })}
             >
-              <div style={{ fontWeight: 700, fontSize: isMobile ? 18 : 20 }}>
-                {chooserName} kiest troef
-              </div>
-              <div style={{ color: colors.muted, fontSize: 14 }}>
-                {leaderName} komt uit in de eerste slag.
+              <div
+                style={softCardStyle({
+                  padding: 14,
+                  display: "grid",
+                  gap: 4,
+                  background: "rgba(74,222,128,0.08)",
+                  justifyItems: "center",
+                  textAlign: "center",
+                })}
+              >
+                <div style={{ fontWeight: 700, fontSize: isMobile ? 18 : 20 }}>
+                  {chooserName} kiest troef
+                </div>
+                <div style={{ color: colors.muted, fontSize: 14 }}>
+                  {leaderName} komt uit in de eerste slag.
+                </div>
               </div>
             </div>
 
