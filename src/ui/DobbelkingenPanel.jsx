@@ -91,7 +91,7 @@ function ContractCard({
             top: 0,
             right: 0,
             borderRadius: 999,
-            padding: compact ? "3px 7px" : "4px 8px",
+            padding: "4px 8px",
             background: count >= 2 ? colors.redSoft : colors.accentSoft,
             color: count >= 2 ? "#fecdd3" : "#fcd34d",
             fontSize: compact ? 11 : 12,
@@ -115,7 +115,7 @@ function ContractCard({
 
       <div
         style={{
-          fontSize: compact ? 11 : 12,
+          fontSize: 12,
           fontWeight: 700,
           color: disabled ? "#fda4af" : colors.muted,
           textAlign: "center",
@@ -270,7 +270,8 @@ export function DobbelkingenPanel({
   const [hoveredContract, setHoveredContract] = useState(null);
   const [hoveredTroef, setHoveredTroef] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
-  const { isMobile } = useViewport();
+  const { isMobile, isMobileLandscape } = useViewport();
+  const [showMobileProgress, setShowMobileProgress] = useState(false);
 
   const d = appState?.game?.dobbelkingen ?? null;
   const players = appState?.players ?? [];
@@ -371,6 +372,54 @@ export function DobbelkingenPanel({
     )
   );
 
+  const compactContractCards = isMobile;
+  const contractGridColumns = isMobileLandscape
+    ? "repeat(3, minmax(0, 1fr))"
+    : isMobile
+      ? "repeat(2, minmax(0, 1fr))"
+      : "repeat(3, minmax(0, 1fr))";
+
+  function renderMobileProgress(label, counts) {
+    if (!isMobile) {
+      return (
+        <PlayerProgressBoard
+          players={players}
+          currentIndex={currentIndex}
+          totalScores={totalScores}
+          roundDeltas={roundDeltas}
+          progressCounts={counts}
+          progressLabel={label}
+          trickCounts={currentRoundTrickCounts}
+        />
+      );
+    }
+
+    return (
+      <div style={{ display: "grid", gap: 10 }}>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button
+            onClick={() => setShowMobileProgress((prev) => !prev)}
+            style={{ ...buttonStyle(), borderRadius: 999 }}
+          >
+            {showMobileProgress ? "Score sluiten" : "Score"}
+          </button>
+        </div>
+
+        {showMobileProgress ? (
+          <PlayerProgressBoard
+            players={players}
+            currentIndex={currentIndex}
+            totalScores={totalScores}
+            roundDeltas={roundDeltas}
+            progressCounts={counts}
+            progressLabel={label}
+            trickCounts={currentRoundTrickCounts}
+          />
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <>
       <DobbelkingenInfo open={showInfo} onClose={() => setShowInfo(false)} />
@@ -379,25 +428,40 @@ export function DobbelkingenPanel({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr auto 1fr",
+            gridTemplateColumns: isMobile ? "1fr auto" : "1fr auto 1fr",
             alignItems: "center",
             gap: 12,
           }}
         >
-          <div />
-
-          <div
-            style={{
-              textAlign: "center",
-              display: "grid",
-              justifyItems: "center",
-            }}
-          >
-            <div style={{ fontWeight: 700, fontSize: 28 }}>Dobbelkingen</div>
-            <div style={{ color: colors.muted, marginTop: 4 }}>
-              Contractkeuzes, troefrondes en live score-opvolging op je Smart Card Mat.
+          {!isMobile ? <div /> : (
+            <div
+              style={{
+                textAlign: "left",
+                display: "grid",
+                gap: 2,
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: 22 }}>Dobbelkingen</div>
+              <div style={{ color: colors.muted, fontSize: 13 }}>
+                {isChoosingTroef ? "Troef kiezen" : isChoosingContract ? "Contract kiezen" : "Klaar om te starten"}
+              </div>
             </div>
-          </div>
+          )}
+
+          {!isMobile && (
+            <div
+              style={{
+                textAlign: "center",
+                display: "grid",
+                justifyItems: "center",
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: 28 }}>Dobbelkingen</div>
+              <div style={{ color: colors.muted, marginTop: 4 }}>
+                Contractkeuzes, troefrondes en live score-opvolging op je Smart Card Mat.
+              </div>
+            </div>
+          )}
 
           <div
             style={{
@@ -407,9 +471,11 @@ export function DobbelkingenPanel({
               flexWrap: "wrap",
             }}
           >
-            <button onClick={() => setShowInfo(true)} style={buttonStyle()}>
-              Info
-            </button>
+            {!isMobile && (
+              <button onClick={() => setShowInfo(true)} style={buttonStyle()}>
+                Info
+              </button>
+            )}
 
             <button onClick={handleBackClick} style={buttonStyle("danger")}>
               Terug
@@ -471,15 +537,15 @@ export function DobbelkingenPanel({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: isMobile ? "1fr" : "1fr auto 1fr",
+                  gridTemplateColumns: "1fr auto 1fr",
                   alignItems: "center",
-                  gap: isMobile ? 10 : 16,
+                  gap: 16,
                 }}
               >
                 <div
                   style={{
                     display: "flex",
-                    justifyContent: isMobile ? "center" : "flex-start",
+                    justifyContent: "flex-start",
                     gap: 12,
                     fontSize: isMobile ? 18 : 22,
                     fontWeight: 900,
@@ -512,7 +578,7 @@ export function DobbelkingenPanel({
                 <div
                   style={{
                     display: "flex",
-                    justifyContent: isMobile ? "center" : "flex-end",
+                    justifyContent: "flex-end",
                     gap: 12,
                     fontSize: isMobile ? 18 : 22,
                     fontWeight: 900,
@@ -527,29 +593,11 @@ export function DobbelkingenPanel({
                 </div>
               </div>
             </div>
-            {isMobile ? (
-              <div
-                style={softCardStyle({
-                  padding: "12px 14px",
-                  display: "grid",
-                  gap: 4,
-                  background: "rgba(255,255,255,0.04)",
-                })}
-              >
-                <div style={{ fontWeight: 800 }}>Mobile contractkeuze</div>
-                <div style={{ color: colors.muted, fontSize: 13 }}>
-                  2 kaarten per rij zodat je sneller kan kiezen zonder eindeloos te scrollen.
-                </div>
-              </div>
-            ) : null}
-
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: isMobile
-                  ? "repeat(2, minmax(0, 1fr))"
-                  : "repeat(3, minmax(0, 1fr))",
-                gap: isMobile ? 10 : 14,
+                gridTemplateColumns: contractGridColumns,
+                gap: 14,
               }}
             >
               {contractList.map((id) => {
@@ -572,7 +620,7 @@ export function DobbelkingenPanel({
                     hovered={hovered}
                     onMouseEnter={() => setHoveredContract(id)}
                     onMouseLeave={() => setHoveredContract(null)}
-                    compact={isMobile}
+                    compact={compactContractCards}
                     onClick={() => {
                       if (disabled) return;
                       onChooseContract?.(id);
@@ -582,15 +630,7 @@ export function DobbelkingenPanel({
               })}
             </div>
 
-            <PlayerProgressBoard
-              players={players}
-              currentIndex={currentIndex}
-              totalScores={totalScores}
-              roundDeltas={roundDeltas}
-              progressCounts={phase1PickCounts}
-              progressLabel="gekozen"
-              trickCounts={currentRoundTrickCounts}
-            />
+            {renderMobileProgress("gekozen", phase1PickCounts)}
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
@@ -681,15 +721,7 @@ export function DobbelkingenPanel({
               })}
             </div>
 
-            <PlayerProgressBoard
-              players={players}
-              currentIndex={currentIndex}
-              totalScores={totalScores}
-              roundDeltas={roundDeltas}
-              progressCounts={troefPickCounts}
-              progressLabel="troef gekozen"
-              trickCounts={currentRoundTrickCounts}
-            />
+            {renderMobileProgress("troef gekozen", troefPickCounts)}
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button onClick={handleFinishMatch} style={buttonStyle("success")}>

@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { softCardStyle } from "./play/theme";
+import { useViewport } from "./play/useViewport";
 
 function getCardTone(label) {
   if (!label) return "#f5efe6";
@@ -89,7 +90,7 @@ function getFlyingStartPosition(seat) {
         : { top: "50%", left: "10%", rotate: "-9deg" };
 }
 
-function CenterPlayedCard({ label, seat, animationSeed = "0" }) {
+function CenterPlayedCard({ label, seat, animationSeed = "0", compact = false }) {
   if (!label) return null;
 
   const pos = getCenterCardPosition(seat);
@@ -102,8 +103,8 @@ function CenterPlayedCard({ label, seat, animationSeed = "0" }) {
         top: pos.top,
         left: pos.left,
         transform: "translate(-50%, -50%)",
-        width: 78,
-        height: 104,
+        width: compact ? 60 : 78,
+        height: compact ? 82 : 104,
         borderRadius: 18,
         border: "1px solid rgba(255,255,255,0.14)",
         background:
@@ -112,7 +113,7 @@ function CenterPlayedCard({ label, seat, animationSeed = "0" }) {
         alignItems: "center",
         justifyContent: "center",
         fontWeight: 900,
-        fontSize: 31,
+        fontSize: compact ? 22 : 31,
         color: getCardTone(label),
         boxShadow: "0 16px 42px rgba(0,0,0,0.34)",
         animation: "centerCardSettle 220ms ease-out 420ms both",
@@ -129,7 +130,7 @@ function px(value) {
   return typeof value === "number" ? `${value}px` : value;
 }
 
-function FlyingCard({ label, seat, id, geometry }) {
+function FlyingCard({ label, seat, id, geometry, compact = false }) {
   if (!label) return null;
 
   const fallbackStart = getFlyingStartPosition(seat);
@@ -148,8 +149,8 @@ function FlyingCard({ label, seat, id, geometry }) {
         top: px(startTop),
         left: px(startLeft),
         transform: "translate(-50%, -50%)",
-        width: 78,
-        height: 104,
+        width: compact ? 60 : 78,
+        height: compact ? 82 : 104,
         borderRadius: 18,
         border: "1px solid rgba(255,255,255,0.18)",
         background:
@@ -158,7 +159,7 @@ function FlyingCard({ label, seat, id, geometry }) {
         alignItems: "center",
         justifyContent: "center",
         fontWeight: 900,
-        fontSize: 31,
+        fontSize: compact ? 22 : 31,
         color: getCardTone(label),
         boxShadow: "0 18px 44px rgba(0,0,0,0.34)",
         zIndex: 7,
@@ -408,6 +409,18 @@ export function TableDirection({
   const boardRef = useRef(null);
   const seatAnchorRefs = useRef([]);
   const [flightGeometry, setFlightGeometry] = useState({});
+  const { isMobile, isMobileLandscape } = useViewport();
+
+  const boardMinHeight = isMobileLandscape ? 270 : isMobile ? 500 : 450;
+  const outerMinHeight = isMobileLandscape ? 320 : isMobile ? 540 : 430;
+  const seatTopWidth = isMobileLandscape ? 126 : isMobile ? 150 : 184;
+  const seatSideWidth = isMobileLandscape ? 118 : isMobile ? 126 : 174;
+  const seatBottomWidth = isMobileLandscape ? 126 : isMobile ? 150 : 184;
+  const sideInset = isMobileLandscape ? 10 : 18;
+  const topInset = isMobileLandscape ? 10 : 18;
+  const cardTextSize = isMobileLandscape ? 22 : 31;
+  const centerCardWidth = isMobileLandscape ? 60 : 78;
+  const centerCardHeight = isMobileLandscape ? 82 : 104;
 
   useLayoutEffect(() => {
     function updateGeometry() {
@@ -457,7 +470,7 @@ export function TableDirection({
       style={{
         ...softCardStyle({
           position: "relative",
-          minHeight: 430,
+          minHeight: outerMinHeight,
           padding: 18,
           overflow: "hidden",
           background:
@@ -551,56 +564,58 @@ export function TableDirection({
         }
       `}</style>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 14,
-          alignItems: "start",
-          marginBottom: 8,
-        }}
-      >
-        <div>
-          <div style={{ fontWeight: 900, fontSize: 18 }}>Speeltafel</div>
-          <div style={{ fontSize: 12, opacity: 0.72 }}>
-            De tafel is het centrum. Leader komt uit, huidige speler volgt de beurt.
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <div
-            style={{
-              ...pillStyle(),
-              border: "1px solid rgba(251, 191, 36, 0.32)",
-              background: "rgba(251, 191, 36, 0.10)",
-              fontSize: 14,
-              fontWeight: 900,
-              padding: "10px 16px",
-            }}
-          >
-            Contract&nbsp; <b>{String(contractLabel || "—").replaceAll("_", " ")}</b>
+      {!isMobile && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 14,
+            alignItems: "start",
+            marginBottom: 8,
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 900, fontSize: 18 }}>Speeltafel</div>
+            <div style={{ fontSize: 12, opacity: 0.72 }}>
+              De tafel is het centrum. Leader komt uit, huidige speler volgt de beurt.
+            </div>
           </div>
 
-          {showTopRightTrick && (
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
             <div
               style={{
                 ...pillStyle(),
+                border: "1px solid rgba(251, 191, 36, 0.32)",
+                background: "rgba(251, 191, 36, 0.10)",
                 fontSize: 14,
                 fontWeight: 900,
                 padding: "10px 16px",
               }}
             >
-              Slag&nbsp; <b>{trickLabel}</b>
+              Contract&nbsp; <b>{String(contractLabel || "—").replaceAll("_", " ")}</b>
             </div>
-          )}
+
+            {showTopRightTrick && (
+              <div
+                style={{
+                  ...pillStyle(),
+                  fontSize: 14,
+                  fontWeight: 900,
+                  padding: "10px 16px",
+                }}
+              >
+                Slag&nbsp; <b>{trickLabel}</b>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div
         ref={boardRef}
         style={{
           position: "relative",
-          minHeight: 450,
+          minHeight: boardMinHeight,
           borderRadius: 24,
           border: "1px solid rgba(251, 191, 36, 0.20)",
           background:
@@ -613,8 +628,8 @@ export function TableDirection({
             top: "50.5%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            width: 850,
-            height: 170,
+            width: isMobileLandscape ? 250 : isMobile ? 300 : 850,
+            height: isMobileLandscape ? 90 : isMobile ? 120 : 170,
             borderRadius: 36,
             border: "1px solid rgba(255, 200, 120, 0.18)",
             background:
@@ -633,8 +648,8 @@ export function TableDirection({
             top: "50.5%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            width: 810,
-            height: 138,
+            width: isMobileLandscape ? 220 : isMobile ? 270 : 810,
+            height: isMobileLandscape ? 72 : isMobile ? 100 : 138,
             borderRadius: 30,
             border: "1px solid rgba(255, 220, 170, 0.10)",
             pointerEvents: "none",
@@ -651,8 +666,8 @@ export function TableDirection({
             top: "50.5%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            width: 100,
-            height: 92,
+            width: isMobileLandscape ? 72 : isMobile ? 84 : 100,
+            height: isMobileLandscape ? 64 : isMobile ? 74 : 92,
             borderRadius: 20,
             border: "1px solid rgba(255, 220, 170, 0.10)",
             background: "rgba(255,255,255,0.03)",
@@ -677,7 +692,7 @@ export function TableDirection({
           >
             <div
               style={{
-                fontSize: 12,
+                fontSize: isMobileLandscape ? 10 : 12,
                 fontWeight: 900,
                 letterSpacing: "0.08em",
               }}
@@ -687,7 +702,7 @@ export function TableDirection({
             <div
               style={{
                 marginTop: 4,
-                fontSize: 22,
+                fontSize: isMobileLandscape ? 16 : isMobile ? 18 : 22,
                 fontWeight: 900,
                 lineHeight: 1,
               }}
@@ -706,33 +721,33 @@ export function TableDirection({
             position === "top"
               ? {
                   position: "absolute",
-                  top: 18,
+                  top: topInset,
                   left: "50%",
                   transform: "translateX(-50%)",
-                  width: 184,
+                  width: seatTopWidth,
                 }
               : position === "right"
                 ? {
                     position: "absolute",
-                    right: 18,
+                    right: sideInset,
                     top: "50%",
                     transform: "translateY(-50%)",
-                    width: 174,
+                    width: seatSideWidth,
                   }
                 : position === "bottom"
                   ? {
                       position: "absolute",
-                      bottom: 18,
+                      bottom: topInset,
                       left: "50%",
                       transform: "translateX(-50%)",
-                      width: 184,
+                      width: seatBottomWidth,
                     }
                   : {
                       position: "absolute",
-                      left: 18,
+                      left: sideInset,
                       top: "50%",
                       transform: "translateY(-50%)",
-                      width: 164,
+                      width: isMobileLandscape ? 108 : isMobile ? 118 : 164,
                     };
 
           let badge = null;
@@ -769,6 +784,7 @@ export function TableDirection({
             label={label}
             seat={seat}
             animationSeed={animationSeed}
+            compact={isMobile}
           />
         ))}
 
@@ -779,6 +795,7 @@ export function TableDirection({
             label={card.label}
             seat={card.seat}
             geometry={flightGeometry?.[card.seat]}
+            compact={isMobile}
           />
         ))}
       </div>

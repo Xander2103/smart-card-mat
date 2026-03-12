@@ -179,6 +179,65 @@ function ErrorBanner({ message }) {
   );
 }
 
+
+function MobileBottomSheet({ open, title, onToggle, children }) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        left: 12,
+        right: 12,
+        bottom: 10,
+        zIndex: 60,
+        pointerEvents: "none",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+        <button
+          onClick={onToggle}
+          style={{
+            ...buttonStyle(),
+            pointerEvents: "auto",
+            borderRadius: 999,
+            padding: "10px 14px",
+            background: open
+              ? "linear-gradient(180deg, rgba(251,191,36,0.24), rgba(180,83,9,0.18))"
+              : "rgba(39,27,21,0.88)",
+          }}
+        >
+          {open ? `Verberg ${title}` : title}
+        </button>
+      </div>
+
+      {open ? (
+        <div
+          style={{
+            ...panelStyle({
+              padding: 12,
+              borderRadius: 22,
+              maxHeight: "48vh",
+              overflow: "auto",
+              pointerEvents: "auto",
+              boxShadow: "0 18px 46px rgba(0,0,0,0.34)",
+            }),
+          }}
+        >
+          <div
+            style={{
+              width: 54,
+              height: 6,
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.18)",
+              margin: "0 auto 10px",
+            }}
+          />
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function PlayedCardsPanel({ cardCodes = [] }) {
   const pretty = cardCodes.slice(-20).map((code) => toPrettyCard(code));
 
@@ -317,314 +376,6 @@ function DevPanel({
   );
 }
 
-function MobileMatchLayout({
-  appState,
-  d,
-  players,
-  currentIndex,
-  leaderPlayerIndex,
-  contractId,
-  visibleTrumpLabel,
-  trickCount,
-  seatCards,
-  centerCards,
-  showCenterTrickLabel,
-  centerAnimationSeed,
-  flyingCards,
-  scoreboardScores,
-  flashWinnerIndex,
-  dispatchAction,
-  onUndo,
-  onBackFromContract,
-  trickWins,
-  showRecentCards,
-  usedCardCodes,
-  trickToast,
-}) {
-  const [activeTab, setActiveTab] = useState("table");
-  const [scoreSheetOpen, setScoreSheetOpen] = useState(false);
-  const touchStartXRef = useRef(null);
-  const tabOrder = ["table", "info"];
-
-  useEffect(() => {
-    if (activeTab !== "table") {
-      setScoreSheetOpen(false);
-    }
-  }, [activeTab]);
-
-  function moveTab(direction) {
-    setActiveTab((prev) => {
-      const idx = tabOrder.indexOf(prev);
-      const nextIdx = Math.max(0, Math.min(tabOrder.length - 1, idx + direction));
-      return tabOrder[nextIdx] ?? prev;
-    });
-  }
-
-  function handleTouchStart(event) {
-    if (scoreSheetOpen) return;
-    touchStartXRef.current = event.touches?.[0]?.clientX ?? null;
-  }
-
-  function handleTouchEnd(event) {
-    if (scoreSheetOpen) {
-      touchStartXRef.current = null;
-      return;
-    }
-
-    const startX = touchStartXRef.current;
-    const endX = event.changedTouches?.[0]?.clientX ?? null;
-    touchStartXRef.current = null;
-
-    if (typeof startX !== "number" || typeof endX !== "number") return;
-
-    const delta = endX - startX;
-    if (Math.abs(delta) < 45) return;
-
-    if (delta < 0) moveTab(1);
-    else moveTab(-1);
-  }
-
-  const compactInfo = [
-    { label: "Contract", value: contractId ?? "—" },
-    { label: "Troef", value: visibleTrumpLabel ?? "—" },
-    { label: "Slag", value: `${trickCount} / 13` },
-    {
-      label: "Actieve speler",
-      value: players?.[currentIndex]?.name ?? `Player ${currentIndex + 1}`,
-    },
-  ];
-
-  return (
-    <div style={{ display: "grid", gap: 12, paddingBottom: 6 }}>
-      {trickToast && activeTab === "table" ? (
-        <AnimatedBanner
-          key={trickToast.key}
-          type="success"
-          title={trickToast.title}
-          message={trickToast.message}
-          compact
-        />
-      ) : null}
-
-      <div
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        style={{ display: "grid", gap: 12 }}
-      >
-        {activeTab === "table" ? (
-          <>
-            <div
-              style={panelStyle({
-                padding: 12,
-                display: "grid",
-                gap: 8,
-                border: "1px solid rgba(251, 191, 36, 0.22)",
-              })}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                {compactInfo.map((item) => (
-                  <div
-                    key={item.label}
-                    style={softCardStyle({
-                      padding: "10px 12px",
-                      display: "grid",
-                      gap: 2,
-                      minWidth: "calc(50% - 4px)",
-                      flex: "1 1 calc(50% - 4px)",
-                    })}
-                  >
-                    <div style={{ fontSize: 11, color: colors.muted, fontWeight: 800 }}>{item.label}</div>
-                    <div style={{ fontSize: 14, fontWeight: 900 }}>{item.value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ position: "relative" }}>
-              <TableDirection
-                players={players}
-                currentPlayerIndex={currentIndex}
-                leaderPlayerIndex={leaderPlayerIndex}
-                contractLabel={contractId ?? "—"}
-                trumpLabel={visibleTrumpLabel}
-                trickLabel={`${trickCount} / 13`}
-                seatCards={seatCards}
-                centerCards={centerCards}
-                showCenterTrickLabel={showCenterTrickLabel}
-                showTopRightTrick={showCenterTrickLabel}
-                animationSeed={centerAnimationSeed}
-                flyingCards={flyingCards}
-              />
-
-              <button
-                onClick={() => setScoreSheetOpen((prev) => !prev)}
-                style={{
-                  ...buttonStyle(scoreSheetOpen ? "primary" : undefined),
-                  position: "absolute",
-                  right: 12,
-                  bottom: 12,
-                  borderRadius: 999,
-                  padding: "12px 14px",
-                  boxShadow: "0 14px 26px rgba(0,0,0,0.26)",
-                }}
-              >
-                {scoreSheetOpen ? "Sluit score" : "Score ↑"}
-              </button>
-            </div>
-
-            <div
-              style={{
-                position: "fixed",
-                left: 0,
-                right: 0,
-                bottom: 62,
-                zIndex: 25,
-                padding: scoreSheetOpen ? "0 10px 0" : "0 10px 0",
-                pointerEvents: scoreSheetOpen ? "auto" : "none",
-              }}
-            >
-              <div
-                style={{
-                  transform: scoreSheetOpen ? "translateY(0)" : "translateY(calc(100% + 28px))",
-                  opacity: scoreSheetOpen ? 1 : 0,
-                  transition: "transform 220ms ease, opacity 220ms ease",
-                  borderRadius: "22px 22px 0 0",
-                  border: "1px solid rgba(251, 191, 36, 0.18)",
-                  background: "rgba(24, 17, 13, 0.97)",
-                  backdropFilter: "blur(16px)",
-                  boxShadow: "0 -18px 40px rgba(0,0,0,0.30)",
-                  maxHeight: "68vh",
-                  overflow: "auto",
-                  padding: 12,
-                  display: "grid",
-                  gap: 12,
-                }}
-              >
-                <div
-                  style={{
-                    display: "grid",
-                    gap: 8,
-                    justifyItems: "center",
-                    textAlign: "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 46,
-                      height: 5,
-                      borderRadius: 999,
-                      background: "rgba(255,255,255,0.16)",
-                    }}
-                  />
-                  <div style={{ fontWeight: 900, fontSize: 18 }}>Scorebord</div>
-                  <div style={{ color: colors.muted, fontSize: 13 }}>
-                    De tafel blijft centraal. Trek dit open voor scores en slagen.
-                  </div>
-                </div>
-
-                <Scoreboard
-                  players={players}
-                  scores={scoreboardScores}
-                  currentPlayerIndex={currentIndex}
-                  flashWinnerIndex={flashWinnerIndex}
-                  allowEdit={false}
-                  onAdjustScore={(playerIndex, delta) =>
-                    dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
-                  }
-                />
-
-                {contractId === "TROEF" ? (
-                  <TrickWinsPanel players={players} trickWins={trickWins} />
-                ) : null}
-              </div>
-            </div>
-          </>
-        ) : null}
-
-        {activeTab === "info" ? (
-          <div style={{ display: "grid", gap: 12 }}>
-            <GameToolbar
-              onUndo={onUndo}
-              onBack={() => {
-                const ok = window.confirm(
-                  "Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen."
-                );
-                if (ok) onBackFromContract?.();
-              }}
-            />
-
-            <ErrorBanner message={appState.lastError} />
-
-            <div style={panelStyle({ padding: 16, display: "grid", gap: 12 })}>
-              <div style={{ fontWeight: 900, fontSize: 18 }}>Match info</div>
-              <div style={{ display: "grid", gap: 8 }}>
-                {compactInfo.map((item) => (
-                  <div
-                    key={item.label}
-                    style={softCardStyle({
-                      padding: "12px 14px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 12,
-                    })}
-                  >
-                    <div style={{ color: colors.muted, fontSize: 13 }}>{item.label}</div>
-                    <div style={{ fontWeight: 900, textAlign: "right" }}>{item.value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {showRecentCards ? (
-              <PlayedCardsPanel cardCodes={usedCardCodes} />
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-
-      <div
-        style={{
-          position: "sticky",
-          bottom: 0,
-          display: "grid",
-          gridTemplateColumns: "repeat(2, minmax(0,1fr))",
-          gap: 8,
-          padding: 8,
-          borderRadius: 20,
-          border: "1px solid rgba(251, 191, 36, 0.18)",
-          background: "rgba(24, 17, 13, 0.96)",
-          backdropFilter: "blur(14px)",
-          boxShadow: "0 -12px 30px rgba(0,0,0,0.22)",
-          zIndex: 8,
-        }}
-      >
-        {[
-          ["table", "Tafel"],
-          ["info", "Info"],
-        ].map(([value, label]) => {
-          const active = activeTab === value;
-          return (
-            <button
-              key={value}
-              onClick={() => setActiveTab(value)}
-              style={{
-                ...buttonStyle(active ? "primary" : undefined),
-                padding: "12px 10px",
-                fontSize: 13,
-                borderRadius: 14,
-                opacity: active ? 1 : 0.9,
-              }}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export function PlayScreen({
   appState,
   gameState,
@@ -642,7 +393,6 @@ export function PlayScreen({
   onStartDobbelkingen,
   onChooseDobbelkingenContract,
   dispatchAction,
-  isCompactMobileMatch = false,
 }) {
   const d = appState.game?.dobbelkingen ?? null;
   const players = appState.players ?? [];
@@ -793,6 +543,7 @@ export function PlayScreen({
   const prevTrickRef = useRef([]);
   const [trickToast, setTrickToast] = useState(null);
   const [flashWinnerIndex, setFlashWinnerIndex] = useState(null);
+  const [showMobileScore, setShowMobileScore] = useState(false);
 
   useEffect(() => {
     const winnerIdx = d?.lastTrickWinnerIndex;
@@ -859,7 +610,7 @@ export function PlayScreen({
     prevTrickRef.current = currentTrick;
   }, [d?.currentTrick]);
 
-  const { isMobile } = useViewport();
+  const { isMobile, isMobileLandscape } = useViewport();
 
   const showRecentCards = appState.showRecentCards !== false;
   const showCenterTrickLabel = appState.showCenterTrickLabel !== false;
@@ -871,6 +622,12 @@ export function PlayScreen({
     showTrumpInHeader ? getTrumpLabel(d?.currentTrumpSuit) : "—";
 
   const centerAnimationSeed = `${trickCount}-${JSON.stringify(d?.currentTrick ?? [])}`;
+
+  useEffect(() => {
+    if (!isMobile) {
+      setShowMobileScore(false);
+    }
+  }, [isMobile]);
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
@@ -917,107 +674,113 @@ export function PlayScreen({
       )}
 
       {showGameUi && (
-        isCompactMobileMatch ? (
-          <MobileMatchLayout
-            appState={appState}
-            d={d}
+        <>
+          <GameToolbar
+            onUndo={onUndo}
+            onBack={() => {
+              const ok = window.confirm(
+                "Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen."
+              );
+              if (ok) onBackFromContract?.();
+            }}
+          />
+
+          <ErrorBanner message={appState.lastError} />
+
+          {trickToast && (
+            <AnimatedBanner
+              key={trickToast.key}
+              type="success"
+              title={trickToast.title}
+              message={trickToast.message}
+              compact
+            />
+          )}
+
+          <TableDirection
             players={players}
-            currentIndex={currentIndex}
+            currentPlayerIndex={currentIndex}
             leaderPlayerIndex={leaderPlayerIndex}
-            contractId={contractId}
-            visibleTrumpLabel={visibleTrumpLabel}
-            trickCount={trickCount}
+            contractLabel={contractId ?? "—"}
+            trumpLabel={visibleTrumpLabel}
+            trickLabel={`${trickCount} / 13`}
             seatCards={seatCards}
             centerCards={centerCards}
             showCenterTrickLabel={showCenterTrickLabel}
-            centerAnimationSeed={centerAnimationSeed}
+            showTopRightTrick={showCenterTrickLabel}
+            animationSeed={centerAnimationSeed}
             flyingCards={flyingCards}
-            scoreboardScores={scoreboardScores}
-            flashWinnerIndex={flashWinnerIndex}
-            dispatchAction={dispatchAction}
-            onUndo={onUndo}
-            onBackFromContract={onBackFromContract}
-            trickWins={trickWins}
-            showRecentCards={showRecentCards}
-            usedCardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []}
-            trickToast={trickToast}
           />
-        ) : (
-          <>
-            <GameToolbar
-              onUndo={onUndo}
-              onBack={() => {
-                const ok = window.confirm(
-                  "Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen."
-                );
-                if (ok) onBackFromContract?.();
-              }}
-            />
 
-            <ErrorBanner message={appState.lastError} />
-
-            {trickToast && (
-              <AnimatedBanner
-                key={trickToast.key}
-                type="success"
-                title={trickToast.title}
-                message={trickToast.message}
-                compact
+          {!isMobile && (
+            <>
+              <Scoreboard
+                players={players}
+                scores={scoreboardScores}
+                currentPlayerIndex={currentIndex}
+                flashWinnerIndex={flashWinnerIndex}
+                allowEdit={false}
+                onAdjustScore={(playerIndex, delta) =>
+                  dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
+                }
               />
-            )}
 
-            <TableDirection
-              players={players}
-              currentPlayerIndex={currentIndex}
-              leaderPlayerIndex={leaderPlayerIndex}
-              contractLabel={contractId ?? "—"}
-              trumpLabel={visibleTrumpLabel}
-              trickLabel={`${trickCount} / 13`}
-              seatCards={seatCards}
-              centerCards={centerCards}
-              showCenterTrickLabel={showCenterTrickLabel}
-              showTopRightTrick={showCenterTrickLabel}
-              animationSeed={centerAnimationSeed}
-              flyingCards={flyingCards}
-            />
+              {contractId === "TROEF" && (
+                <TrickWinsPanel players={players} trickWins={trickWins} />
+              )}
 
-            <Scoreboard
-              players={players}
-              scores={scoreboardScores}
-              currentPlayerIndex={currentIndex}
-              flashWinnerIndex={flashWinnerIndex}
-              allowEdit={false}
-              onAdjustScore={(playerIndex, delta) =>
-                dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
-              }
-            />
+              {showRecentCards && (
+                <PlayedCardsPanel
+                  cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []}
+                />
+              )}
+            </>
+          )}
 
-            {contractId === "TROEF" && (
-              <TrickWinsPanel players={players} trickWins={trickWins} />
-            )}
-
-            {showRecentCards && (
-              <PlayedCardsPanel
-                cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []}
+          {isMobile && (
+            <MobileBottomSheet
+              open={showMobileScore}
+              title={showMobileScore ? "Score sluiten" : "Score"}
+              onToggle={() => setShowMobileScore((prev) => !prev)}
+            >
+              <Scoreboard
+                players={players}
+                scores={scoreboardScores}
+                currentPlayerIndex={currentIndex}
+                flashWinnerIndex={flashWinnerIndex}
+                allowEdit={false}
+                onAdjustScore={(playerIndex, delta) =>
+                  dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
+                }
               />
-            )}
 
-            {showDebug && appState.devMode && (
-              <DevPanel
-                appState={appState}
-                d={d}
-                zonesForGrid={zonesForGrid}
-                DISPLAY_ZONES={DISPLAY_ZONES}
-                turnZoneForGrid={turnZoneForGrid}
-                cardNamesForGrid={cardNamesForGrid}
-                handleGridClick={handleGridClick}
-                onConfirmTurn={onConfirmTurn}
-                onResetPile={onResetPile}
-                dispatchAction={dispatchAction}
-              />
-            )}
-          </>
-        )
+              {contractId === "TROEF" && (
+                <TrickWinsPanel players={players} trickWins={trickWins} />
+              )}
+
+              {showRecentCards && !isMobileLandscape && (
+                <PlayedCardsPanel
+                  cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []}
+                />
+              )}
+            </MobileBottomSheet>
+          )}
+
+          {showDebug && appState.devMode && (
+            <DevPanel
+              appState={appState}
+              d={d}
+              zonesForGrid={zonesForGrid}
+              DISPLAY_ZONES={DISPLAY_ZONES}
+              turnZoneForGrid={turnZoneForGrid}
+              cardNamesForGrid={cardNamesForGrid}
+              handleGridClick={handleGridClick}
+              onConfirmTurn={onConfirmTurn}
+              onResetPile={onResetPile}
+              dispatchAction={dispatchAction}
+            />
+          )}
+        </>
       )}
     </div>
   );

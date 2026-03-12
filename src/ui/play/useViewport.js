@@ -2,14 +2,28 @@ import { useEffect, useState } from "react";
 
 function getViewport() {
   if (typeof window === "undefined") {
-    return { width: 1280, isMobile: false, isTablet: false };
+    return {
+      width: 1280,
+      height: 800,
+      isMobile: false,
+      isTablet: false,
+      isLandscape: true,
+      isMobileLandscape: false,
+    };
   }
 
   const width = window.innerWidth;
+  const height = window.innerHeight;
+  const isLandscape = width > height;
+  const isMobile = width <= 700;
+
   return {
     width,
-    isMobile: width <= 700,
+    height,
+    isMobile,
     isTablet: width <= 1024,
+    isLandscape,
+    isMobileLandscape: isMobile && isLandscape,
   };
 }
 
