@@ -19,7 +19,7 @@ import { PlayersScreen } from "../ui/screens/PlayersScreen";
 import { HistoryScreen } from "../ui/screens/HistoryScreen";
 import { StatsScreen } from "../ui/screens/StatsScreen";
 
-import { CARD_BY_CODE } from "../core/mapping/deck52";
+import { CARD_BY_CODE, DECK52 } from "../core/mapping/deck52";
 
 
 const theme = {
@@ -71,10 +71,16 @@ export default function App() {
 
   const timerRef = useRef(null);
   const armedKeyRef = useRef(null);
+  const tabRef = useRef("play");
+  const deckAutoAssignKeyRef = useRef(null);
 
   const dispatchAction = useCallback((action) => {
     setAppState((prev) => applyAppAction(prev, action));
   }, []);
+
+  useEffect(() => {
+    tabRef.current = tab;
+  }, [tab]);
 
   const zones = appState?.zones ?? Array.from({ length: ZONES }, () => null);
   const selectedUid = appState?.selectedUid ?? null;
@@ -111,7 +117,35 @@ export default function App() {
     if (!ev) return;
 
     setAppState((prev) => {
-      const nextState = applyRootEvent(prev, ev);
+      let nextState = applyRootEvent(prev, ev);
+
+      if (tabRef.current === "deck" && ev.type === "placed") {
+        const deckIndex = nextState?.deckIndex ?? 0;
+        const currentCard = DECK52[deckIndex] ?? null;
+        const autoAssignKey = currentCard ? `${deckIndex}|${ev.uid}` : null;
+
+        if (currentCard && deckAutoAssignKeyRef.current !== autoAssignKey) {
+          deckAutoAssignKeyRef.current = autoAssignKey;
+
+          nextState = applyAppAction(nextState, {
+            type: "assign_uid_to_card",
+            uid: ev.uid,
+            cardName: currentCard.code,
+          });
+
+          if (deckIndex < DECK52.length - 1) {
+            nextState = applyAppAction(nextState, {
+              type: "set_deck_index",
+              index: deckIndex + 1,
+              maxIndex: DECK52.length - 1,
+            });
+          }
+        }
+      }
+
+      if (ev.type !== "placed") {
+        deckAutoAssignKeyRef.current = null;
+      }
 
       if (
         nextState.phase === "PLAYING_TRICK" &&
