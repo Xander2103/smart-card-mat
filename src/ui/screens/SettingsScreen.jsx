@@ -105,11 +105,7 @@ export function SettingsScreen({ appState, dispatchAction }) {
         </div>
         <div>
           <button
-            onClick={() => {
-              dispatchAction?.({ type: "set_auto_confirm", value: true });
-              dispatchAction?.({ type: "set_show_recent_cards", value: false });
-              dispatchAction?.({ type: "set_show_center_trick_label", value: false });
-            }}
+            onClick={() => dispatchAction?.({ type: "set_auto_confirm", value: true })}
             style={buttonStyle("primary")}
           >
             Zet tournament mode aan

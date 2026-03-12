@@ -179,65 +179,6 @@ function ErrorBanner({ message }) {
   );
 }
 
-
-function MobileBottomSheet({ open, title, onToggle, children }) {
-  return (
-    <div
-      style={{
-        position: "fixed",
-        left: 12,
-        right: 12,
-        bottom: 10,
-        zIndex: 60,
-        pointerEvents: "none",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-        <button
-          onClick={onToggle}
-          style={{
-            ...buttonStyle(),
-            pointerEvents: "auto",
-            borderRadius: 999,
-            padding: "10px 14px",
-            background: open
-              ? "linear-gradient(180deg, rgba(251,191,36,0.24), rgba(180,83,9,0.18))"
-              : "rgba(39,27,21,0.88)",
-          }}
-        >
-          {open ? `Verberg ${title}` : title}
-        </button>
-      </div>
-
-      {open ? (
-        <div
-          style={{
-            ...panelStyle({
-              padding: 12,
-              borderRadius: 22,
-              maxHeight: "48vh",
-              overflow: "auto",
-              pointerEvents: "auto",
-              boxShadow: "0 18px 46px rgba(0,0,0,0.34)",
-            }),
-          }}
-        >
-          <div
-            style={{
-              width: 54,
-              height: 6,
-              borderRadius: 999,
-              background: "rgba(255,255,255,0.18)",
-              margin: "0 auto 10px",
-            }}
-          />
-          {children}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function PlayedCardsPanel({ cardCodes = [] }) {
   const pretty = cardCodes.slice(-20).map((code) => toPrettyCard(code));
 
@@ -543,7 +484,6 @@ export function PlayScreen({
   const prevTrickRef = useRef([]);
   const [trickToast, setTrickToast] = useState(null);
   const [flashWinnerIndex, setFlashWinnerIndex] = useState(null);
-  const [showMobileScore, setShowMobileScore] = useState(false);
 
   useEffect(() => {
     const winnerIdx = d?.lastTrickWinnerIndex;
@@ -610,7 +550,8 @@ export function PlayScreen({
     prevTrickRef.current = currentTrick;
   }, [d?.currentTrick]);
 
-  const { isMobile, isMobileLandscape } = useViewport();
+  const { isMobile, isMobileLandscape, height } = useViewport();
+  const [showMobileScore, setShowMobileScore] = useState(false);
 
   const showRecentCards = appState.showRecentCards !== false;
   const showCenterTrickLabel = appState.showCenterTrickLabel !== false;
@@ -622,12 +563,61 @@ export function PlayScreen({
     showTrumpInHeader ? getTrumpLabel(d?.currentTrumpSuit) : "—";
 
   const centerAnimationSeed = `${trickCount}-${JSON.stringify(d?.currentTrick ?? [])}`;
+  const mobileTableHeight = Math.max(320, height - (isMobileLandscape ? 150 : 220));
 
-  useEffect(() => {
-    if (!isMobile) {
-      setShowMobileScore(false);
-    }
-  }, [isMobile]);
+  const mobileGameTable = (
+    <div style={{ position: "relative", minHeight: mobileTableHeight, height: mobileTableHeight }}>
+      <TableDirection
+        players={players}
+        currentPlayerIndex={currentIndex}
+        leaderPlayerIndex={leaderPlayerIndex}
+        contractLabel={contractId ?? "—"}
+        trumpLabel={visibleTrumpLabel}
+        trickLabel={`${trickCount} / 13`}
+        seatCards={seatCards}
+        centerCards={centerCards}
+        showCenterTrickLabel={false}
+        showTopRightTrick={false}
+        animationSeed={centerAnimationSeed}
+        flyingCards={flyingCards}
+        compactMobile
+      />
+
+      <div style={{ position: "absolute", top: 10, left: 10, right: 10, display: "flex", justifyContent: "space-between", gap: 8, pointerEvents: "none" }}>
+        <div style={{ display: "flex", gap: 8, pointerEvents: "auto" }}>
+          <button onClick={onUndo} style={{ ...buttonStyle("primary"), padding: "8px 10px", fontSize: 13 }}>↻ Undo</button>
+        </div>
+        <div style={{ display: "flex", gap: 8, pointerEvents: "auto" }}>
+          <button onClick={() => setShowMobileScore(true)} style={{ ...buttonStyle(), padding: "8px 12px", fontSize: 13 }}>Score</button>
+          <button
+            onClick={() => {
+              const ok = window.confirm("Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen.");
+              if (ok) onBackFromContract?.();
+            }}
+            style={{ ...buttonStyle("danger"), padding: "8px 10px", fontSize: 13 }}
+          >← Terug</button>
+        </div>
+      </div>
+
+      {showMobileScore ? (
+        <div style={{ position: "absolute", inset: 0, zIndex: 40, background: "rgba(8,6,5,0.92)", backdropFilter: "blur(10px)", padding: 14, display: "grid", alignContent: "start", gap: 12, overflow: "auto" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+            <div style={{ fontWeight: 900, fontSize: 22 }}>Tussenstand</div>
+            <button onClick={() => setShowMobileScore(false)} style={{ ...buttonStyle(), padding: "8px 12px" }}>Sluiten</button>
+          </div>
+          <Scoreboard
+            players={players}
+            scores={scoreboardScores}
+            currentPlayerIndex={currentIndex}
+            flashWinnerIndex={flashWinnerIndex}
+            allowEdit={false}
+            onAdjustScore={(playerIndex, delta) => dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })}
+          />
+          {contractId === "TROEF" ? <TrickWinsPanel players={players} trickWins={trickWins} /> : null}
+        </div>
+      ) : null}
+    </div>
+  );
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
@@ -645,23 +635,26 @@ export function PlayScreen({
           {showChooserBanner && (
             <div
               style={panelStyle({
-                padding: "12px 14px",
+                padding: isMobile ? "10px 12px" : "12px 14px",
                 border: "1px solid rgba(251, 191, 36, 0.34)",
                 background: "rgba(120, 53, 15, 0.48)",
                 fontWeight: 900,
+                fontSize: isMobile ? 13 : 15,
               })}
             >
               {chooserBannerText}
             </div>
           )}
 
-          <DobbelkingenPanel
-            appState={appState}
-            onClose={onCloseMode}
-            onStart={onStartDobbelkingen}
-            onChooseContract={onChooseDobbelkingenContract}
-            dispatchAction={dispatchAction}
-          />
+          <div style={isMobile ? { minHeight: Math.max(420, height - 150), overflow: "hidden" } : undefined}>
+            <DobbelkingenPanel
+              appState={appState}
+              onClose={onCloseMode}
+              onStart={onStartDobbelkingen}
+              onChooseContract={onChooseDobbelkingenContract}
+              dispatchAction={dispatchAction}
+            />
+          </div>
         </>
       )}
 
@@ -674,6 +667,15 @@ export function PlayScreen({
       )}
 
       {showGameUi && (
+        isMobile ? (
+          <>
+            <ErrorBanner message={appState.lastError} />
+            {trickToast ? (
+              <AnimatedBanner key={trickToast.key} type="success" title={trickToast.title} message={trickToast.message} compact />
+            ) : null}
+            {mobileGameTable}
+          </>
+        ) : (
         <>
           <GameToolbar
             onUndo={onUndo}
@@ -712,58 +714,25 @@ export function PlayScreen({
             flyingCards={flyingCards}
           />
 
-          {!isMobile && (
-            <>
-              <Scoreboard
-                players={players}
-                scores={scoreboardScores}
-                currentPlayerIndex={currentIndex}
-                flashWinnerIndex={flashWinnerIndex}
-                allowEdit={false}
-                onAdjustScore={(playerIndex, delta) =>
-                  dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
-                }
-              />
+          <Scoreboard
+            players={players}
+            scores={scoreboardScores}
+            currentPlayerIndex={currentIndex}
+            flashWinnerIndex={flashWinnerIndex}
+            allowEdit={false}
+            onAdjustScore={(playerIndex, delta) =>
+              dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
+            }
+          />
 
-              {contractId === "TROEF" && (
-                <TrickWinsPanel players={players} trickWins={trickWins} />
-              )}
-
-              {showRecentCards && (
-                <PlayedCardsPanel
-                  cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []}
-                />
-              )}
-            </>
+          {contractId === "TROEF" && (
+            <TrickWinsPanel players={players} trickWins={trickWins} />
           )}
 
-          {isMobile && (
-            <MobileBottomSheet
-              open={showMobileScore}
-              title={showMobileScore ? "Score sluiten" : "Score"}
-              onToggle={() => setShowMobileScore((prev) => !prev)}
-            >
-              <Scoreboard
-                players={players}
-                scores={scoreboardScores}
-                currentPlayerIndex={currentIndex}
-                flashWinnerIndex={flashWinnerIndex}
-                allowEdit={false}
-                onAdjustScore={(playerIndex, delta) =>
-                  dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
-                }
-              />
-
-              {contractId === "TROEF" && (
-                <TrickWinsPanel players={players} trickWins={trickWins} />
-              )}
-
-              {showRecentCards && !isMobileLandscape && (
-                <PlayedCardsPanel
-                  cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []}
-                />
-              )}
-            </MobileBottomSheet>
+          {showRecentCards && (
+            <PlayedCardsPanel
+              cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []}
+            />
           )}
 
           {showDebug && appState.devMode && (
@@ -781,6 +750,7 @@ export function PlayScreen({
             />
           )}
         </>
+        )
       )}
     </div>
   );
