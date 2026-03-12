@@ -451,13 +451,13 @@ export function TableDirection({
     return () => window.removeEventListener("resize", updateGeometry);
   }, [flyingCards.length, seatCards, centerCards]);
 
-  const boardHeight = compactMobile ? (mobileTableHeight ?? (mobileLandscape ? 300 : 540)) : 450;
-  const centerBandWidth = compactMobile ? (mobileLandscape ? 660 : 300) : 850;
-  const centerBandHeight = compactMobile ? (mobileLandscape ? 112 : 154) : 170;
-  const innerBandWidth = compactMobile ? (mobileLandscape ? 630 : 272) : 810;
-  const innerBandHeight = compactMobile ? (mobileLandscape ? 90 : 126) : 138;
-  const coreWidth = compactMobile ? (mobileLandscape ? 62 : 52) : 100;
-  const coreHeight = compactMobile ? (mobileLandscape ? 58 : 50) : 92;
+  const boardHeight = compactMobile ? (mobileTableHeight ?? (mobileLandscape ? 330 : 560)) : 450;
+  const centerBandWidth = compactMobile ? (mobileLandscape ? 660 : 340) : 850;
+  const centerBandHeight = compactMobile ? (mobileLandscape ? 112 : 184) : 170;
+  const innerBandWidth = compactMobile ? (mobileLandscape ? 630 : 308) : 810;
+  const innerBandHeight = compactMobile ? (mobileLandscape ? 90 : 156) : 138;
+  const coreWidth = compactMobile ? (mobileLandscape ? 62 : 48) : 100;
+  const coreHeight = compactMobile ? (mobileLandscape ? 58 : 48) : 92;
 
   const seatOrder = [
     { seat: 0, zoneLabel: "Zone 1", position: "top" },
@@ -471,8 +471,8 @@ export function TableDirection({
       style={{
         ...softCardStyle({
           position: "relative",
-          minHeight: compactMobile ? boardHeight + 16 : 430,
-          padding: compactMobile ? (mobileLandscape ? 12 : 10) : 18,
+          minHeight: compactMobile ? boardHeight : 430,
+          padding: compactMobile ? (mobileLandscape ? 8 : 6) : 18,
           overflow: "hidden",
           background:
             "radial-gradient(circle at center, rgba(120,45,0,0.18) 0%, rgba(54,22,10,0.08) 38%, rgba(15,8,6,0) 70%)",
@@ -629,10 +629,13 @@ export function TableDirection({
           <div
             style={{
               position: "absolute",
-              right: mobileLandscape ? 12 : 10,
-              bottom: mobileLandscape ? 12 : 10,
+              left: mobileLandscape ? "auto" : "50%",
+              right: mobileLandscape ? 14 : "auto",
+              top: mobileLandscape ? "auto" : "72%",
+              bottom: mobileLandscape ? 14 : "auto",
+              transform: mobileLandscape ? "none" : "translate(-50%, -50%)",
               zIndex: 13,
-              width: mobileLandscape ? 170 : 156,
+              width: mobileLandscape ? 176 : 156,
               borderRadius: 20,
               padding: mobileLandscape ? "10px 12px" : "9px 10px",
               background: "rgba(28, 16, 12, 0.76)",
@@ -749,33 +752,33 @@ export function TableDirection({
             position === "top"
               ? {
                   position: "absolute",
-                  top: compactMobile ? mobileTopInset + (mobileLandscape ? 6 : 8) : 18,
+                  top: compactMobile ? mobileTopInset + (mobileLandscape ? 8 : 10) : 18,
                   left: "50%",
                   transform: "translateX(-50%)",
-                  width: compactMobile ? (mobileLandscape ? 136 : 136) : 184,
+                  width: compactMobile ? (mobileLandscape ? 138 : 136) : 184,
                 }
               : position === "right"
                 ? {
                     position: "absolute",
-                    right: compactMobile ? (mobileLandscape ? 14 : 6) : 18,
-                    top: compactMobile ? (mobileLandscape ? "56%" : "53%") : "50%",
+                    right: compactMobile ? (mobileLandscape ? 14 : 10) : 18,
+                    top: compactMobile ? (mobileLandscape ? "50%" : "50%") : "50%",
                     transform: "translateY(-50%)",
-                    width: compactMobile ? (mobileLandscape ? 128 : 116) : 174,
+                    width: compactMobile ? (mobileLandscape ? 128 : 112) : 174,
                   }
                 : position === "bottom"
                   ? {
                       position: "absolute",
-                      bottom: compactMobile ? (mobileLandscape ? 8 : 18) : 18,
+                      bottom: compactMobile ? (mobileLandscape ? 12 : 8) : 18,
                       left: "50%",
                       transform: "translateX(-50%)",
-                      width: compactMobile ? (mobileLandscape ? 136 : 136) : 184,
+                      width: compactMobile ? (mobileLandscape ? 138 : 136) : 184,
                     }
                   : {
                       position: "absolute",
-                      left: compactMobile ? (mobileLandscape ? 14 : 6) : 18,
-                      top: compactMobile ? (mobileLandscape ? "56%" : "53%") : "50%",
+                      left: compactMobile ? (mobileLandscape ? 14 : 10) : 18,
+                      top: compactMobile ? (mobileLandscape ? "50%" : "50%") : "50%",
                       transform: "translateY(-50%)",
-                      width: compactMobile ? (mobileLandscape ? 124 : 110) : 164,
+                      width: compactMobile ? (mobileLandscape ? 124 : 112) : 164,
                     };
 
           let badge = null;

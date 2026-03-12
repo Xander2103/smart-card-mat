@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import "../styles/app.css";
+import "../styles/App.css";
 
 import { parseEvent } from "../core/protocol/parseEvent";
 import { applyAppAction } from "../core/state/applyAppAction";
@@ -72,7 +72,7 @@ function BluetoothIcon({ size = 18, color = "currentColor" }) {
 }
 
 export default function App() {
-  const { isMobile } = useViewport();
+  const { isMobile, isLandscape } = useViewport();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showBlePanel, setShowBlePanel] = useState(false);
   const [lockToast, setLockToast] = useState(false);
@@ -331,7 +331,7 @@ export default function App() {
       {mobileCompactHeader ? (
         compactHeaderVisible ? (
         <div style={{ ...theme.panel, padding: mobileTableOnlyMode ? 10 : 12, display: "grid", gap: 10 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center", gap: mobileTableOnlyMode ? 8 : 10 }}>
             <button
               onClick={() => {
                 setShowMobileMenu((v) => !v);
@@ -343,8 +343,8 @@ export default function App() {
             </button>
 
             <div style={{ textAlign: "center", minWidth: 0 }}>
-              <div style={{ fontWeight: 900, fontSize: mobileTableOnlyMode ? 14 : 16 }}>Dobbelkingen</div>
-              <div style={{ color: "#c8b6a1", fontSize: mobileTableOnlyMode ? 11 : 12 }}>
+              <div style={{ fontWeight: 900, fontSize: mobileTableOnlyMode ? 15 : 17 }}>Dobbelkingen</div>
+              <div style={{ color: "#c8b6a1", fontSize: mobileTableOnlyMode ? 11 : 12, marginTop: 2 }}>
                 {appState?.phase === "CHOOSING_CONTRACT"
                   ? "Contract kiezen"
                   : appState?.phase === "CHOOSING_TROEF"
@@ -378,17 +378,6 @@ export default function App() {
                 <BluetoothIcon size={mobileTableOnlyMode ? 18 : 20} color={statusColor} />
               </button>
 
-              <button
-                onClick={() => setMobileHeaderExpanded(false)}
-                style={{
-                  ...theme.button,
-                  padding: mobileTableOnlyMode ? "8px 10px" : "9px 11px",
-                  borderRadius: 14,
-                  fontSize: mobileTableOnlyMode ? 12 : 13,
-                }}
-              >
-                Sluit
-              </button>
             </div>
           </div>
 
@@ -403,7 +392,7 @@ export default function App() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(2, minmax(0, 140px))",
+                gridTemplateColumns: isLandscape ? "repeat(3, minmax(0, 140px))" : "repeat(2, minmax(0, 140px))",
                 justifyContent: "center",
                 gap: 12,
                 paddingTop: 4,
@@ -476,6 +465,7 @@ export default function App() {
         <div
           style={{
             ...theme.panel,
+            width: "100%",
             padding: isMobile ? 16 : 20,
             display: "grid",
             gap: 14,
@@ -484,67 +474,159 @@ export default function App() {
             border: "1px solid rgba(251, 191, 36, 0.18)",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 16,
-              flexWrap: "wrap",
-              alignItems: isMobile ? "stretch" : "center",
-              flexDirection: isMobile ? "column" : "row",
-            }}
-          >
-            <div style={{ minWidth: 0 }}>
-              <h1 style={{ margin: 0, fontSize: isMobile ? 30 : 34 }}>
-                Smart Card Mat
-              </h1>
-              <div style={{ marginTop: 6, color: "#c8b6a1", maxWidth: 740 }}>
-                RFID kaartdetectie, spelmodi en live scoring in een donkere tavern
-                card-table look.
-              </div>
+          <div style={{ display: "grid", gap: 14 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "auto 1fr auto" : "1fr auto",
+                alignItems: "center",
+                gap: 14,
+              }}
+            >
+              {isMobile ? (
+                <button
+                  onClick={() => {
+                    setShowMobileMenu((v) => !v);
+                    setShowBlePanel(false);
+                  }}
+                  style={{ ...theme.button, padding: "10px 12px", borderRadius: 16, justifySelf: "start" }}
+                >
+                  ☰ Menu
+                </button>
+              ) : (
+                <div style={{ minWidth: 0 }}>
+                  <h1 style={{ margin: 0, fontSize: 34 }}>Smart Card Mat</h1>
+                  <div style={{ marginTop: 6, color: "#c8b6a1", maxWidth: "100%" }}>
+                    RFID kaartdetectie, spelmodi en live scoring in een donkere tavern card-table look.
+                  </div>
+                </div>
+              )}
+
+              {isMobile ? (
+                <div style={{ minWidth: 0, textAlign: "center" }}>
+                  <h1 style={{ margin: 0, fontSize: 24 }}>Smart Card Mat</h1>
+                  <div style={{ marginTop: 4, color: "#c8b6a1", fontSize: 12 }}>
+                    RFID kaartdetectie, spelmodi en live scoring in een donkere tavern card-table look.
+                  </div>
+                </div>
+              ) : null}
+
+              <button
+                onClick={() => {
+                  setShowBlePanel((v) => !v);
+                  if (isMobile) setShowMobileMenu(false);
+                }}
+                aria-label={`Bluetooth ${bleStatus}`}
+                title={`Bluetooth ${bleStatus}`}
+                style={{
+                  ...theme.button,
+                  width: isMobile ? 48 : 52,
+                  height: isMobile ? 48 : 52,
+                  borderRadius: 999,
+                  padding: 0,
+                  border: `1px solid ${statusColor}66`,
+                  background: `${statusColor}14`,
+                  boxShadow: bleGlow,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  justifySelf: "end",
+                }}
+              >
+                <BluetoothIcon size={isMobile ? 20 : 22} color={statusColor} />
+              </button>
             </div>
 
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", width: isMobile ? "100%" : "auto" }}>
-              <div style={{ borderRadius: 999, padding: "8px 12px", border: `1px solid ${statusColor}44`, background: `${statusColor}12`, boxShadow: bleGlow, display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800 }}>
-                <BluetoothIcon size={16} color={statusColor} />
-                {bleStatus}
+            {showBlePanel ? (
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "auto auto auto", justifyContent: isMobile ? undefined : "start", gap: 10, alignItems: "center" }}>
+                <div style={{ borderRadius: 999, padding: "8px 12px", border: `1px solid ${statusColor}44`, background: `${statusColor}12`, boxShadow: bleGlow, display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800, justifyContent: "center" }}>
+                  <BluetoothIcon size={16} color={statusColor} />
+                  {bleStatus}
+                </div>
+                <button onClick={connectBle} disabled={bleStatus === "connected" || bleStatus === "connecting..."} style={{ ...theme.button, opacity: bleStatus === "connected" || bleStatus === "connecting..." ? 0.55 : 1 }}>Connect BLE</button>
+                <button onClick={disconnectBle} disabled={bleStatus !== "connected"} style={{ ...theme.button, opacity: bleStatus !== "connected" ? 0.55 : 1 }}>Disconnect</button>
               </div>
+            ) : null}
 
-              <button onClick={connectBle} disabled={bleStatus === "connected" || bleStatus === "connecting..."} style={{ ...theme.button, opacity: bleStatus === "connected" || bleStatus === "connecting..." ? 0.55 : 1, flex: isMobile ? 1 : "0 1 auto" }}>Connect BLE</button>
-              <button onClick={disconnectBle} disabled={bleStatus !== "connected"} style={{ ...theme.button, opacity: bleStatus !== "connected" ? 0.55 : 1, flex: isMobile ? 1 : "0 1 auto" }}>Disconnect</button>
-            </div>
+            {isMobile ? (
+              showMobileMenu ? (
+                <div style={{ display: "grid", gridTemplateColumns: isLandscape ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))", gap: 12, justifyContent: "center" }}>
+                  {[
+                    { value: "play", label: "Play" },
+                    { value: "players", label: "Players", locked: playersLocked },
+                    { value: "history", label: "History" },
+                    { value: "stats", label: "Stats" },
+                    { value: "deck", label: "Deck Setup" },
+                    { value: "settings", label: "Settings" },
+                  ].map((item) => {
+                    const active = tab === item.value;
+                    const locked = !!item.locked;
+                    return (
+                      <button
+                        key={item.value}
+                        onClick={() => {
+                          if (item.value === "players" && playersLocked) {
+                            setLockToast(true);
+                            return;
+                          }
+                          setTab(item.value);
+                          setShowMobileMenu(false);
+                        }}
+                        style={{
+                          ...theme.button,
+                          minHeight: 60,
+                          padding: "12px 10px",
+                          borderRadius: 18,
+                          textAlign: "center",
+                          fontWeight: 900,
+                          fontSize: 14,
+                          border: active ? "1px solid rgba(251, 191, 36, 0.34)" : locked ? "1px solid rgba(248,113,113,0.22)" : "1px solid rgba(255,255,255,0.08)",
+                          background: active
+                            ? "linear-gradient(180deg, rgba(251, 191, 36, 0.18) 0%, rgba(217, 119, 6, 0.14) 100%)"
+                            : "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%)",
+                          color: locked ? "#f87171" : active ? "#fde68a" : "#f5efe6",
+                          textDecoration: locked ? "line-through" : "none",
+                        }}
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null
+            ) : (
+              <Tabs
+                value={tab}
+                onChange={(next) => {
+                  if (next === "players" && playersLocked) {
+                    setLockToast(true);
+                    return;
+                  }
+                  setTab(next);
+                }}
+                items={[
+                  { value: "play", label: "Play" },
+                  { value: "players", label: <span style={playersLocked ? { color: "#f87171", textDecoration: "line-through" } : undefined}>Players</span> },
+                  { value: "history", label: "History" },
+                  { value: "stats", label: "Stats" },
+                  { value: "deck", label: "Deck Setup" },
+                  { value: "settings", label: "Settings" },
+                ]}
+              />
+            )}
+
+            {!hasEnoughPlayers ? (
+              <div style={{ borderRadius: 16, padding: "10px 12px", background: "rgba(127, 29, 29, 0.35)", border: "1px solid rgba(248, 113, 113, 0.25)", color: "#fee2e2", fontWeight: 700 }}>
+                Kies eerst exact 4 spelers in de Players tab voordat je een match start.
+              </div>
+            ) : null}
+
+            {lockToast ? (
+              <div style={{ borderRadius: 16, padding: "10px 12px", background: "rgba(180, 83, 9, 0.18)", border: "1px solid rgba(251, 191, 36, 0.22)", color: "#fde68a", fontWeight: 700 }}>
+                Players zijn vergrendeld terwijl een match bezig is.
+              </div>
+            ) : null}
           </div>
-
-          <Tabs
-            value={tab}
-            onChange={(next) => {
-              if (next === "players" && playersLocked) {
-                setLockToast(true);
-                return;
-              }
-              setTab(next);
-            }}
-            items={[
-              { value: "play", label: "Play" },
-              { value: "players", label: <span style={playersLocked ? { color: "#f87171", textDecoration: "line-through" } : undefined}>Players</span> },
-              { value: "history", label: "History" },
-              { value: "stats", label: "Stats" },
-              { value: "deck", label: "Deck Setup" },
-              { value: "settings", label: "Settings" },
-            ]}
-          />
-
-          {!hasEnoughPlayers ? (
-            <div style={{ borderRadius: 16, padding: "10px 12px", background: "rgba(127, 29, 29, 0.35)", border: "1px solid rgba(248, 113, 113, 0.25)", color: "#fee2e2", fontWeight: 700 }}>
-              Kies eerst exact 4 spelers in de Players tab voordat je een match start.
-            </div>
-          ) : null}
-
-          {lockToast ? (
-            <div style={{ borderRadius: 16, padding: "10px 12px", background: "rgba(180, 83, 9, 0.18)", border: "1px solid rgba(251, 191, 36, 0.22)", color: "#fde68a", fontWeight: 700 }}>
-              Players zijn vergrendeld terwijl een match bezig is.
-            </div>
-          ) : null}
         </div>
       )}
 

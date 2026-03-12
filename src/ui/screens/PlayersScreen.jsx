@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { storageService } from "../../core/storage/services/storageService";
+import { useViewport } from "../play/useViewport";
 
 const panelStyle = {
   border: "1px solid rgba(251, 191, 36, 0.18)",
@@ -85,6 +86,8 @@ function isDevProfileName(name) {
 }
 
 export function PlayersScreen({ appState, dispatchAction, locked = false }) {
+  const { isMobile, isLandscape } = useViewport();
+  const compactMobile = isMobile;
   const [profiles, setProfiles] = useState([]);
   const [newPlayerName, setNewPlayerName] = useState("");
   const [error, setError] = useState("");
@@ -290,8 +293,8 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
   const hasDevProfiles = profiles.some((profile) => isDevProfileName(profile.name));
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
-      <div style={panelStyle}>
+    <div style={{ display: "grid", gap: compactMobile ? 12 : 16 }}>
+      <div style={{ ...panelStyle, padding: compactMobile ? 14 : 20 }}>
         <div
           style={{
             display: "flex",
@@ -302,7 +305,7 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
             marginBottom: 6,
           }}
         >
-          <h2 style={{ margin: 0 }}>Players</h2>
+          <h2 style={{ margin: 0, fontSize: compactMobile ? 24 : undefined }}>Players</h2>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {appState?.devMode && hasDevProfiles && (
@@ -372,7 +375,8 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
         <form
           onSubmit={handleCreatePlayer}
           style={{
-            display: "flex",
+            display: compactMobile ? "grid" : "flex",
+            gridTemplateColumns: compactMobile ? "1fr auto" : undefined,
             gap: 10,
             flexWrap: "wrap",
             marginBottom: 18,
@@ -385,7 +389,7 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
             disabled={locked}
             style={{
               flex: "1 1 240px",
-              minWidth: 220,
+              minWidth: compactMobile ? 0 : 220,
               borderRadius: 12,
               padding: "10px 12px",
               border: "1px solid rgba(255,255,255,0.08)",
@@ -433,7 +437,7 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
           {selectedPlayers.length === 0 ? (
             <div style={{ color: "#c8b6a1" }}>Nog geen spelers geselecteerd.</div>
           ) : (
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ display: compactMobile ? "grid" : "flex", gridTemplateColumns: compactMobile ? (isLandscape ? "repeat(4, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))") : undefined, gap: 10, flexWrap: "wrap" }}>
               {selectedPlayers.map((player, index) => (
                 <div
                   key={player.id}
@@ -442,7 +446,7 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
                     padding: "10px 14px",
                     border: "1px solid rgba(251, 191, 36, 0.24)",
                     background: "rgba(217, 119, 6, 0.12)",
-                    minWidth: 170,
+                    minWidth: compactMobile ? 0 : 170,
                     position: "relative",
                   }}
                 >
@@ -595,7 +599,7 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
             Nog geen spelers opgeslagen. Maak eerst een speler aan.
           </div>
         ) : (
-          <div style={{ display: "grid", gap: 10, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: compactMobile ? "repeat(2, minmax(0, 1fr))" : undefined, gap: 10, marginBottom: 14 }}>
             {profileStats.map(({ profile, stats }) => {
               const isSelected = selectedPlayers.some(
                 (player) => player.id === profile.id
@@ -636,8 +640,8 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
                     }}
                     style={{
                       position: "absolute",
-                      top: 24,
-                      right: 20,
+                      top: compactMobile ? 12 : 24,
+                      right: compactMobile ? 12 : 20,
                       height: 30,
                       borderRadius: 999,
                       border: "1px solid rgba(251, 191, 36, 0.18)",
@@ -646,7 +650,6 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
                       fontWeight: 800,
                       fontSize: 12,
                       display: "flex",
-                      alignItems: "center",
                       justifyContent: "center",
                       cursor: locked ? "not-allowed" : "pointer",
                       opacity: locked ? 0.5 : 1,
@@ -670,10 +673,11 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
-                      alignItems: "center",
                       gap: 16,
-                      paddingRight: 200,
-                      minHeight: 55,
+                      paddingRight: compactMobile ? 0 : 200,
+                      minHeight: compactMobile ? 42 : 55,
+                      flexDirection: compactMobile ? "column" : "row",
+                      alignItems: compactMobile ? "flex-start" : "center",
                     }}
                   >
                     <div style={{ minWidth: 0 }}>
@@ -691,8 +695,7 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
                         gap: 10,
                         flexWrap: "wrap",
                         justifyContent: "center",
-                        alignItems: "center",
-                        color: "#e8d9c9",
+                          color: "#e8d9c9",
                         fontSize: 16,
                         textAlign: "center",
                         padding: "6px 10px",

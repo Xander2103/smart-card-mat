@@ -14,9 +14,10 @@ function getViewport() {
 
   const width = window.innerWidth;
   const height = window.innerHeight;
-  const isMobile = width <= 700;
-  const isTablet = width <= 1024;
   const isLandscape = width > height;
+  const isTabletLike = width <= 1400 && height <= 1100;
+  const isMobile = width <= 1180 || isTabletLike;
+  const isTablet = width <= 1400;
 
   return {
     width,

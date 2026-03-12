@@ -565,10 +565,22 @@ export function PlayScreen({
     showTrumpInHeader ? getTrumpLabel(d?.currentTrumpSuit) : "—";
 
   const centerAnimationSeed = `${trickCount}-${JSON.stringify(d?.currentTrick ?? [])}`;
-  const mobileTableHeight = Math.max(isMobileLandscape ? 250 : 520, height - (isMobileLandscape ? 78 : 150));
+  const mobileTableHeight = Math.max(isMobileLandscape ? 300 : 540, height - (isMobileLandscape ? 26 : 32));
 
-  const mobileTopOverlayOffset = 8;
-  const mobileControlsHeight = isMobileLandscape ? 44 : 48;
+  const mobileTopOverlayOffset = 6;
+  const mobileControlsHeight = isMobileLandscape ? 40 : 42;
+  const mobileLobbyHeight = Math.max(appState.phase === "CHOOSING_TROEF" ? 520 : 420, height - 112);
+  const mobileTopButtonStyle = {
+    minHeight: mobileControlsHeight,
+    padding: isMobileLandscape ? "6px 8px" : "7px 9px",
+    fontSize: isMobileLandscape ? 11 : 12,
+    pointerEvents: "auto",
+    whiteSpace: "nowrap",
+    outline: "none",
+    WebkitTapHighlightColor: "transparent",
+    boxShadow: "0 8px 18px rgba(0,0,0,0.16)",
+    opacity: 0.92,
+  };
 
   const mobileGameTable = (
     <div style={{ position: "relative", minHeight: mobileTableHeight, height: mobileTableHeight, overflow: "hidden" }}>
@@ -587,30 +599,30 @@ export function PlayScreen({
         flyingCards={flyingCards}
         compactMobile
         mobileLandscape={isMobileLandscape}
-        mobileTableHeight={mobileTableHeight - (isMobileLandscape ? 6 : 18)}
-        mobileTopInset={mobileControlsHeight + 10}
+        mobileTableHeight={mobileTableHeight - (isMobileLandscape ? 2 : 8)}
+        mobileTopInset={mobileControlsHeight + 8}
       />
 
-      <div style={{ position: "absolute", top: mobileTopOverlayOffset, left: isMobileLandscape ? 8 : 10, right: isMobileLandscape ? 8 : 10, display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, pointerEvents: "none", zIndex: 12 }}>
+      <div style={{ position: "absolute", top: mobileTopOverlayOffset, left: 8, right: 8, display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, pointerEvents: "none", zIndex: 12 }}>
         <button
           onClick={onToggleMobileHeader}
-          style={{ ...buttonStyle(), minHeight: mobileControlsHeight, padding: isMobileLandscape ? "7px 8px" : "8px 8px", fontSize: isMobileLandscape ? 12 : 13, pointerEvents: "auto", whiteSpace: "nowrap" }}
+          style={{ ...buttonStyle(), ...mobileTopButtonStyle }}
         >
-          {mobileHeaderExpanded ? "Sluit header" : "Open header"}
+          Header
         </button>
-        <button onClick={onUndo} style={{ ...buttonStyle("primary"), minHeight: mobileControlsHeight, padding: isMobileLandscape ? "7px 8px" : "8px 8px", fontSize: isMobileLandscape ? 12 : 13, pointerEvents: "auto", whiteSpace: "nowrap" }}>↻ Undo</button>
-        <button onClick={() => setShowMobileScore(true)} style={{ ...buttonStyle(), minHeight: mobileControlsHeight, padding: isMobileLandscape ? "7px 8px" : "8px 8px", fontSize: isMobileLandscape ? 12 : 13, pointerEvents: "auto", whiteSpace: "nowrap" }}>Score</button>
+        <button onClick={onUndo} style={{ ...buttonStyle("primary"), ...mobileTopButtonStyle }}>↻ Undo</button>
+        <button onClick={() => setShowMobileScore(true)} style={{ ...buttonStyle(), ...mobileTopButtonStyle }}>Score</button>
         <button
           onClick={() => {
             const ok = window.confirm("Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen.");
             if (ok) onBackFromContract?.();
           }}
-          style={{ ...buttonStyle("danger"), minHeight: mobileControlsHeight, padding: isMobileLandscape ? "7px 8px" : "8px 8px", fontSize: isMobileLandscape ? 12 : 13, pointerEvents: "auto", whiteSpace: "nowrap" }}
+          style={{ ...buttonStyle("danger"), ...mobileTopButtonStyle }}
         >← Terug</button>
       </div>
 
       {showMobileScore ? (
-        <div style={{ position: "absolute", inset: 0, zIndex: 40, background: "rgba(8,6,5,0.96)", backdropFilter: "blur(10px)", padding: isMobileLandscape ? 10 : 12, display: "grid", gridTemplateRows: "auto 1fr", gap: 10, overflow: "hidden" }}>
+        <div style={{ position: "absolute", inset: 0, zIndex: 40, background: "rgba(8,6,5,0.96)", backdropFilter: "blur(10px)", padding: isMobileLandscape ? 8 : 8, display: "grid", gridTemplateRows: "auto 1fr", gap: 8, overflow: "hidden" }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
             <div style={{ fontWeight: 900, fontSize: isMobileLandscape ? 18 : 20 }}>Tussenstand</div>
             <button onClick={() => setShowMobileScore(false)} style={{ ...buttonStyle(), padding: isMobileLandscape ? "7px 10px" : "8px 12px", fontSize: isMobileLandscape ? 12 : 13 }}>Sluiten</button>
@@ -619,7 +631,7 @@ export function PlayScreen({
           <div
             style={{
               display: "grid",
-              gap: 10,
+              gap: isMobileLandscape ? 8 : 8,
               gridTemplateRows: contractId === "TROEF" ? "repeat(4, minmax(0, 1fr)) auto" : "repeat(4, minmax(0, 1fr))",
               minHeight: 0,
             }}
@@ -630,7 +642,7 @@ export function PlayScreen({
                 <div
                   key={player.id ?? index}
                   style={softCardStyle({
-                    padding: isMobileLandscape ? "10px 14px" : "12px 14px",
+                    padding: isMobileLandscape ? "7px 10px" : "8px 10px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
@@ -639,16 +651,16 @@ export function PlayScreen({
                   })}
                 >
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 900, fontSize: isMobileLandscape ? 18 : 20 }}>{player.name ?? `Player ${index + 1}`}</div>
-                    {isCurrent ? <div style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>Aan de beurt</div> : null}
+                    <div style={{ fontWeight: 900, fontSize: isMobileLandscape ? 17 : 17 }}>{player.name ?? `Player ${index + 1}`}</div>
+                    {isCurrent ? <div style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>Aan de beurt</div> : null}
                   </div>
-                  <div style={{ fontWeight: 900, fontSize: isMobileLandscape ? 26 : 30 }}>{scoreboardScores[index] ?? 0}</div>
+                  <div style={{ fontWeight: 900, fontSize: isMobileLandscape ? 22 : 22 }}>{scoreboardScores[index] ?? 0}</div>
                 </div>
               );
             })}
 
             {contractId === "TROEF" ? (
-              <div style={softCardStyle({ padding: isMobileLandscape ? "8px 12px" : "10px 12px", display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 })}>
+              <div style={softCardStyle({ padding: isMobileLandscape ? "7px 10px" : "8px 10px", display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 6 })}>
                 {players.map((player, index) => (
                   <div key={`trick-${player.id ?? index}`} style={{ textAlign: "center" }}>
                     <div style={{ fontSize: 12, color: colors.muted }}>{player.name ?? `P${index + 1}`}</div>
@@ -664,7 +676,7 @@ export function PlayScreen({
   );
 
   return (
-    <div style={{ display: "grid", gap: 14 }}>
+    <div style={{ display: "grid", gap: showGameUi && isMobile ? 0 : 14, overflow: showGameUi && isMobile ? "hidden" : undefined }}>
       <ContractEndOverlay
         open={showContractOverlay}
         title={overlayTitle}
@@ -690,7 +702,7 @@ export function PlayScreen({
             </div>
           )}
 
-          <div style={isMobile ? { minHeight: Math.max(420, height - 120), height: Math.max(420, height - 120), minWidth: 0, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch" } : undefined}>
+          <div style={isMobile ? { minHeight: mobileLobbyHeight, height: mobileLobbyHeight, minWidth: 0, overflowY: appState.phase === "CHOOSING_TROEF" ? "hidden" : "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch" } : undefined}>
             <DobbelkingenPanel
               appState={appState}
               onClose={onCloseMode}

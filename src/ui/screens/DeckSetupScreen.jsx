@@ -3,7 +3,8 @@ import { buttonStyle, colors, panelStyle, softCardStyle } from "../play/theme";
 import { useViewport } from "../play/useViewport";
 
 export function DeckSetupScreen({ appState, mapping, selectedUid, dispatchAction }) {
-  const { isMobile } = useViewport();
+  const { isMobile, isLandscape } = useViewport();
+  const compactMobile = isMobile;
   const idx = appState.deckIndex ?? 0;
   const card = DECK52[idx];
   const uid = selectedUid ?? null;
@@ -34,9 +35,9 @@ export function DeckSetupScreen({ appState, mapping, selectedUid, dispatchAction
   }
 
   return (
-    <div style={panelStyle({ padding: isMobile ? 16 : 22, display: "grid", gap: 16 })}>
+    <div style={panelStyle({ padding: compactMobile ? 14 : 22, display: "grid", gap: compactMobile ? 12 : 16 })}>
       <div style={{ display: "grid", gap: 8 }}>
-        <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 700 }}>Deck Setup</div>
+        <div style={{ fontSize: compactMobile ? 22 : 28, fontWeight: 700 }}>Deck Setup</div>
         <div style={{ color: colors.muted, maxWidth: 720 }}>
           Koppel RFID UID's aan je kaartendeck. Scan een kaart, wijs ze toe en spring meteen naar de volgende kaart.
         </div>
@@ -45,14 +46,14 @@ export function DeckSetupScreen({ appState, mapping, selectedUid, dispatchAction
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: isMobile ? "minmax(0,1fr)" : "minmax(260px, 360px) minmax(0,1fr)",
-          gap: 16,
+          gridTemplateColumns: compactMobile ? (isLandscape ? "minmax(180px, 220px) minmax(0,1fr)" : "minmax(0,1fr)") : "minmax(260px, 360px) minmax(0,1fr)",
+          gap: compactMobile ? 12 : 16,
           alignItems: "start",
         }}
       >
         <div
           style={softCardStyle({
-            padding: 18,
+            padding: compactMobile ? 14 : 18,
             display: "grid",
             gap: 10,
             background: "radial-gradient(circle at top, rgba(251,191,36,0.12), transparent 50%), rgba(255,255,255,0.04)",
@@ -61,7 +62,7 @@ export function DeckSetupScreen({ appState, mapping, selectedUid, dispatchAction
           <div style={{ color: colors.muted, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>
             Huidige kaart
           </div>
-          <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 700 }}>{card.label}</div>
+          <div style={{ fontSize: compactMobile ? 22 : 28, fontWeight: 700 }}>{card.label}</div>
           <div style={{ color: colors.muted }}>{card.name}</div>
           <div style={{ fontSize: 13, color: "#fde68a", fontWeight: 700 }}>Code: {card.code}</div>
           <div style={{ marginTop: 6, color: colors.muted, fontSize: 13 }}>
@@ -70,7 +71,7 @@ export function DeckSetupScreen({ appState, mapping, selectedUid, dispatchAction
         </div>
 
         <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0,1fr))", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: compactMobile ? "repeat(2, minmax(0,1fr))" : "repeat(2, minmax(0,1fr))", gap: compactMobile ? 10 : 12 }}>
             <div style={softCardStyle({ padding: 16, display: "grid", gap: 8 })}>
               <div style={{ color: colors.muted, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>
                 Laatst gescand
@@ -89,7 +90,7 @@ export function DeckSetupScreen({ appState, mapping, selectedUid, dispatchAction
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ display: compactMobile ? "grid" : "flex", gridTemplateColumns: compactMobile ? "repeat(3, minmax(0, 1fr))" : undefined, gap: 10, flexWrap: "wrap" }}>
             <button onClick={prev} disabled={idx === 0} style={{ ...buttonStyle(), opacity: idx === 0 ? 0.55 : 1 }}>
               Vorige
             </button>
