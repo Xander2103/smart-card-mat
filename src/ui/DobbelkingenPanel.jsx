@@ -37,6 +37,7 @@ function ContractCard({
   onMouseEnter,
   onMouseLeave,
   onClick,
+  compact = false,
 }) {
   return (
     <button
@@ -46,7 +47,7 @@ function ContractCard({
       disabled={disabled}
       style={{
         ...softCardStyle({
-          padding: 16,
+          padding: compact ? 12 : 16,
           textAlign: "left",
           display: "grid",
           gap: 8,
@@ -75,7 +76,7 @@ function ContractCard({
         <div
           style={{
             fontWeight: 700,
-            fontSize: 17,
+            fontSize: compact ? 15 : 17,
             textAlign: "center",
             width: "100%",
             paddingRight: 42,
@@ -90,10 +91,10 @@ function ContractCard({
             top: 0,
             right: 0,
             borderRadius: 999,
-            padding: "4px 8px",
+            padding: compact ? "3px 7px" : "4px 8px",
             background: count >= 2 ? colors.redSoft : colors.accentSoft,
             color: count >= 2 ? "#fecdd3" : "#fcd34d",
-            fontSize: 12,
+            fontSize: compact ? 11 : 12,
             fontWeight: 700,
           }}
         >
@@ -104,8 +105,8 @@ function ContractCard({
       <div
         style={{
           color: colors.muted,
-          fontSize: 14,
-          lineHeight: 1.5,
+          fontSize: compact ? 12 : 14,
+          lineHeight: compact ? 1.35 : 1.5,
           textAlign: "center",
         }}
       >
@@ -114,7 +115,7 @@ function ContractCard({
 
       <div
         style={{
-          fontSize: 12,
+          fontSize: compact ? 11 : 12,
           fontWeight: 700,
           color: disabled ? "#fda4af" : colors.muted,
           textAlign: "center",
@@ -470,15 +471,15 @@ export function DobbelkingenPanel({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr auto 1fr",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr auto 1fr",
                   alignItems: "center",
-                  gap: 16,
+                  gap: isMobile ? 10 : 16,
                 }}
               >
                 <div
                   style={{
                     display: "flex",
-                    justifyContent: "flex-start",
+                    justifyContent: isMobile ? "center" : "flex-start",
                     gap: 12,
                     fontSize: isMobile ? 18 : 22,
                     fontWeight: 900,
@@ -511,7 +512,7 @@ export function DobbelkingenPanel({
                 <div
                   style={{
                     display: "flex",
-                    justifyContent: "flex-end",
+                    justifyContent: isMobile ? "center" : "flex-end",
                     gap: 12,
                     fontSize: isMobile ? 18 : 22,
                     fontWeight: 900,
@@ -526,13 +527,29 @@ export function DobbelkingenPanel({
                 </div>
               </div>
             </div>
+            {isMobile ? (
+              <div
+                style={softCardStyle({
+                  padding: "12px 14px",
+                  display: "grid",
+                  gap: 4,
+                  background: "rgba(255,255,255,0.04)",
+                })}
+              >
+                <div style={{ fontWeight: 800 }}>Mobile contractkeuze</div>
+                <div style={{ color: colors.muted, fontSize: 13 }}>
+                  2 kaarten per rij zodat je sneller kan kiezen zonder eindeloos te scrollen.
+                </div>
+              </div>
+            ) : null}
+
             <div
               style={{
                 display: "grid",
                 gridTemplateColumns: isMobile
-                  ? "minmax(0, 1fr)"
+                  ? "repeat(2, minmax(0, 1fr))"
                   : "repeat(3, minmax(0, 1fr))",
-                gap: 14,
+                gap: isMobile ? 10 : 14,
               }}
             >
               {contractList.map((id) => {
@@ -555,6 +572,7 @@ export function DobbelkingenPanel({
                     hovered={hovered}
                     onMouseEnter={() => setHoveredContract(id)}
                     onMouseLeave={() => setHoveredContract(null)}
+                    compact={isMobile}
                     onClick={() => {
                       if (disabled) return;
                       onChooseContract?.(id);
