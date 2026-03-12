@@ -136,6 +136,10 @@ export default function App() {
     const ev = parseEvent(cleaned);
     if (!ev) return;
 
+    if (ev.type === "placed") {
+      playUiSound("scan");
+    }
+
     setAppState((prev) => {
       const nextState = applyRootEvent(prev, ev);
 
