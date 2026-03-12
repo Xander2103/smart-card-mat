@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { softCardStyle } from "./play/theme";
+import { useViewport } from "./play/useViewport";
 
 function getCardTone(label) {
   if (!label) return "#f5efe6";
@@ -190,7 +191,7 @@ function Seat({
   style,
 }) {
   const infoBlock = (
-    <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
+    <div style={{ display: "grid", gap: 4, minWidth: 0, justifyItems: "center", textAlign: "center", width: "100%" }}>
       <div style={{ fontSize: 12, opacity: 0.9, fontWeight: 800 }}>{zoneLabel}</div>
       <div style={{ fontSize: 16, fontWeight: 900 }}>{playerName}</div>
 
@@ -210,8 +211,8 @@ function Seat({
           padding: 16,
           minHeight: 104,
           display: "grid",
-          alignContent: "start",
-          justifyItems: "start",
+          alignContent: "center",
+          justifyItems: "center",
           background: active
             ? "linear-gradient(180deg, rgba(127, 29, 29, 0.84), rgba(93, 24, 24, 0.76))"
             : accent
@@ -250,7 +251,7 @@ function Seat({
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
+            justifyContent: "center",
             gap: 12,
             width: "100%",
           }}
@@ -401,6 +402,9 @@ export function TableDirection({
   mobileTableHeight = null,
   mobileTopInset = 0,
 }) {
+  const { width } = useViewport();
+  const tabletLikeCompact = compactMobile && width >= 700;
+
   const safePlayers =
     players.length >= 4
       ? players
@@ -629,15 +633,15 @@ export function TableDirection({
           <div
             style={{
               position: "absolute",
-              left: mobileLandscape ? "auto" : "50%",
+              left: mobileLandscape ? "auto" : tabletLikeCompact ? "50%" : "50%",
               right: mobileLandscape ? 14 : "auto",
-              top: mobileLandscape ? "auto" : "72%",
+              top: mobileLandscape ? "auto" : tabletLikeCompact ? "50%" : "72%",
               bottom: mobileLandscape ? 14 : "auto",
               transform: mobileLandscape ? "none" : "translate(-50%, -50%)",
               zIndex: 13,
-              width: mobileLandscape ? 176 : 156,
+              width: mobileLandscape ? 176 : tabletLikeCompact ? 220 : 156,
               borderRadius: 20,
-              padding: mobileLandscape ? "10px 12px" : "9px 10px",
+              padding: mobileLandscape ? "10px 12px" : tabletLikeCompact ? "12px 14px" : "9px 10px",
               background: "rgba(28, 16, 12, 0.76)",
               border: "1px solid rgba(255, 210, 140, 0.16)",
               boxShadow: "0 14px 28px rgba(0,0,0,0.22)",

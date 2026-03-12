@@ -27,6 +27,18 @@ const TROEF_OPTIONS = [
   { suit: "S", label: "Schoppen", symbol: "♠", color: "#e5eefb" },
 ];
 
+
+function getCompactContractDesc(label, desc) {
+  const value = String(label ?? "").toLowerCase();
+  if (value.includes("minste slagen")) return "Neem zo weinig mogelijk slagen. -1 per slag.";
+  if (value.includes("minste harten")) return "Pak zo weinig mogelijk harten. -1 per hart.";
+  if (value.includes("harten koning")) return "Koning harten gepakt? Meteen einde. -5 punten.";
+  if (value.includes("boeren") || value.includes("koningen")) return "Boer of koning = -1 per kaart.";
+  if (value.includes("geen slag 7") || value.includes("13")) return "Slag 7 = -2, slag 13 = -3.";
+  if (value.includes("queens")) return "Elke vrouw = -2 punten.";
+  return desc;
+}
+
 function ContractCard({
   label,
   desc,
@@ -78,7 +90,7 @@ function ContractCard({
         <div
           style={{
             fontWeight: 700,
-            fontSize: compact ? 14 : 17,
+            fontSize: compact ? 15 : 17,
             textAlign: "center",
             width: "100%",
             paddingRight: compact ? 34 : 42,
@@ -107,11 +119,11 @@ function ContractCard({
       <div
         style={{
           color: colors.muted,
-          fontSize: compact ? 12 : 14,
+          fontSize: compact ? 11 : 14,
           lineHeight: compact ? 1.32 : 1.5,
           textAlign: "center",
           display: "-webkit-box",
-          WebkitLineClamp: compact ? 3 : "unset",
+          WebkitLineClamp: compact ? 4 : "unset",
           WebkitBoxOrient: "vertical",
           overflow: "hidden",
         }}
@@ -269,6 +281,99 @@ function PlayerProgressBoard({
   );
 }
 
+function MobileRoundStatusOverlay({
+  open,
+  title = "Score",
+  players,
+  currentIndex,
+  totalScores,
+  roundDeltas,
+  progressCounts,
+  progressLabel,
+  trickCounts,
+  onClose,
+}) {
+  if (!open) return null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        background: "rgba(8, 6, 5, 0.92)",
+        backdropFilter: "blur(10px)",
+        padding: 12,
+        display: "grid",
+        gridTemplateRows: "auto 1fr",
+        gap: 10,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div>
+          <div style={{ fontWeight: 900, fontSize: 22 }}>{title}</div>
+          <div style={{ color: colors.muted, fontSize: 12 }}>
+            Per speler: deze ronde, voortgang en totaalscore.
+          </div>
+        </div>
+        <button onClick={onClose} style={{ ...buttonStyle(), minHeight: 40, padding: "8px 12px" }}>
+          Sluiten
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateRows: "repeat(4, minmax(0, 1fr))", gap: 8, minHeight: 0 }}>
+        {players.map((player, index) => {
+          const isCurrent = index === currentIndex;
+          return (
+            <div
+              key={player.id ?? index}
+              style={softCardStyle({
+                padding: "10px 12px",
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 0.9fr) minmax(0, 1.5fr) auto",
+                alignItems: "center",
+                gap: 10,
+                minHeight: 0,
+                background: isCurrent ? "rgba(251,191,36,0.08)" : "rgba(255,255,255,0.04)",
+                border: isCurrent ? "1px solid rgba(251,191,36,0.22)" : "1px solid rgba(255,255,255,0.08)",
+              })}
+            >
+              <div style={{ fontWeight: 900, fontSize: 16, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+                {player.name ?? `Player ${index + 1}`}
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 8,
+                  flexWrap: "wrap",
+                  textAlign: "center",
+                  fontSize: 13,
+                  color: "#e5d7c7",
+                  fontWeight: 700,
+                  lineHeight: 1.35,
+                }}
+              >
+                <span>{formatRoundDelta(roundDeltas[index] ?? 0)} deze ronde</span>
+                <span>·</span>
+                <span>{progressCounts[index] ?? 0}/2 {progressLabel}</span>
+                <span>·</span>
+                <span>{trickCounts[index] ?? 0} slagen</span>
+              </div>
+
+              <div style={{ fontWeight: 900, fontSize: 22, minWidth: 22, textAlign: "right" }}>
+                {totalScores[index] ?? 0}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function DobbelkingenPanel({
   appState,
   onClose,
@@ -279,6 +384,7 @@ export function DobbelkingenPanel({
   const [hoveredContract, setHoveredContract] = useState(null);
   const [hoveredTroef, setHoveredTroef] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
+  const [showMobileScore, setShowMobileScore] = useState(false);
   const { isMobile, isMobileLandscape, width } = useViewport();
   const compact = isMobile || isMobileLandscape;
   const mobileScale = isMobile ? Math.min(1.28, Math.max(1, width / 820)) : 1;
@@ -397,6 +503,18 @@ export function DobbelkingenPanel({
   return (
     <>
       <DobbelkingenInfo open={showInfo} onClose={() => setShowInfo(false)} />
+      <MobileRoundStatusOverlay
+        open={showMobileScore}
+        title="Score"
+        players={players}
+        currentIndex={currentIndex}
+        totalScores={totalScores}
+        roundDeltas={roundDeltas}
+        progressCounts={troefPickCounts}
+        progressLabel="troef gekozen"
+        trickCounts={currentRoundTrickCounts}
+        onClose={() => setShowMobileScore(false)}
+      />
 
       <div style={panelStyle({ padding: isMobile ? 12 : 20, display: "grid", gap: isMobile ? 10 : 16, alignContent: "start", minHeight: isMobile ? "100%" : undefined, height: isMobile ? "100%" : undefined, overflowX: "hidden" })}>
         <div
@@ -564,16 +682,16 @@ export function DobbelkingenPanel({
               style={{
                 display: "grid",
                 gridTemplateColumns: isMobile ? (isMobileLandscape ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))") : "repeat(3, minmax(0, 1fr))",
-                gridTemplateRows: isMobile && !isMobileLandscape ? "repeat(3, minmax(136px, 1fr))" : undefined,
+                gridTemplateRows: isMobile && !isMobileLandscape ? (width >= 700 ? "repeat(3, minmax(172px, 1fr))" : "repeat(3, minmax(136px, 1fr))") : undefined,
                 gridAutoRows: isMobile ? "1fr" : undefined,
-                gap: isMobile ? 8 : 14,
+                gap: isMobile ? (width >= 700 ? 12 : 8) : 14,
                 alignContent: "stretch",
               }}
             >
               {contractList.map((id) => {
                 const c = getContract(id);
                 const label = c?.label ?? id;
-                const desc = c?.desc ?? "";
+                const desc = isMobile ? getCompactContractDesc(label, c?.desc ?? "") : (c?.desc ?? "");
                 const n = plays?.[id] ?? 0;
                 const disabled = !canPick(id);
                 const hovered = hoveredContract === id;
@@ -660,7 +778,11 @@ export function DobbelkingenPanel({
                 gridAutoRows: isMobile ? "1fr" : undefined,
                 gap: isMobile ? 10 : 12,
                 alignContent: isMobile ? "stretch" : undefined,
+                alignItems: "stretch",
                 minHeight: 0,
+                width: "100%",
+                maxWidth: isMobile && width >= 700 ? 920 : undefined,
+                margin: isMobile && width >= 700 ? "0 auto" : undefined,
               }}
             >
               {TROEF_OPTIONS.map((opt) => {
@@ -682,7 +804,7 @@ export function DobbelkingenPanel({
                         display: "grid",
                         placeItems: "center",
                         gap: compact ? 4 : 8,
-                        minHeight: isMobile ? Math.round((isMobileLandscape ? 112 : 126) * mobileScale) : undefined,
+                        minHeight: isMobile ? Math.round((isMobileLandscape ? 112 : width >= 700 ? 182 : 126) * mobileScale) : undefined,
                         transform: hovered ? "translateY(-2px)" : "none",
                         transition: "all 0.16s ease",
                         background: hovered
@@ -714,10 +836,15 @@ export function DobbelkingenPanel({
               />
             )}
 
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={handleFinishMatch} style={{ ...buttonStyle("success"), width: isMobile ? "100%" : undefined, minHeight: isMobile ? 48 : undefined }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "auto", gap: 10, width: isMobile ? "100%" : undefined }}>
+              <button onClick={handleFinishMatch} style={{ ...buttonStyle("success"), width: "100%", minHeight: isMobile ? 48 : undefined }}>
                 Match afronden
               </button>
+              {isMobile ? (
+                <button onClick={() => setShowMobileScore(true)} style={{ ...buttonStyle(), width: "100%", minHeight: 48 }}>
+                  Score
+                </button>
+              ) : null}
             </div>
           </div>
         )}

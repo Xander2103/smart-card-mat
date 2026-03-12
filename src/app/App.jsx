@@ -20,6 +20,7 @@ import { HistoryScreen } from "../ui/screens/HistoryScreen";
 import { StatsScreen } from "../ui/screens/StatsScreen";
 
 import { CARD_BY_CODE } from "../core/mapping/deck52";
+import { playUiSound } from "../lib/uiSound";
 
 
 const theme = {
@@ -92,6 +93,10 @@ export default function App() {
 
   const timerRef = useRef(null);
   const armedKeyRef = useRef(null);
+  const prevTrickCountRef = useRef(0);
+  const prevOverlayOpenRef = useRef(false);
+  const prevDoneRef = useRef(false);
+  const prevLastErrorRef = useRef("");
 
   const dispatchAction = useCallback((action) => {
     setAppState((prev) => applyAppAction(prev, action));
@@ -163,6 +168,7 @@ export default function App() {
           setBleStatus("disconnected");
           if (hadBleConnectionRef.current && !wasManual) {
             setShowDisconnectModal(true);
+            playUiSound("disconnect");
           }
         },
       });
@@ -286,6 +292,63 @@ export default function App() {
   }, []);
 
 
+
+  useEffect(() => {
+    function isInteractiveButton(target) {
+      return !!target?.closest?.("button, [role='button']");
+    }
+
+    function handlePointerOver(event) {
+      if (!isInteractiveButton(event.target)) return;
+      playUiSound("hover");
+    }
+
+    function handleClick(event) {
+      if (!isInteractiveButton(event.target)) return;
+      playUiSound("click");
+    }
+
+    document.addEventListener("pointerover", handlePointerOver, true);
+    document.addEventListener("click", handleClick, true);
+
+    return () => {
+      document.removeEventListener("pointerover", handlePointerOver, true);
+      document.removeEventListener("click", handleClick, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    const trickCount = appState?.game?.dobbelkingen?.trickHistory?.length ?? 0;
+    if (trickCount > prevTrickCountRef.current) {
+      playUiSound("trickWin");
+    }
+    prevTrickCountRef.current = trickCount;
+  }, [appState?.game?.dobbelkingen?.trickHistory]);
+
+  useEffect(() => {
+    const overlayOpen = !!appState?.game?.dobbelkingen?.contractOverlay?.open;
+    if (overlayOpen && !prevOverlayOpenRef.current) {
+      playUiSound("contractDone");
+    }
+    prevOverlayOpenRef.current = overlayOpen;
+  }, [appState?.game?.dobbelkingen?.contractOverlay?.open]);
+
+  useEffect(() => {
+    const isDone = appState?.phase === "DONE";
+    if (isDone && !prevDoneRef.current) {
+      playUiSound("winner");
+    }
+    prevDoneRef.current = isDone;
+  }, [appState?.phase]);
+
+  useEffect(() => {
+    const err = String(appState?.lastError ?? "");
+    if (err && err !== prevLastErrorRef.current) {
+      playUiSound("error");
+    }
+    prevLastErrorRef.current = err;
+  }, [appState?.lastError]);
+
   const mobileCompactHeader =
     isMobile &&
     appState?.activeMode === "DOBBELKINGEN" &&
@@ -328,6 +391,13 @@ export default function App() {
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      <style>{`
+        @keyframes blePulseRed {
+          0% { box-shadow: 0 0 0 0 rgba(248,113,113,0.32), 0 0 10px rgba(248,113,113,0.18); }
+          70% { box-shadow: 0 0 0 12px rgba(248,113,113,0.0), 0 0 22px rgba(248,113,113,0.28); }
+          100% { box-shadow: 0 0 0 0 rgba(248,113,113,0.0), 0 0 10px rgba(248,113,113,0.18); }
+        }
+      `}</style>
       {mobileCompactHeader ? (
         compactHeaderVisible ? (
         <div style={{ ...theme.panel, padding: mobileTableOnlyMode ? 10 : 12, display: "grid", gap: 10 }}>
@@ -370,6 +440,7 @@ export default function App() {
                   border: `1px solid ${statusColor}66`,
                   background: `${statusColor}14`,
                   boxShadow: bleGlow,
+                  animation: bleStatus !== "connected" ? "blePulseRed 1.8s infinite" : undefined,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -520,20 +591,24 @@ export default function App() {
                 title={`Bluetooth ${bleStatus}`}
                 style={{
                   ...theme.button,
-                  width: isMobile ? 48 : 52,
+                  width: isMobile ? 48 : "auto",
+                  minWidth: isMobile ? 48 : 150,
                   height: isMobile ? 48 : 52,
                   borderRadius: 999,
-                  padding: 0,
+                  padding: isMobile ? 0 : "0 16px",
                   border: `1px solid ${statusColor}66`,
                   background: `${statusColor}14`,
                   boxShadow: bleGlow,
+                  animation: bleStatus !== "connected" ? "blePulseRed 1.8s infinite" : undefined,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
                   justifySelf: "end",
+                  gap: 10,
                 }}
               >
                 <BluetoothIcon size={isMobile ? 20 : 22} color={statusColor} />
+                {!isMobile ? <span style={{ fontWeight: 900 }}>Bluetooth</span> : null}
               </button>
             </div>
 
@@ -665,6 +740,7 @@ export default function App() {
           appState={appState}
           dispatchAction={dispatchAction}
           locked={playersLocked}
+          onGoPlay={() => setTab("play")}
         />
       )}
 

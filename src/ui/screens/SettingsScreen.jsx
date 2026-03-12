@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { buttonStyle, colors, panelStyle, softCardStyle } from "../play/theme";
 import { useViewport } from "../play/useViewport";
 import { storageService } from "../../core/storage/services/storageService";
@@ -33,6 +34,8 @@ function ToggleRow({ checked, onChange, title, description }) {
 
 export function SettingsScreen({ appState, dispatchAction }) {
   const { isMobile } = useViewport();
+  const [devCodeInput, setDevCodeInput] = useState("");
+  const [devCodeError, setDevCodeError] = useState("");
 
   const autoConfirm = !!appState.autoConfirm;
   const devMode = !!appState.devMode;
@@ -61,56 +64,112 @@ export function SettingsScreen({ appState, dispatchAction }) {
         description="Wanneer ingeschakeld worden geldige plays automatisch bevestigd."
       />
 
-      <ToggleRow
-        checked={showRecentCards}
-        onChange={(e) => {
-          dispatchAction?.({
-            type: "set_show_recent_cards",
-            value: e.target.checked,
-          });
-        }}
-        title="Recente kaarten zichtbaar"
-        description="Toon onder de tussenstand een blok met recent gespeelde kaarten."
-      />
+      {!isMobile && (
+        <>
+          <ToggleRow
+            checked={showRecentCards}
+            onChange={(e) => {
+              dispatchAction?.({
+                type: "set_show_recent_cards",
+                value: e.target.checked,
+              });
+            }}
+            title="Recente kaarten zichtbaar"
+            description="Toon onder de tussenstand een blok met recent gespeelde kaarten."
+          />
 
-      <ToggleRow
-        checked={showCenterTrickLabel}
-        onChange={(e) => {
-          dispatchAction?.({
-            type: "set_show_center_trick_label",
-            value: e.target.checked,
-          });
-        }}
-        title="Slagnummer in het midden zichtbaar"
-        description="Toon in het midden van de speeltafel een subtiel label met het huidige slagnummer."
-      />
-
-      <ToggleRow
-        checked={devMode}
-        onChange={(e) => {
-          dispatchAction?.({
-            type: "set_dev_mode",
-            value: e.target.checked,
-          });
-        }}
-        title="Dev mode"
-        description="Toon ontwikkeltools zoals speelzones, debuglog en debugknoppen."
-      />
+          <ToggleRow
+            checked={showCenterTrickLabel}
+            onChange={(e) => {
+              dispatchAction?.({
+                type: "set_show_center_trick_label",
+                value: e.target.checked,
+              });
+            }}
+            title="Slagnummer in het midden zichtbaar"
+            description="Toon in het midden van de speeltafel een subtiel label met het huidige slagnummer."
+          />
+        </>
+      )}
 
       <div style={softCardStyle({ padding: 16, display: "grid", gap: 10 })}>
         <div style={{ fontWeight: 700 }}>Aanbevolen instelling</div>
         <div style={{ color: colors.muted, lineHeight: 1.55 }}>
-          Voor een snelle speeltafel laat je auto-confirm aan en gebruik je <b>Undo</b>
-          alleen wanneer een kaart fout werd gescand of verkeerd geplaatst.
+          Voor desktop testing: laat <b>recent kaarten</b> uit, <b>slagnummer</b> uit en
+          <b> auto-confirm</b> aan. Gebruik <b>Undo</b> alleen wanneer een kaart fout werd
+          gescand of verkeerd geplaatst.
         </div>
         <div>
           <button
-            onClick={() => dispatchAction?.({ type: "set_auto_confirm", value: true })}
+            onClick={() => {
+              dispatchAction?.({ type: "set_auto_confirm", value: true });
+              dispatchAction?.({ type: "set_show_recent_cards", value: false });
+              dispatchAction?.({ type: "set_show_center_trick_label", value: false });
+            }}
             style={buttonStyle("primary")}
           >
             Zet tournament mode aan
           </button>
         </div>
+      </div>
+
+      <div style={softCardStyle({ padding: 16, display: "grid", gap: 12, marginTop: 6 })}>
+        <div style={{ fontWeight: 700 }}>Dev mode</div>
+        <div style={{ color: colors.muted, lineHeight: 1.55 }}>
+          Dev mode staat apart en vraagt een code zodat niet iedereen zomaar debugtools
+          kan activeren. Gebruik code <b>1281</b> om in te schakelen.
+        </div>
+
+        {!devMode ? (
+          <>
+            <input
+              type="password"
+              value={devCodeInput}
+              onChange={(e) => {
+                setDevCodeInput(e.target.value);
+                setDevCodeError("");
+              }}
+              placeholder="Voer dev code in"
+              style={{
+                borderRadius: 12,
+                padding: "10px 12px",
+                border: "1px solid rgba(255,255,255,0.08)",
+                background: "rgba(255,255,255,0.04)",
+                color: "#f5efe6",
+                outline: "none",
+                maxWidth: 240,
+              }}
+            />
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                onClick={() => {
+                  if (devCodeInput.trim() !== "1281") {
+                    setDevCodeError("Foute code voor dev mode.");
+                    return;
+                  }
+                  dispatchAction?.({ type: "set_dev_mode", value: true });
+                  setDevCodeInput("");
+                  setDevCodeError("");
+                }}
+                style={buttonStyle("secondary")}
+              >
+                Dev mode activeren
+              </button>
+            </div>
+            {devCodeError ? <div style={{ color: "#fca5a5", fontWeight: 700 }}>{devCodeError}</div> : null}
+          </>
+        ) : (
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ color: "#86efac", fontWeight: 800 }}>Dev mode is actief.</div>
+            <button
+              onClick={() => dispatchAction?.({ type: "set_dev_mode", value: false })}
+              style={buttonStyle("danger")}
+            >
+              Dev mode uitzetten
+            </button>
+          </div>
+        )}
+
         {appState?.devMode && (
           <div
             style={{

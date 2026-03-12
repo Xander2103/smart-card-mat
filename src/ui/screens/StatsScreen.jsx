@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { storageService } from "../../core/storage/services/storageService";
+import { useViewport } from "../play/useViewport";
 import {
   getPlayerStats,
   getPlayerStatsByGameMode,
@@ -240,6 +241,7 @@ function GameModeSection({ title, stats, extraChildren = null }) {
 }
 
 export function StatsScreen() {
+  const { isMobile, width } = useViewport();
   const [sortBy, setSortBy] = useState("wins");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSection, setActiveSection] = useState("general");
@@ -396,7 +398,17 @@ export function StatsScreen() {
 
           <div style={{ display: "grid", gap: 8 }}>
             <div style={{ fontSize: 13, color: "#c8b6a1" }}>Stats section</div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div
+              style={
+                isMobile
+                  ? {
+                      display: "grid",
+                      gridTemplateColumns: width >= 700 ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))",
+                      gap: 8,
+                    }
+                  : { display: "flex", gap: 8, flexWrap: "wrap" }
+              }
+            >
               {sectionTabs.map((tab) => {
                 const active = activeSection === tab.value;
 
@@ -426,7 +438,17 @@ export function StatsScreen() {
           <div style={{ display: "grid", gap: 8 }}>
             <div style={{ fontSize: 13, color: "#c8b6a1" }}>Sort by</div>
 
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div
+              style={
+                isMobile
+                  ? {
+                      display: "grid",
+                      gridTemplateColumns: width >= 700 ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))",
+                      gap: 8,
+                    }
+                  : { display: "flex", gap: 8, flexWrap: "wrap" }
+              }
+            >
               {sortOptions.map((option) => {
                 const active = sortBy === option.value;
 

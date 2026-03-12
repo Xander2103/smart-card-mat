@@ -85,11 +85,12 @@ function isDevProfileName(name) {
   return /^DEV\b/i.test(String(name ?? "").trim());
 }
 
-export function PlayersScreen({ appState, dispatchAction, locked = false }) {
+export function PlayersScreen({ appState, dispatchAction, locked = false, onGoPlay }) {
   const { isMobile, isLandscape } = useViewport();
   const compactMobile = isMobile;
   const [profiles, setProfiles] = useState([]);
   const [newPlayerName, setNewPlayerName] = useState("");
+  const [profileSearch, setProfileSearch] = useState("");
   const [error, setError] = useState("");
 
   const selectedPlayers = useMemo(
@@ -285,7 +286,11 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
     refreshProfiles();
   }
 
-  const profileStats = profiles.map((profile) => ({
+  const filteredProfiles = profiles.filter((profile) =>
+    String(profile?.name ?? "").toLowerCase().includes(profileSearch.trim().toLowerCase())
+  );
+
+  const profileStats = filteredProfiles.map((profile) => ({
     profile,
     stats: storageService.getPlayerStats(profile.id),
   }));
@@ -590,8 +595,52 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
           )}
         </div>
 
-        <div style={{ fontWeight: 900, marginBottom: 10 }}>
-          Beschikbare profielen
+        {selectedPlayers.length === 4 ? (
+          <div style={{ marginBottom: 18 }}>
+            <button
+              type="button"
+              onClick={() => onGoPlay?.()}
+              style={{
+                ...actionButtonStyle,
+                width: compactMobile ? "100%" : "auto",
+                minHeight: 46,
+                padding: "12px 18px",
+                background: "linear-gradient(180deg, rgba(22, 163, 74, 0.95) 0%, rgba(21, 128, 61, 0.92) 100%)",
+                border: "1px solid rgba(134, 239, 172, 0.34)",
+                boxShadow: "0 14px 28px rgba(22, 163, 74, 0.22)",
+              }}
+            >
+              Naar Play tab
+            </button>
+          </div>
+        ) : null}
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: compactMobile ? "stretch" : "center",
+            flexDirection: compactMobile ? "column" : "row",
+            gap: 10,
+            marginBottom: 10,
+          }}
+        >
+          <div style={{ fontWeight: 900 }}>Beschikbare profielen</div>
+          <input
+            value={profileSearch}
+            onChange={(e) => setProfileSearch(e.target.value)}
+            placeholder="Zoek profiel"
+            style={{
+              width: compactMobile ? "100%" : 240,
+              minWidth: 0,
+              borderRadius: 12,
+              padding: "10px 12px",
+              border: "1px solid rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.04)",
+              color: "#f5efe6",
+              outline: "none",
+            }}
+          />
         </div>
 
         {profileStats.length === 0 ? (
@@ -599,7 +648,12 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
             Nog geen spelers opgeslagen. Maak eerst een speler aan.
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: compactMobile ? "repeat(2, minmax(0, 1fr))" : undefined, gap: 10, marginBottom: 14 }}>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: compactMobile ? "1fr" : undefined,
+            gap: compactMobile ? 12 : 10,
+            marginBottom: 14,
+          }}>
             {profileStats.map(({ profile, stats }) => {
               const isSelected = selectedPlayers.some(
                 (player) => player.id === profile.id
@@ -608,9 +662,13 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
               return (
                 <div
                   key={profile.id}
+                  onClick={() => {
+                    if (locked) return;
+                    handleTogglePlayer(profile);
+                  }}
                   style={{
                     borderRadius: 16,
-                    padding: "10px 14px",
+                    padding: compactMobile ? "12px" : "10px 14px",
                     cursor: locked ? "not-allowed" : "pointer",
                     border: isSelected
                       ? "1px solid rgba(251, 191, 36, 0.42)"
@@ -621,94 +679,103 @@ export function PlayersScreen({ appState, dispatchAction, locked = false }) {
                     color: "#f5efe6",
                     opacity: locked ? 0.65 : 1,
                     position: "relative",
+                    transition: "transform 0.16s ease, border-color 0.16s ease, background 0.16s ease",
                   }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteProfile(profile)}
-                    disabled={locked}
-                    onMouseEnter={(e) => {
-                      if (locked) return;
-                      e.currentTarget.style.background = "rgba(127, 29, 29, 0.55)";
-                      e.currentTarget.style.borderColor =
-                        "rgba(248, 113, 113, 0.35)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                      e.currentTarget.style.borderColor =
-                        "rgba(251, 191, 36, 0.18)";
-                    }}
-                    style={{
-                      position: "absolute",
-                      top: compactMobile ? 12 : 24,
-                      right: compactMobile ? 12 : 20,
-                      height: 30,
-                      borderRadius: 999,
-                      border: "1px solid rgba(251, 191, 36, 0.18)",
-                      background: "rgba(255,255,255,0.06)",
-                      color: "#f5efe6",
-                      fontWeight: 800,
-                      fontSize: 12,
-                      display: "flex",
-                      justifyContent: "center",
-                      cursor: locked ? "not-allowed" : "pointer",
-                      opacity: locked ? 0.5 : 1,
-                      padding: "0 12px",
-                      lineHeight: 1,
-                      textAlign: "center",
-                      transition:
-                        "background 0.15s ease, border-color 0.15s ease",
-                    }}
-                    title="Account verwijderen"
-                    aria-label="Account verwijderen"
-                  >
-                    Verwijder Account
-                  </button>
-
                   <div
-                    onClick={() => {
-                      if (locked) return;
-                      handleTogglePlayer(profile);
-                    }}
                     style={{
                       display: "flex",
-                      justifyContent: "space-between",
-                      gap: 16,
-                      paddingRight: compactMobile ? 0 : 200,
-                      minHeight: compactMobile ? 42 : 55,
-                      flexDirection: compactMobile ? "column" : "row",
                       alignItems: compactMobile ? "flex-start" : "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      marginBottom: 10,
                     }}
                   >
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 900, fontSize: 18 }}>
+                      <div style={{ fontWeight: 900, fontSize: compactMobile ? 17 : 18, lineHeight: 1.1 }}>
                         {profile.name}
                       </div>
-                      <div style={{ color: "#c8b6a1", fontSize: 13 }}>
+                      <div style={{ color: "#c8b6a1", fontSize: compactMobile ? 12 : 13, marginTop: 4 }}>
                         {isSelected ? "Geselecteerd" : "Klik om te selecteren"}
                       </div>
                     </div>
 
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteProfile(profile); }}
+                      disabled={locked}
+                      onMouseEnter={(e) => {
+                        if (locked) return;
+                        e.currentTarget.style.background = "rgba(127, 29, 29, 0.55)";
+                        e.currentTarget.style.borderColor =
+                          "rgba(248, 113, 113, 0.35)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                        e.currentTarget.style.borderColor =
+                          "rgba(251, 191, 36, 0.18)";
+                      }}
+                      style={{
+                        height: compactMobile ? 28 : 30,
+                        borderRadius: 999,
+                        border: "1px solid rgba(251, 191, 36, 0.18)",
+                        background: "rgba(255,255,255,0.06)",
+                        color: "#f5efe6",
+                        fontWeight: 800,
+                        fontSize: compactMobile ? 11 : 12,
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        cursor: locked ? "not-allowed" : "pointer",
+                        opacity: locked ? 0.5 : 1,
+                        padding: compactMobile ? "0 10px" : "0 12px",
+                        lineHeight: 1,
+                        textAlign: "center",
+                        transition:
+                          "background 0.15s ease, border-color 0.15s ease",
+                        flexShrink: 0,
+                      }}
+                      title="Account verwijderen"
+                      aria-label="Account verwijderen"
+                    >
+                      Verwijder
+                    </button>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: compactMobile ? 10 : 14,
+                    }}
+                  >
                     <div
                       style={{
-                        display: "flex",
+                        display: "grid",
+                        gridTemplateColumns: compactMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))",
                         gap: 10,
-                        flexWrap: "wrap",
-                        justifyContent: "center",
-                          color: "#e8d9c9",
-                        fontSize: 16,
-                        textAlign: "center",
-                        padding: "6px 10px",
-                        borderRadius: 12,
-                        background: "rgba(255,255,255,0.03)",
-                        flexShrink: 0,
-                        marginRight: 200,
+                        color: "#e8d9c9",
+                        fontSize: compactMobile ? 14 : 16,
                       }}
                     >
-                      <span>Matches: {stats.matchesPlayed}</span>
-                      <span>Wins: {stats.wins}</span>
-                      <span>Winrate: {stats.winRate.toFixed(1)}%</span>
-                      <span>Score: {stats.totalScore}</span>
+                      {[
+                        ["Matches", stats.matchesPlayed],
+                        ["Wins", stats.wins],
+                        ["Winrate", `${stats.winRate.toFixed(1)}%`],
+                        ["Score", stats.totalScore],
+                      ].map(([label, value]) => (
+                        <div
+                          key={label}
+                          style={{
+                            borderRadius: 12,
+                            background: "rgba(255,255,255,0.03)",
+                            padding: compactMobile ? "10px 8px" : "12px 10px",
+                            textAlign: "center",
+                          }}
+                        >
+                          <div style={{ fontSize: compactMobile ? 11 : 12, color: "#c8b6a1", fontWeight: 700 }}>{label}</div>
+                          <div style={{ marginTop: 6, fontWeight: 900, fontSize: compactMobile ? 18 : 20 }}>{value}</div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
