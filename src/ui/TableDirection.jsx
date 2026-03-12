@@ -397,6 +397,9 @@ export function TableDirection({
   animationSeed = "0",
   flyingCards = [],
   compactMobile = false,
+  mobileLandscape = false,
+  mobileTableHeight = null,
+  mobileTopInset = 0,
 }) {
   const safePlayers =
     players.length >= 4
@@ -448,13 +451,13 @@ export function TableDirection({
     return () => window.removeEventListener("resize", updateGeometry);
   }, [flyingCards.length, seatCards, centerCards]);
 
-  const boardHeight = compactMobile ? 360 : 450;
-  const centerBandWidth = compactMobile ? 620 : 850;
-  const centerBandHeight = compactMobile ? 128 : 170;
-  const innerBandWidth = compactMobile ? 590 : 810;
-  const innerBandHeight = compactMobile ? 104 : 138;
-  const coreWidth = compactMobile ? 76 : 100;
-  const coreHeight = compactMobile ? 72 : 92;
+  const boardHeight = compactMobile ? (mobileTableHeight ?? (mobileLandscape ? 300 : 540)) : 450;
+  const centerBandWidth = compactMobile ? (mobileLandscape ? 660 : 300) : 850;
+  const centerBandHeight = compactMobile ? (mobileLandscape ? 112 : 154) : 170;
+  const innerBandWidth = compactMobile ? (mobileLandscape ? 630 : 272) : 810;
+  const innerBandHeight = compactMobile ? (mobileLandscape ? 90 : 126) : 138;
+  const coreWidth = compactMobile ? (mobileLandscape ? 62 : 52) : 100;
+  const coreHeight = compactMobile ? (mobileLandscape ? 58 : 50) : 92;
 
   const seatOrder = [
     { seat: 0, zoneLabel: "Zone 1", position: "top" },
@@ -468,8 +471,8 @@ export function TableDirection({
       style={{
         ...softCardStyle({
           position: "relative",
-          minHeight: 430,
-          padding: 18,
+          minHeight: compactMobile ? boardHeight + 16 : 430,
+          padding: compactMobile ? (mobileLandscape ? 12 : 10) : 18,
           overflow: "hidden",
           background:
             "radial-gradient(circle at center, rgba(120,45,0,0.18) 0%, rgba(54,22,10,0.08) 38%, rgba(15,8,6,0) 70%)",
@@ -620,6 +623,33 @@ export function TableDirection({
             "radial-gradient(circle at center, rgba(109,40,18,0.26) 0%, rgba(64,24,12,0.16) 38%, rgba(20,8,6,0.10) 72%, rgba(0,0,0,0) 100%)",
         }}
       >
+
+
+        {compactMobile ? (
+          <div
+            style={{
+              position: "absolute",
+              right: mobileLandscape ? 12 : 10,
+              bottom: mobileLandscape ? 12 : 10,
+              zIndex: 13,
+              width: mobileLandscape ? 170 : 156,
+              borderRadius: 20,
+              padding: mobileLandscape ? "10px 12px" : "9px 10px",
+              background: "rgba(28, 16, 12, 0.76)",
+              border: "1px solid rgba(255, 210, 140, 0.16)",
+              boxShadow: "0 14px 28px rgba(0,0,0,0.22)",
+              backdropFilter: "blur(8px)",
+              color: "#f6e6cf",
+            }}
+          >
+            <div style={{ fontSize: 10, color: "rgba(255,225,180,0.62)", textTransform: "uppercase", letterSpacing: "0.10em", fontWeight: 800 }}>Contract</div>
+            <div style={{ marginTop: 4, fontSize: mobileLandscape ? 15 : 14, fontWeight: 900, lineHeight: 1.15, wordBreak: "break-word" }}>
+              {String(contractLabel || "—").replaceAll("_", " ")}
+            </div>
+            {trumpLabel && trumpLabel !== "—" ? <div style={{ marginTop: 6, fontSize: 11, color: "#d7c4af", fontWeight: 700 }}>{trumpLabel}</div> : null}
+          </div>
+        ) : null}
+
         <div
           style={{
             position: "absolute",
@@ -656,7 +686,7 @@ export function TableDirection({
           }}
         />
 
-        <TableOrnaments contractLabel={contractLabel} trumpLabel={trumpLabel} compact={compactMobile} />
+        {!compactMobile ? <TableOrnaments contractLabel={contractLabel} trumpLabel={trumpLabel} compact={false} /> : null}
 
         <div
           style={{
@@ -719,33 +749,33 @@ export function TableDirection({
             position === "top"
               ? {
                   position: "absolute",
-                  top: compactMobile ? 10 : 18,
+                  top: compactMobile ? mobileTopInset + (mobileLandscape ? 6 : 8) : 18,
                   left: "50%",
                   transform: "translateX(-50%)",
-                  width: compactMobile ? 132 : 184,
+                  width: compactMobile ? (mobileLandscape ? 136 : 136) : 184,
                 }
               : position === "right"
                 ? {
                     position: "absolute",
-                    right: compactMobile ? 10 : 18,
-                    top: "50%",
+                    right: compactMobile ? (mobileLandscape ? 14 : 6) : 18,
+                    top: compactMobile ? (mobileLandscape ? "56%" : "53%") : "50%",
                     transform: "translateY(-50%)",
-                    width: compactMobile ? 124 : 174,
+                    width: compactMobile ? (mobileLandscape ? 128 : 116) : 174,
                   }
                 : position === "bottom"
                   ? {
                       position: "absolute",
-                      bottom: compactMobile ? 10 : 18,
+                      bottom: compactMobile ? (mobileLandscape ? 8 : 18) : 18,
                       left: "50%",
                       transform: "translateX(-50%)",
-                      width: compactMobile ? 132 : 184,
+                      width: compactMobile ? (mobileLandscape ? 136 : 136) : 184,
                     }
                   : {
                       position: "absolute",
-                      left: compactMobile ? 10 : 18,
-                      top: "50%",
+                      left: compactMobile ? (mobileLandscape ? 14 : 6) : 18,
+                      top: compactMobile ? (mobileLandscape ? "56%" : "53%") : "50%",
                       transform: "translateY(-50%)",
-                      width: compactMobile ? 120 : 164,
+                      width: compactMobile ? (mobileLandscape ? 124 : 110) : 164,
                     };
 
           let badge = null;

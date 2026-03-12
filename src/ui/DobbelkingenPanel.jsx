@@ -37,6 +37,7 @@ function ContractCard({
   onMouseEnter,
   onMouseLeave,
   onClick,
+  compact = false,
 }) {
   return (
     <button
@@ -46,10 +47,10 @@ function ContractCard({
       disabled={disabled}
       style={{
         ...softCardStyle({
-          padding: 16,
+          padding: compact ? 10 : 16,
           textAlign: "left",
           display: "grid",
-          gap: 8,
+          gap: compact ? 6 : 8,
           cursor: disabled ? "not-allowed" : "pointer",
           opacity: disabled ? 0.5 : 1,
           transform: hovered && !disabled ? "translateY(-2px)" : "none",
@@ -75,10 +76,10 @@ function ContractCard({
         <div
           style={{
             fontWeight: 700,
-            fontSize: 17,
+            fontSize: compact ? 14 : 17,
             textAlign: "center",
             width: "100%",
-            paddingRight: 42,
+            paddingRight: compact ? 34 : 42,
           }}
         >
           {label}
@@ -90,10 +91,10 @@ function ContractCard({
             top: 0,
             right: 0,
             borderRadius: 999,
-            padding: "4px 8px",
+            padding: compact ? "3px 7px" : "4px 8px",
             background: count >= 2 ? colors.redSoft : colors.accentSoft,
             color: count >= 2 ? "#fecdd3" : "#fcd34d",
-            fontSize: 12,
+            fontSize: compact ? 11 : 12,
             fontWeight: 700,
           }}
         >
@@ -104,9 +105,13 @@ function ContractCard({
       <div
         style={{
           color: colors.muted,
-          fontSize: 14,
-          lineHeight: 1.5,
+          fontSize: compact ? 12 : 14,
+          lineHeight: compact ? 1.32 : 1.5,
           textAlign: "center",
+          display: "-webkit-box",
+          WebkitLineClamp: compact ? 3 : "unset",
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
         }}
       >
         {desc}
@@ -114,7 +119,7 @@ function ContractCard({
 
       <div
         style={{
-          fontSize: 12,
+          fontSize: compact ? 11 : 12,
           fontWeight: 700,
           color: disabled ? "#fda4af" : colors.muted,
           textAlign: "center",
@@ -174,6 +179,9 @@ function PlayerProgressBoard({
   progressLabel,
   trickCounts,
 }) {
+
+  const { isMobile } = useViewport();
+  
   return (
     <div style={softCardStyle({ padding: 16, display: "grid", gap: 7 })}>
       <div style={{ fontWeight: 700, fontSize: 18, textAlign: "center" }}>
@@ -225,7 +233,7 @@ function PlayerProgressBoard({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 14,
+                  gap: isMobile ? 8 : 14,
                   flexWrap: "wrap",
                   textAlign: "center",
                 }}
@@ -270,6 +278,7 @@ export function DobbelkingenPanel({
   const [hoveredTroef, setHoveredTroef] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
   const { isMobile, isMobileLandscape } = useViewport();
+  const compact = isMobile || isMobileLandscape;
 
   const d = appState?.game?.dobbelkingen ?? null;
   const players = appState?.players ?? [];
@@ -374,7 +383,7 @@ export function DobbelkingenPanel({
     <>
       <DobbelkingenInfo open={showInfo} onClose={() => setShowInfo(false)} />
 
-      <div style={panelStyle({ padding: isMobile ? 14 : 20, display: "grid", gap: isMobile ? 12 : 16, minHeight: isMobile ? "100%" : undefined })}>
+      <div style={panelStyle({ padding: isMobile ? 12 : 20, display: "grid", gap: isMobile ? 10 : 16, alignContent: "start", minHeight: isMobile ? "100%" : undefined, overflowX: isMobile ? "hidden" : undefined, overflowY: isMobile ? "auto" : undefined, WebkitOverflowScrolling: isMobile ? "touch" : undefined })}>
         <div
           style={{
             display: "grid",
@@ -392,8 +401,8 @@ export function DobbelkingenPanel({
               justifyItems: isMobile ? "start" : "center",
             }}
           >
-            <div style={{ fontWeight: 800, fontSize: isMobile ? 18 : 28 }}>Dobbelkingen</div>
-            <div style={{ color: colors.muted, marginTop: 2, fontSize: isMobile ? 12 : 15 }}>
+            <div style={{ fontWeight: 800, fontSize: isMobile ? 15 : 28 }}>Dobbelkingen</div>
+            <div style={{ color: colors.muted, marginTop: 1, fontSize: isMobile ? 11 : 15 }}>
               {isReady ? "Nieuwe match" : isChoosingContract ? "Contract kiezen" : isChoosingTroef ? "Troef kiezen" : "Dobbelkingen"}
             </div>
           </div>
@@ -401,82 +410,93 @@ export function DobbelkingenPanel({
           <div
             style={{
               display: "flex",
-              gap: 8,
+              gap: compact ? 6 : 8,
               justifyContent: "flex-end",
               flexWrap: "wrap",
             }}
           >
-            <button onClick={() => setShowInfo(true)} style={{ ...buttonStyle(), padding: isMobile ? "8px 10px" : undefined, fontSize: isMobile ? 13 : undefined }}>
+            <button onClick={() => setShowInfo(true)} style={{ ...buttonStyle(), padding: isMobile ? "7px 9px" : undefined, fontSize: isMobile ? 12 : undefined }}>
               Info
             </button>
 
-            <button onClick={handleBackClick} style={{ ...buttonStyle("danger"), padding: isMobile ? "8px 10px" : undefined, fontSize: isMobile ? 13 : undefined }}>
+            <button onClick={handleBackClick} style={{ ...buttonStyle("danger"), padding: isMobile ? "7px 9px" : undefined, fontSize: isMobile ? 12 : undefined }}>
               Terug
             </button>
           </div>
         </div>
 
         {isReady && (
-          <>
-            <div
-              style={softCardStyle({
-                padding: 18,
-                display: "grid",
-                gap: 10,
-                background: "rgba(255,255,255,0.03)",
-              })}
-            >
-              <div style={{ fontWeight: 800, fontSize: 18 }}>
+          <div
+            style={softCardStyle({
+              padding: isMobile ? "16px 14px" : "22px 22px",
+              display: "grid",
+              gap: isMobile ? 14 : 16,
+              background: "linear-gradient(180deg, rgba(120,53,15,0.24), rgba(255,255,255,0.03))",
+              border: "1px solid rgba(251,191,36,0.16)",
+            })}
+          >
+            <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ fontWeight: 900, fontSize: isMobile ? 22 : 26, lineHeight: 1.1 }}>
                 Start een nieuwe match
               </div>
-
-              <div style={{ color: colors.muted, lineHeight: 1.6 }}>
-                {isMobile ? "Iedere speler kiest 2 contracten. Daarna volgt troef en start fase 2." : <>Iedere speler kiest 2 contracten.<br />Na fase 1 volgt fase 2 waarin troef gekozen wordt.<br />De speler na de troefkiezer komt uit in de eerste slag.</>}
+              <div style={{ color: colors.muted, lineHeight: 1.6, maxWidth: 620, fontSize: isMobile ? 15 : 16 }}>
+                {isMobile ? "Iedere speler kiest 2 contracten. Daarna volgt troef." : <>Iedere speler kiest 2 contracten.<br />Na fase 1 volgt fase 2 waarin troef gekozen wordt.<br />De speler na de troefkiezer komt uit in de eerste slag.</>}
               </div>
             </div>
 
             <div
-              style={softCardStyle({
-                padding: 18,
+              style={{
                 display: "flex",
-                gap: 10,
+                gap: 12,
                 flexWrap: "wrap",
                 alignItems: "center",
-              })}
+              }}
             >
-              <button onClick={onStart} style={buttonStyle("primary")}>
+              <button
+                onClick={onStart}
+                style={{
+                  ...buttonStyle("primary"),
+                  minHeight: isMobile ? 56 : 58,
+                  minWidth: isMobile ? 220 : 250,
+                  padding: isMobile ? "14px 22px" : "16px 26px",
+                  fontSize: isMobile ? 18 : 18,
+                  fontWeight: 900,
+                  boxShadow: "0 0 28px rgba(251, 191, 36, 0.34), 0 14px 32px rgba(245, 158, 11, 0.24)",
+                }}
+              >
                 Start Dobbelkingen
               </button>
 
-              <button onClick={() => setShowInfo(true)} style={buttonStyle()}>
+              <button onClick={() => setShowInfo(true)} style={{ ...buttonStyle(), minHeight: 48, padding: "11px 16px" }}>
                 Lees regels
               </button>
             </div>
-          </>
+          </div>
         )}
 
         {isChoosingContract && (
           <>
             <div
               style={softCardStyle({
-                padding: isMobile ? 10 : 14,
+                padding: isMobile ? "8px 12px" : "12px 14px",
                 background: "rgba(251,191,36,0.08)",
+                border: "1px solid rgba(251,191,36,0.16)",
               })}
             >
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: isMobile ? "1fr" : "1fr auto 1fr",
+                  gridTemplateColumns: isMobile ? "auto 1fr" : "auto 1fr auto",
                   alignItems: "center",
-                  gap: isMobile ? 8 : 16,
+                  gap: isMobile ? 10 : 16,
                 }}
               >
                 <div
                   style={{
                     display: "flex",
                     justifyContent: "flex-start",
-                    gap: 12,
-                    fontSize: isMobile ? 14 : 22,
+                    gap: isMobile ? 8 : 12,
+                    fontSize: isMobile ? 12 : 22,
                     fontWeight: 900,
                     color: "rgba(255, 220, 170, 0.72)",
                     letterSpacing: "0.04em",
@@ -491,42 +511,45 @@ export function DobbelkingenPanel({
                 <div
                   style={{
                     display: "grid",
-                    gap: 4,
-                    justifyItems: "center",
-                    textAlign: "center",
+                    gap: 2,
+                    justifyItems: isMobile ? "start" : "center",
+                    textAlign: isMobile ? "left" : "center",
+                    minWidth: 0,
                   }}
                 >
-                  <div style={{ fontWeight: 700, fontSize: isMobile ? 16 : 20 }}>
-                    {chooserName} kiest nu een contract
+                  <div style={{ fontWeight: 800, fontSize: isMobile ? 15 : 20, lineHeight: 1.15 }}>
+                    {chooserName} kiest contract
                   </div>
-                  <div style={{ color: colors.muted, fontSize: 14 }}>
-                    Volgende speler komt uit in de eerste slag.
+                  <div style={{ color: colors.muted, fontSize: isMobile ? 12 : 14 }}>
+                    Volgende speler komt uit.
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    gap: 12,
-                    fontSize: isMobile ? 14 : 22,
-                    fontWeight: 900,
-                    color: "rgba(255, 220, 170, 0.72)",
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  <span style={{ color: "#fb7185" }}>♥</span>
-                  <span style={{ color: "#fb7185" }}>♦</span>
-                  <span style={{ color: "#f5efe6" }}>♣</span>
-                  <span style={{ color: "#f5efe6" }}>♠</span>
-                </div>
+                {!isMobile ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      gap: 12,
+                      fontSize: 22,
+                      fontWeight: 900,
+                      color: "rgba(255, 220, 170, 0.72)",
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    <span style={{ color: "#fb7185" }}>♥</span>
+                    <span style={{ color: "#fb7185" }}>♦</span>
+                    <span style={{ color: "#f5efe6" }}>♣</span>
+                    <span style={{ color: "#f5efe6" }}>♠</span>
+                  </div>
+                ) : null}
               </div>
             </div>
             <div
               style={{
                 display: "grid",
                 gridTemplateColumns: isMobile ? (isMobileLandscape ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))") : "repeat(3, minmax(0, 1fr))",
-                gap: 14,
+                gap: isMobile ? 8 : 14,
               }}
             >
               {contractList.map((id) => {
@@ -553,27 +576,28 @@ export function DobbelkingenPanel({
                       if (disabled) return;
                       onChooseContract?.(id);
                     }}
+                    compact={isMobile}
                   />
                 );
               })}
             </div>
 
             {!isMobile && (
-            <PlayerProgressBoard
-              players={players}
-              currentIndex={currentIndex}
-              totalScores={totalScores}
-              roundDeltas={roundDeltas}
-              progressCounts={phase1PickCounts}
-              progressLabel="gekozen"
-              trickCounts={currentRoundTrickCounts}
-            />
+              <PlayerProgressBoard
+                players={players}
+                currentIndex={currentIndex}
+                totalScores={totalScores}
+                roundDeltas={roundDeltas}
+                progressCounts={phase1PickCounts}
+                progressLabel="gekozen"
+                trickCounts={currentRoundTrickCounts}
+              />
             )}
 
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: isMobile ? "stretch" : "flex-start" }}>
               <button
                 onClick={() => dispatchAction?.({ type: "debug_go_to_phase2" })}
-                style={buttonStyle("success")}
+                style={{ ...buttonStyle("success"), minHeight: 48, width: isMobile ? "100%" : undefined }}
               >
                 Doorgaan naar fase 2
               </button>
@@ -601,10 +625,10 @@ export function DobbelkingenPanel({
                   textAlign: "center",
                 })}
               >
-                <div style={{ fontWeight: 700, fontSize: isMobile ? 16 : 20 }}>
+                <div style={{ fontWeight: 700, fontSize: isMobile ? 13 : 20 }}>
                   {chooserName} kiest troef
                 </div>
-                <div style={{ color: colors.muted, fontSize: 14 }}>
+                <div style={{ color: colors.muted, fontSize: isMobile ? 11 : 14 }}>
                   {leaderName} komt uit in de eerste slag.
                 </div>
               </div>
@@ -634,7 +658,7 @@ export function DobbelkingenPanel({
                         textAlign: "left",
                         cursor: "pointer",
                         display: "grid",
-                        gap: 8,
+                        gap: compact ? 6 : 8,
                         transform: hovered ? "translateY(-2px)" : "none",
                         transition: "all 0.16s ease",
                         background: hovered
@@ -658,15 +682,15 @@ export function DobbelkingenPanel({
             </div>
 
             {!isMobile && (
-            <PlayerProgressBoard
-              players={players}
-              currentIndex={currentIndex}
-              totalScores={totalScores}
-              roundDeltas={roundDeltas}
-              progressCounts={troefPickCounts}
-              progressLabel="troef gekozen"
-              trickCounts={currentRoundTrickCounts}
-            />
+              <PlayerProgressBoard
+                players={players}
+                currentIndex={currentIndex}
+                totalScores={totalScores}
+                roundDeltas={roundDeltas}
+                progressCounts={troefPickCounts}
+                progressLabel="troef gekozen"
+                trickCounts={currentRoundTrickCounts}
+              />
             )}
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>

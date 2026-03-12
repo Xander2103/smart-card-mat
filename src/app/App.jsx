@@ -57,16 +57,34 @@ function isMatchLocked(appState) {
   );
 }
 
+function BluetoothIcon({ size = 18, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 3v18m0-18 6 5-6 4m0-9-6 5 6 4m0 0 6 4-6 5m0-9-6 4 6 5"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function App() {
   const { isMobile } = useViewport();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showBlePanel, setShowBlePanel] = useState(false);
   const [lockToast, setLockToast] = useState(false);
+  const [mobileHeaderExpanded, setMobileHeaderExpanded] = useState(true);
 
   const [tab, setTab] = useState("play");
 
   const [bleStatus, setBleStatus] = useState("disconnected");
   const [bleConn, setBleConn] = useState(null);
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const hadBleConnectionRef = useRef(false);
+  const manualBleDisconnectRef = useRef(false);
 
   const [appState, setAppState] = useState(() =>
     createInitialState({ zonesCount: ZONES })
@@ -139,15 +157,23 @@ export default function App() {
       const conn = await connectBluetooth({
         onLine: handleLine,
         onDisconnected: () => {
+          const wasManual = manualBleDisconnectRef.current;
+          manualBleDisconnectRef.current = false;
           setBleConn(null);
           setBleStatus("disconnected");
+          if (hadBleConnectionRef.current && !wasManual) {
+            setShowDisconnectModal(true);
+          }
         },
       });
 
+      manualBleDisconnectRef.current = false;
+      hadBleConnectionRef.current = true;
       setBleConn(conn);
       setBleStatus("connected");
     } catch (error) {
       console.error(error);
+      manualBleDisconnectRef.current = false;
       setBleStatus("error");
       alert(error?.message ?? "Failed to connect Bluetooth");
     }
@@ -155,6 +181,8 @@ export default function App() {
 
   const disconnectBle = useCallback(async () => {
     if (!bleConn) return;
+
+    manualBleDisconnectRef.current = true;
 
     try {
       await bleConn.disconnect();
@@ -263,6 +291,8 @@ export default function App() {
     appState?.activeMode === "DOBBELKINGEN" &&
     ["DOBBELKINGEN_READY", "CHOOSING_CONTRACT", "CHOOSING_TROEF", "PLAYING_TRICK"].includes(appState?.phase);
 
+  const mobileTableOnlyMode = mobileCompactHeader && appState?.phase === "PLAYING_TRICK";
+
   useEffect(() => {
     if (!lockToast) return undefined;
     const id = window.setTimeout(() => setLockToast(false), 2500);
@@ -276,26 +306,45 @@ export default function App() {
         ? "#fbbf24"
         : bleStatus === "error"
           ? "#fb7185"
-          : "#94a3b8";
+          : "#ef4444";
+
+  const bleGlow =
+    bleStatus === "connected"
+      ? "0 0 18px rgba(74, 222, 128, 0.42)"
+      : bleStatus === "connecting..."
+        ? "0 0 16px rgba(251, 191, 36, 0.30)"
+        : "0 0 16px rgba(239, 68, 68, 0.28)";
+
+  useEffect(() => {
+    if (!mobileCompactHeader) {
+      setMobileHeaderExpanded(true);
+      return;
+    }
+
+    setMobileHeaderExpanded(!mobileTableOnlyMode);
+  }, [mobileCompactHeader, mobileTableOnlyMode, appState?.phase]);
+
+  const compactHeaderVisible = !mobileTableOnlyMode || mobileHeaderExpanded;
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
       {mobileCompactHeader ? (
-        <div style={{ ...theme.panel, padding: 12, display: "grid", gap: 10 }}>
+        compactHeaderVisible ? (
+        <div style={{ ...theme.panel, padding: mobileTableOnlyMode ? 10 : 12, display: "grid", gap: 10 }}>
           <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center", gap: 10 }}>
             <button
               onClick={() => {
                 setShowMobileMenu((v) => !v);
                 setShowBlePanel(false);
               }}
-              style={{ ...theme.button, padding: "10px 12px", borderRadius: 16, fontSize: 14 }}
+              style={{ ...theme.button, padding: mobileTableOnlyMode ? "8px 10px" : "10px 12px", borderRadius: 16, fontSize: mobileTableOnlyMode ? 13 : 14 }}
             >
               ☰ Menu
             </button>
 
             <div style={{ textAlign: "center", minWidth: 0 }}>
-              <div style={{ fontWeight: 900, fontSize: 16 }}>Dobbelkingen</div>
-              <div style={{ color: "#c8b6a1", fontSize: 12 }}>
+              <div style={{ fontWeight: 900, fontSize: mobileTableOnlyMode ? 14 : 16 }}>Dobbelkingen</div>
+              <div style={{ color: "#c8b6a1", fontSize: mobileTableOnlyMode ? 11 : 12 }}>
                 {appState?.phase === "CHOOSING_CONTRACT"
                   ? "Contract kiezen"
                   : appState?.phase === "CHOOSING_TROEF"
@@ -304,25 +353,43 @@ export default function App() {
               </div>
             </div>
 
-            <button
-              onClick={() => {
-                setShowBlePanel((v) => !v);
-                setShowMobileMenu(false);
-              }}
-              style={{
-                ...theme.button,
-                borderRadius: 999,
-                padding: "10px 14px",
-                border: `1px solid ${statusColor}55`,
-                background: `${statusColor}14`,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <span style={{ width: 10, height: 10, borderRadius: 999, background: statusColor, boxShadow: `0 0 10px ${statusColor}` }} />
-              BLE
-            </button>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
+              <button
+                onClick={() => {
+                  setShowBlePanel((v) => !v);
+                  setShowMobileMenu(false);
+                }}
+                aria-label={`Bluetooth ${bleStatus}`}
+                title={`Bluetooth ${bleStatus}`}
+                style={{
+                  ...theme.button,
+                  width: mobileTableOnlyMode ? 42 : 46,
+                  height: mobileTableOnlyMode ? 42 : 46,
+                  borderRadius: 999,
+                  padding: 0,
+                  border: `1px solid ${statusColor}66`,
+                  background: `${statusColor}14`,
+                  boxShadow: bleGlow,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <BluetoothIcon size={mobileTableOnlyMode ? 18 : 20} color={statusColor} />
+              </button>
+
+              <button
+                onClick={() => setMobileHeaderExpanded(false)}
+                style={{
+                  ...theme.button,
+                  padding: mobileTableOnlyMode ? "8px 10px" : "9px 11px",
+                  borderRadius: 14,
+                  fontSize: mobileTableOnlyMode ? 12 : 13,
+                }}
+              >
+                Sluit
+              </button>
+            </div>
           </div>
 
           {showBlePanel ? (
@@ -333,26 +400,57 @@ export default function App() {
           ) : null}
 
           {showMobileMenu ? (
-            <div style={{ display: "grid", gap: 8 }}>
-              <Tabs
-                value={tab}
-                onChange={(next) => {
-                  if (next === "players" && playersLocked) {
-                    setLockToast(true);
-                    return;
-                  }
-                  setTab(next);
-                  setShowMobileMenu(false);
-                }}
-                items={[
-                  { value: "play", label: "Play" },
-                  { value: "players", label: <span style={playersLocked ? { color: "#f87171", textDecoration: "line-through" } : undefined}>Players</span> },
-                  { value: "history", label: "History" },
-                  { value: "stats", label: "Stats" },
-                  { value: "deck", label: "Deck Setup" },
-                  { value: "settings", label: "Settings" },
-                ]}
-              />
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(0, 140px))",
+                justifyContent: "center",
+                gap: 12,
+                paddingTop: 4,
+              }}
+            >
+              {[
+                { value: "play", label: "Play" },
+                { value: "players", label: "Players", locked: playersLocked },
+                { value: "history", label: "History" },
+                { value: "stats", label: "Stats" },
+                { value: "deck", label: "Deck Setup" },
+                { value: "settings", label: "Settings" },
+              ].map((item) => {
+                const active = tab === item.value;
+                const locked = !!item.locked;
+
+                return (
+                  <button
+                    key={item.value}
+                    onClick={() => {
+                      if (item.value === "players" && playersLocked) {
+                        setLockToast(true);
+                        return;
+                      }
+                      setTab(item.value);
+                      setShowMobileMenu(false);
+                    }}
+                    style={{
+                      ...theme.button,
+                      minHeight: 58,
+                      padding: "12px 10px",
+                      borderRadius: 16,
+                      textAlign: "center",
+                      fontWeight: 900,
+                      fontSize: 13,
+                      border: active ? "1px solid rgba(251, 191, 36, 0.34)" : locked ? "1px solid rgba(248,113,113,0.22)" : "1px solid rgba(255,255,255,0.08)",
+                      background: active
+                        ? "linear-gradient(180deg, rgba(251, 191, 36, 0.18) 0%, rgba(217, 119, 6, 0.14) 100%)"
+                        : "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%)",
+                      color: locked ? "#f87171" : active ? "#fde68a" : "#f5efe6",
+                      textDecoration: locked ? "line-through" : "none",
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
             </div>
           ) : null}
 
@@ -362,6 +460,18 @@ export default function App() {
             </div>
           ) : null}
         </div>
+        ) : (
+        mobileTableOnlyMode ? null : (
+        <div style={{ display: "flex", justifyContent: "center", marginTop: -4 }}>
+          <button
+            onClick={() => setMobileHeaderExpanded(true)}
+            style={{ ...theme.button, padding: "7px 14px", borderRadius: 999, fontSize: 12 }}
+          >
+            Open header
+          </button>
+        </div>
+        )
+        )
       ) : (
         <div
           style={{
@@ -395,9 +505,9 @@ export default function App() {
             </div>
 
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", width: isMobile ? "100%" : "auto" }}>
-              <div style={{ borderRadius: 999, padding: "8px 12px", border: `1px solid ${statusColor}44`, background: `${statusColor}12`, display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800 }}>
-                <span style={{ width: 10, height: 10, borderRadius: 999, background: statusColor, boxShadow: `0 0 14px ${statusColor}` }} />
-                BLE {bleStatus}
+              <div style={{ borderRadius: 999, padding: "8px 12px", border: `1px solid ${statusColor}44`, background: `${statusColor}12`, boxShadow: bleGlow, display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800 }}>
+                <BluetoothIcon size={16} color={statusColor} />
+                {bleStatus}
               </div>
 
               <button onClick={connectBle} disabled={bleStatus === "connected" || bleStatus === "connecting..."} style={{ ...theme.button, opacity: bleStatus === "connected" || bleStatus === "connecting..." ? 0.55 : 1, flex: isMobile ? 1 : "0 1 auto" }}>Connect BLE</button>
@@ -462,6 +572,8 @@ export default function App() {
           onBackFromContract={() =>
             dispatchAction({ type: "abort_contract" })
           }
+          mobileHeaderExpanded={mobileHeaderExpanded}
+          onToggleMobileHeader={() => setMobileHeaderExpanded((prev) => !prev)}
           dispatchAction={dispatchAction}
         />
       )}
@@ -490,6 +602,62 @@ export default function App() {
       {tab === "settings" && (
         <SettingsScreen appState={appState} dispatchAction={dispatchAction} />
       )}
+      {showDisconnectModal ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 100,
+            background: "rgba(4, 6, 12, 0.72)",
+            display: "grid",
+            placeItems: "center",
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              ...theme.panel,
+              width: "min(92vw, 420px)",
+              padding: 20,
+              display: "grid",
+              gap: 14,
+              border: "1px solid rgba(248, 113, 113, 0.28)",
+              boxShadow: "0 24px 60px rgba(0,0,0,0.42)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 999,
+                  display: "grid",
+                  placeItems: "center",
+                  border: "1px solid rgba(248, 113, 113, 0.35)",
+                  background: "rgba(127, 29, 29, 0.28)",
+                  boxShadow: "0 0 18px rgba(248, 113, 113, 0.20)",
+                }}
+              >
+                <BluetoothIcon size={18} color="#fb7185" />
+              </div>
+              <div style={{ fontWeight: 900, fontSize: 18 }}>Bluetooth verbinding verbroken</div>
+            </div>
+
+            <div style={{ color: "#dbc6b6", lineHeight: 1.55 }}>
+              Je toestel is gedisconnecteerd. Controleer je verbinding en verbind opnieuw als je verder wilt spelen.
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowDisconnectModal(false)}
+                style={{ ...theme.button, minWidth: 96 }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
