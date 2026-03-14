@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { ZoneGrid } from "../ZoneGrid";
 import { Scoreboard } from "../Scoreboard";
-import { DebugLog } from "../DebugLog";
 import { GameModeCards } from "../GameModeCards";
 import { DobbelkingenPanel } from "../DobbelkingenPanel";
 import { TableDirection } from "../TableDirection";
@@ -11,311 +9,14 @@ import { computeScoresFromTrickHistory } from "../../core/games/dobbelkingen/sco
 import { EndScreen } from "../play/EndScreen";
 import { GameToolbar } from "../play/GameToolbar";
 import { useViewport } from "../play/useViewport";
-import { buttonStyle, colors, panelStyle, softCardStyle } from "../play/theme";
-
-function getTrumpLabel(suit) {
-  switch (String(suit ?? "").toUpperCase()) {
-    case "H":
-      return "♥ Harten";
-    case "D":
-      return "♦ Ruiten";
-    case "C":
-      return "♣ Klaveren";
-    case "S":
-      return "♠ Schoppen";
-    default:
-      return "—";
-  }
-}
-
-function toPrettyCard(code) {
-  if (!code) return "—";
-
-  const suit = code.slice(-1).toUpperCase();
-  const rank = code.slice(0, -1).toUpperCase();
-
-  const suitMap = {
-    S: "♠",
-    H: "♥",
-    D: "♦",
-    C: "♣",
-  };
-
-  return `${rank}${suitMap[suit] ?? suit}`;
-}
-
-function getTrickWinsByPlayer(trickHistory, playersCount) {
-  const wins = Array(playersCount).fill(0);
-
-  for (const trick of trickHistory ?? []) {
-    const winnerIndex = trick?.winnerIndex;
-    if (typeof winnerIndex === "number" && winnerIndex >= 0 && winnerIndex < playersCount) {
-      wins[winnerIndex] += 1;
-    }
-  }
-
-  return wins;
-}
-
-function AnimatedBanner({ type = "info", title, message, compact = false }) {
-  if (!title && !message) return null;
-
-  const tones =
-    type === "error"
-      ? {
-          border: "1px solid rgba(251, 113, 133, 0.34)",
-          background: "linear-gradient(180deg, rgba(127, 29, 29, 0.82), rgba(69, 10, 10, 0.82))",
-          glow: "0 16px 34px rgba(127, 29, 29, 0.22)",
-          icon: "🚫",
-          titleColor: "#ffe4e6",
-          bodyColor: "#fecdd3",
-        }
-      : {
-          border: "1px solid rgba(74, 222, 128, 0.34)",
-          background: "linear-gradient(180deg, rgba(20, 83, 45, 0.84), rgba(22, 101, 52, 0.80))",
-          glow: "0 16px 34px rgba(20, 83, 45, 0.22)",
-          icon: "🏆",
-          titleColor: "#ecfdf5",
-          bodyColor: "#bbf7d0",
-        };
-
-  return (
-    <div
-      style={{
-        ...panelStyle({
-          padding: compact ? "10px 14px" : "14px 16px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 14,
-          overflow: "hidden",
-          position: "relative",
-          border: tones.border,
-          background: tones.background,
-          boxShadow: tones.glow,
-          animation: "bannerIn 240ms cubic-bezier(.19,1,.22,1)",
-        }),
-      }}
-    >
-      <style>{`
-        @keyframes bannerIn {
-          0% { opacity: 0; transform: translateY(-10px) scale(0.98); }
-          100% { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        @keyframes bannerShine {
-          0% { transform: translateX(-120%); }
-          100% { transform: translateX(220%); }
-        }
-
-        @keyframes bannerTimer {
-          0% { transform: scaleX(1); opacity: 0.95; }
-          100% { transform: scaleX(0); opacity: 0.45; }
-        }
-      `}</style>
-
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.08) 48%, transparent 78%)",
-          animation: "bannerShine 2.6s linear infinite",
-          pointerEvents: "none",
-        }}
-      />
-
-      <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative", zIndex: 1 }}>
-        <div
-          style={{
-            width: compact ? 34 : 42,
-            height: compact ? 34 : 42,
-            borderRadius: 12,
-            display: "grid",
-            placeItems: "center",
-            fontSize: compact ? 16 : 18,
-            fontWeight: 900,
-            background: "rgba(255,255,255,0.08)",
-            border: "1px solid rgba(255,255,255,0.10)",
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
-          }}
-        >
-          {tones.icon}
-        </div>
-
-        <div style={{ display: "grid", gap: 2 }}>
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: compact ? 3 : 4,
-              background:
-                type === "error"
-                  ? "linear-gradient(90deg, rgba(251,113,133,0.95), rgba(254,205,211,0.65))"
-                  : "linear-gradient(90deg, rgba(74,222,128,0.95), rgba(187,247,208,0.65))",
-              transformOrigin: "left center",
-              animation: compact ? "bannerTimer 1.2s linear forwards" : "bannerTimer 3.2s linear forwards",
-            }}
-          />
-
-          <div style={{ fontWeight: 900, color: tones.titleColor }}>{title}</div>
-          {message ? <div style={{ fontSize: 13, color: tones.bodyColor }}>{message}</div> : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ErrorBanner({ message }) {
-  if (!message) return null;
-
-  return (
-    <AnimatedBanner
-      type="error"
-      title={message}
-      message="Controleer de huidige beurt, zone en contractregel."
-    />
-  );
-}
-
-function PlayedCardsPanel({ cardCodes = [] }) {
-  const pretty = cardCodes.slice(-20).map((code) => toPrettyCard(code));
-
-  return (
-    <div style={panelStyle({ padding: 16, display: "grid", gap: 8 })}>
-      <div style={{ fontWeight: 900 }}>Recent gespeelde kaarten</div>
-      <div style={{ color: colors.muted, fontSize: 13 }}>
-        Laatste 20 gescande kaartcodes uit deze matchflow.
-      </div>
-
-      <div
-        style={softCardStyle({
-          padding: 14,
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 10,
-          minHeight: 56,
-          alignItems: "center",
-        })}
-      >
-        {pretty.length === 0 ? (
-          <div style={{ color: colors.muted }}>—</div>
-        ) : (
-          pretty.map((label, index) => {
-            const isRed = label.includes("♥") || label.includes("♦");
-
-            return (
-              <div
-                key={`${label}-${index}`}
-                style={{
-                  borderRadius: 999,
-                  padding: "8px 12px",
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "rgba(255,255,255,0.04)",
-                  fontWeight: 900,
-                  color: isRed ? "#ff9aa8" : colors.text,
-                  boxShadow: "0 6px 14px rgba(0,0,0,0.12)",
-                }}
-              >
-                {label}
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TrickWinsPanel({ players, trickWins }) {
-  return (
-    <div style={panelStyle({ padding: 16, display: "grid", gap: 12 })}>
-      <div style={{ fontWeight: 900 }}>Slagen in fase 2</div>
-      <div style={{ display: "grid", gap: 8 }}>
-        {players.map((player, index) => (
-          <div
-            key={player.id ?? index}
-            style={softCardStyle({
-              padding: "12px 14px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              background: "rgba(255,255,255,0.04)",
-            })}
-          >
-            <div>{player.name ?? `Player ${index + 1}`}</div>
-            <div style={{ fontWeight: 900 }}>{trickWins[index] ?? 0}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function DevPanel({
-  appState,
-  d,
-  zonesForGrid,
-  DISPLAY_ZONES,
-  turnZoneForGrid,
-  cardNamesForGrid,
-  handleGridClick,
-  onConfirmTurn,
-  onResetPile,
-  dispatchAction,
-}) {
-  return (
-    <div style={panelStyle({ padding: 16, display: "grid", gap: 14 })}>
-      <div style={{ fontWeight: 900, fontSize: 20 }}>Dev panel</div>
-      <div style={{ color: colors.muted, fontSize: 13 }}>
-        Ontwikkeltools, debugacties en speelzones.
-      </div>
-
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-        <button onClick={onConfirmTurn} style={buttonStyle("primary")}>
-          Confirm turn
-        </button>
-
-        <button onClick={onResetPile} style={buttonStyle()}>
-          Reset pile
-        </button>
-
-        {d?.roundPhase !== 2 && (
-          <button
-            onClick={() => dispatchAction?.({ type: "debug_go_to_phase2" })}
-            style={buttonStyle("success")}
-          >
-            Doorgaan naar fase 2
-          </button>
-        )}
-
-        {d?.roundPhase === 2 && (
-          <button
-            onClick={() => dispatchAction?.({ type: "debug_finish_phase2_match" })}
-            style={buttonStyle("success")}
-          >
-            Match direct afronden
-          </button>
-        )}
-      </div>
-
-      <ZoneGrid
-        zones={zonesForGrid}
-        zoneNumbers={DISPLAY_ZONES}
-        turnZone={turnZoneForGrid}
-        cardNames={cardNamesForGrid}
-        trumpSuit={d?.currentTrumpSuit ?? null}
-        onZoneClick={handleGridClick}
-      />
-
-      <div style={panelStyle({ padding: 16, display: "grid", gap: 10 })}>
-        <div style={{ fontWeight: 900 }}>Debug log</div>
-        <DebugLog lines={appState.log} />
-      </div>
-    </div>
-  );
-}
+import { buttonStyle, panelStyle } from "../play/theme";
+import { AnimatedBanner } from "./playscreen/AnimatedBanner";
+import { ErrorBanner } from "./playscreen/ErrorBanner";
+import { PlayedCardsPanel } from "./playscreen/PlayedCardsPanel";
+import { TrickWinsPanel } from "./playscreen/TrickWinsPanel";
+import { DevPanel } from "./playscreen/DevPanel";
+import { MobileScoreOverlay } from "./playscreen/MobileScoreOverlay";
+import { getTrumpLabel, getTrickWinsByPlayer, toPrettyCard } from "./playscreen/cardFormatters";
 
 export function PlayScreen({
   appState,
@@ -398,7 +99,7 @@ export function PlayScreen({
       ? "Alle 13 harten zijn gespeeld — terug naar contract keuze"
       : isAllJkEnded
         ? "Alle J & K zijn gevallen — terug naar contract keuze"
-        : "Alle 4 queens zijn gevallen — terug naar contract keuze";
+        : "Alle 4 queens zijn gespeeld — terug naar contract keuze";
 
   const showChooserBanner =
     (appState.phase === "CHOOSING_CONTRACT" ||
@@ -511,7 +212,6 @@ export function PlayScreen({
     };
   }, [d?.lastTrick?.timestamp, d?.lastTrickWinnerIndex, players]);
 
-
   useEffect(() => {
     const currentTrick = Array.isArray(d?.currentTrick) ? d.currentTrick : [];
     const prevTrick = Array.isArray(prevTrickRef.current) ? prevTrickRef.current : [];
@@ -558,11 +258,8 @@ export function PlayScreen({
   const showRecentCards = appState.showRecentCards !== false;
   const showCenterTrickLabel = appState.showCenterTrickLabel !== false;
 
-  const showTrumpInHeader =
-    d?.roundPhase === 2 || contractId === "TROEF";
-
-  const visibleTrumpLabel =
-    showTrumpInHeader ? getTrumpLabel(d?.currentTrumpSuit) : "—";
+  const showTrumpInHeader = d?.roundPhase === 2 || contractId === "TROEF";
+  const visibleTrumpLabel = showTrumpInHeader ? getTrumpLabel(d?.currentTrumpSuit) : "—";
 
   const centerAnimationSeed = `${trickCount}-${JSON.stringify(d?.currentTrick ?? [])}`;
   const mobileTableHeight = Math.max(isMobileLandscape ? 300 : 540, height - (isMobileLandscape ? 26 : 32));
@@ -603,75 +300,49 @@ export function PlayScreen({
         mobileTopInset={mobileControlsHeight + 8}
       />
 
-      <div style={{ position: "absolute", top: mobileTopOverlayOffset, left: 8, right: 8, display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, pointerEvents: "none", zIndex: 12 }}>
-        <button
-          onClick={onToggleMobileHeader}
-          style={{ ...buttonStyle(), ...mobileTopButtonStyle }}
-        >
+      <div
+        style={{
+          position: "absolute",
+          top: mobileTopOverlayOffset,
+          left: 8,
+          right: 8,
+          display: "grid",
+          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+          gap: 8,
+          pointerEvents: "none",
+          zIndex: 12,
+        }}
+      >
+        <button onClick={onToggleMobileHeader} style={{ ...buttonStyle(), ...mobileTopButtonStyle }}>
           Header
         </button>
-        <button onClick={onUndo} style={{ ...buttonStyle("primary"), ...mobileTopButtonStyle }}>↻ Undo</button>
-        <button onClick={() => setShowMobileScore(true)} style={{ ...buttonStyle(), ...mobileTopButtonStyle }}>Score</button>
+        <button onClick={onUndo} style={{ ...buttonStyle("primary"), ...mobileTopButtonStyle }}>
+          ↻ Undo
+        </button>
+        <button onClick={() => setShowMobileScore(true)} style={{ ...buttonStyle(), ...mobileTopButtonStyle }}>
+          Score
+        </button>
         <button
           onClick={() => {
             const ok = window.confirm("Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen.");
             if (ok) onBackFromContract?.();
           }}
           style={{ ...buttonStyle("danger"), ...mobileTopButtonStyle }}
-        >← Terug</button>
+        >
+          ← Terug
+        </button>
       </div>
 
-      {showMobileScore ? (
-        <div style={{ position: "absolute", inset: 0, zIndex: 40, background: "rgba(8,6,5,0.96)", backdropFilter: "blur(10px)", padding: isMobileLandscape ? 8 : 8, display: "grid", gridTemplateRows: "auto 1fr", gap: 8, overflow: "hidden" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-            <div style={{ fontWeight: 900, fontSize: isMobileLandscape ? 18 : 20 }}>Tussenstand</div>
-            <button onClick={() => setShowMobileScore(false)} style={{ ...buttonStyle(), padding: isMobileLandscape ? "7px 10px" : "8px 12px", fontSize: isMobileLandscape ? 12 : 13 }}>Sluiten</button>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gap: isMobileLandscape ? 8 : 8,
-              gridTemplateRows: contractId === "TROEF" ? "repeat(4, minmax(0, 1fr)) auto" : "repeat(4, minmax(0, 1fr))",
-              minHeight: 0,
-            }}
-          >
-            {players.map((player, index) => {
-              const isCurrent = index === currentIndex;
-              return (
-                <div
-                  key={player.id ?? index}
-                  style={softCardStyle({
-                    padding: isMobileLandscape ? "7px 10px" : "8px 10px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    background: isCurrent ? "rgba(251,191,36,0.10)" : "rgba(255,255,255,0.04)",
-                    border: isCurrent ? "1px solid rgba(251,191,36,0.28)" : "1px solid rgba(255,255,255,0.08)",
-                  })}
-                >
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 900, fontSize: isMobileLandscape ? 17 : 17 }}>{player.name ?? `Player ${index + 1}`}</div>
-                    {isCurrent ? <div style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>Aan de beurt</div> : null}
-                  </div>
-                  <div style={{ fontWeight: 900, fontSize: isMobileLandscape ? 22 : 22 }}>{scoreboardScores[index] ?? 0}</div>
-                </div>
-              );
-            })}
-
-            {contractId === "TROEF" ? (
-              <div style={softCardStyle({ padding: isMobileLandscape ? "7px 10px" : "8px 10px", display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 6 })}>
-                {players.map((player, index) => (
-                  <div key={`trick-${player.id ?? index}`} style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: 12, color: colors.muted }}>{player.name ?? `P${index + 1}`}</div>
-                    <div style={{ marginTop: 2, fontWeight: 900, fontSize: isMobileLandscape ? 16 : 18 }}>{trickWins[index] ?? 0}</div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+      <MobileScoreOverlay
+        showMobileScore={showMobileScore}
+        setShowMobileScore={setShowMobileScore}
+        isMobileLandscape={isMobileLandscape}
+        players={players}
+        currentIndex={currentIndex}
+        contractId={contractId}
+        scoreboardScores={scoreboardScores}
+        trickWins={trickWins}
+      />
     </div>
   );
 
@@ -702,7 +373,20 @@ export function PlayScreen({
             </div>
           )}
 
-          <div style={isMobile ? { minHeight: mobileLobbyHeight, height: mobileLobbyHeight, minWidth: 0, overflowY: appState.phase === "CHOOSING_TROEF" ? "hidden" : "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch" } : undefined}>
+          <div
+            style={
+              isMobile
+                ? {
+                    minHeight: mobileLobbyHeight,
+                    height: mobileLobbyHeight,
+                    minWidth: 0,
+                    overflowY: appState.phase === "CHOOSING_TROEF" ? "hidden" : "auto",
+                    overflowX: "hidden",
+                    WebkitOverflowScrolling: "touch",
+                  }
+                : undefined
+            }
+          >
             <DobbelkingenPanel
               appState={appState}
               onClose={onCloseMode}
@@ -715,99 +399,94 @@ export function PlayScreen({
       )}
 
       {showDoneUi && (
-        <EndScreen
-          summary={d?.matchSummary}
-          onNewGame={onStartDobbelkingen}
-          onBackHome={onCloseMode}
-        />
+        <EndScreen summary={d?.matchSummary} onNewGame={onStartDobbelkingen} onBackHome={onCloseMode} />
       )}
 
-      {showGameUi && (
-        isMobile ? (
+      {showGameUi &&
+        (isMobile ? (
           <>
             <ErrorBanner message={appState.lastError} />
             {trickToast ? (
-              <AnimatedBanner key={trickToast.key} type="success" title={trickToast.title} message={trickToast.message} compact />
+              <AnimatedBanner
+                key={trickToast.key}
+                type="success"
+                title={trickToast.title}
+                message={trickToast.message}
+                compact
+              />
             ) : null}
             {mobileGameTable}
           </>
         ) : (
-        <>
-          <GameToolbar
-            onUndo={onUndo}
-            onBack={() => {
-              const ok = window.confirm(
-                "Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen."
-              );
-              if (ok) onBackFromContract?.();
-            }}
-          />
-
-          <ErrorBanner message={appState.lastError} />
-
-          {trickToast && (
-            <AnimatedBanner
-              key={trickToast.key}
-              type="success"
-              title={trickToast.title}
-              message={trickToast.message}
-              compact
+          <>
+            <GameToolbar
+              onUndo={onUndo}
+              onBack={() => {
+                const ok = window.confirm(
+                  "Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen."
+                );
+                if (ok) onBackFromContract?.();
+              }}
             />
-          )}
 
-          <TableDirection
-            players={players}
-            currentPlayerIndex={currentIndex}
-            leaderPlayerIndex={leaderPlayerIndex}
-            contractLabel={contractId ?? "—"}
-            trumpLabel={visibleTrumpLabel}
-            trickLabel={`${trickCount} / 13`}
-            seatCards={seatCards}
-            centerCards={centerCards}
-            showCenterTrickLabel={showCenterTrickLabel}
-            showTopRightTrick={showCenterTrickLabel}
-            animationSeed={centerAnimationSeed}
-            flyingCards={flyingCards}
-          />
+            <ErrorBanner message={appState.lastError} />
 
-          <Scoreboard
-            players={players}
-            scores={scoreboardScores}
-            currentPlayerIndex={currentIndex}
-            flashWinnerIndex={flashWinnerIndex}
-            allowEdit={false}
-            onAdjustScore={(playerIndex, delta) =>
-              dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
-            }
-          />
+            {trickToast && (
+              <AnimatedBanner
+                key={trickToast.key}
+                type="success"
+                title={trickToast.title}
+                message={trickToast.message}
+                compact
+              />
+            )}
 
-          {contractId === "TROEF" && (
-            <TrickWinsPanel players={players} trickWins={trickWins} />
-          )}
-
-          {showRecentCards && (
-            <PlayedCardsPanel
-              cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []}
+            <TableDirection
+              players={players}
+              currentPlayerIndex={currentIndex}
+              leaderPlayerIndex={leaderPlayerIndex}
+              contractLabel={contractId ?? "—"}
+              trumpLabel={visibleTrumpLabel}
+              trickLabel={`${trickCount} / 13`}
+              seatCards={seatCards}
+              centerCards={centerCards}
+              showCenterTrickLabel={showCenterTrickLabel}
+              showTopRightTrick={showCenterTrickLabel}
+              animationSeed={centerAnimationSeed}
+              flyingCards={flyingCards}
             />
-          )}
 
-          {showDebug && appState.devMode && (
-            <DevPanel
-              appState={appState}
-              d={d}
-              zonesForGrid={zonesForGrid}
-              DISPLAY_ZONES={DISPLAY_ZONES}
-              turnZoneForGrid={turnZoneForGrid}
-              cardNamesForGrid={cardNamesForGrid}
-              handleGridClick={handleGridClick}
-              onConfirmTurn={onConfirmTurn}
-              onResetPile={onResetPile}
-              dispatchAction={dispatchAction}
+            <Scoreboard
+              players={players}
+              scores={scoreboardScores}
+              currentPlayerIndex={currentIndex}
+              flashWinnerIndex={flashWinnerIndex}
+              allowEdit={false}
+              onAdjustScore={(playerIndex, delta) =>
+                dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
+              }
             />
-          )}
-        </>
-        )
-      )}
+
+            {contractId === "TROEF" && <TrickWinsPanel players={players} trickWins={trickWins} />}
+
+            {showRecentCards && <PlayedCardsPanel cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []} />}
+
+            {showDebug && appState.devMode && (
+              <DevPanel
+                appState={appState}
+                d={d}
+                zonesForGrid={zonesForGrid}
+                DISPLAY_ZONES={DISPLAY_ZONES}
+                turnZoneForGrid={turnZoneForGrid}
+                cardNamesForGrid={cardNamesForGrid}
+                handleGridClick={handleGridClick}
+                onConfirmTurn={onConfirmTurn}
+                onResetPile={onResetPile}
+                dispatchAction={dispatchAction}
+              />
+            )}
+          </>
+        ))}
     </div>
   );
 }
