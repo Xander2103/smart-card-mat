@@ -1,5 +1,6 @@
 import { setUniqueMappingOverwrite } from "../mapping/uniqueMapping";
 import { getEngine } from "../game/registry";
+import { persistFinishedMatchIfNeeded } from "../matches/matchPersistence";
 
 const LOG_MAX = 200;
 
@@ -48,6 +49,20 @@ export function applyRootAction(state, action) {
         turnZone: null,
         lastError: null,
         log: pushLog(state.log, "MODE|OPEN|DOBBELKINGEN"),
+      };
+    }
+
+    if (mode === "KLEURENWIEZEN") {
+      return {
+        ...state,
+        modeId: "kleurenwiezen",
+        activeMode: "KLEURENWIEZEN",
+        gameMode: "KLEURENWIEZEN",
+        phase: "KLEURENWIEZEN_SETUP",
+        contract: null,
+        turnZone: null,
+        lastError: null,
+        log: pushLog(state.log, "MODE|OPEN|KLEURENWIEZEN"),
       };
     }
 
@@ -121,5 +136,6 @@ export function rootReducer(state, action) {
   const engine = next.modeId ? getEngine(next.modeId) : null;
   if (!engine?.reduce) return next;
 
-  return engine.reduce(next, action);
+  next = engine.reduce(next, action);
+  return persistFinishedMatchIfNeeded(state, next);
 }

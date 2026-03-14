@@ -4,32 +4,30 @@ import { matchRecordBuilders } from "./matchRecordBuilders";
 function didDobbelkingenJustFinish(prevState, nextState) {
   const prevDobbel = prevState?.game?.dobbelkingen;
   const nextDobbel = nextState?.game?.dobbelkingen;
-
   return !prevDobbel?.matchFinishedAt && !!nextDobbel?.matchFinishedAt;
+}
+
+function didKleurenwiezenJustFinish(prevState, nextState) {
+  const prevSlice = prevState?.game?.kleurenwiezen;
+  const nextSlice = nextState?.game?.kleurenwiezen;
+  const prevResultId = prevSlice?.lastResult?.id ?? null;
+  const nextResultId = nextSlice?.lastResult?.id ?? null;
+  return !prevSlice?.roundFinished && !!nextSlice?.roundFinished && !!nextResultId && nextResultId !== prevResultId;
 }
 
 export function persistFinishedMatchIfNeeded(prevState, nextState) {
   const modeId = nextState?.modeId;
-
   if (!modeId) return nextState;
 
   let finished = false;
-
-  if (modeId === "dobbelkingen") {
-    finished = didDobbelkingenJustFinish(prevState, nextState);
-  }
-
-  if (!finished) {
-    return nextState;
-  }
+  if (modeId === "dobbelkingen") finished = didDobbelkingenJustFinish(prevState, nextState);
+  if (modeId === "kleurenwiezen") finished = didKleurenwiezenJustFinish(prevState, nextState);
+  if (!finished) return nextState;
 
   const builder = matchRecordBuilders[modeId];
-  if (!builder) {
-    return nextState;
-  }
+  if (!builder) return nextState;
 
   const matchRecord = builder(nextState);
   storageService.saveMatch(matchRecord);
-
   return nextState;
 }

@@ -34,7 +34,7 @@ function Card({ title, eyebrow, desc, onClick }) {
 
 
 
-export function GameModeCards({ onOpenDobbelkingen }) {
+export function GameModeCards({ onOpenDobbelkingen, onOpenKleurenwiezen }) {
   return (
     <div style={panelStyle({ padding: 20, display: "grid", gap: 16 })}>
       <div>
@@ -50,6 +50,12 @@ export function GameModeCards({ onOpenDobbelkingen }) {
           eyebrow="Kaartspel"
           desc="Een strategisch slagenspel voor vier spelers waarbij je in fase 1 de juiste contracten kiest en in fase 2 twee keer troef probeert uit te buiten voor extra punten."
           onClick={onOpenDobbelkingen}
+        />
+        <Card
+          title="Kleurenwiezen"
+          eyebrow="Kaartspel"
+          desc="Gebruik jouw bestaande tafel, spelers en animaties, maar vul contract, declarant, partner en troef eerst helder in via een setup wizard."
+          onClick={onOpenKleurenwiezen}
         />
       </div>
     </div>

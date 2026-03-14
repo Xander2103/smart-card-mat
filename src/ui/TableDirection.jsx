@@ -282,7 +282,7 @@ function TableOrnaments({ contractLabel, trumpLabel, compact = false }) {
   const leftBaseStyle = {
     position: "absolute",
     top: "50.5%",
-    left: "31.5%",
+    left: compact ? "29%" : "28%",
     transform: "translate(-50%, -50%)",
     pointerEvents: "none",
     zIndex: 1,
@@ -293,7 +293,7 @@ function TableOrnaments({ contractLabel, trumpLabel, compact = false }) {
   const rightBaseStyle = {
     position: "absolute",
     top: "50.5%",
-    left: "68.5%",
+    left: compact ? "71%" : "72%",
     transform: "translate(-50%, -50%)",
     pointerEvents: "none",
     zIndex: 1,
@@ -388,6 +388,7 @@ export function TableDirection({
   players = [],
   currentPlayerIndex = 0,
   leaderPlayerIndex = null,
+  dealerPlayerIndex = null,
   contractLabel = "—",
   trumpLabel = "—",
   trickLabel = "0 / 13",
@@ -785,9 +786,11 @@ export function TableDirection({
                       width: compactMobile ? (mobileLandscape ? 124 : 112) : 164,
                     };
 
-          let badge = null;
-          if (isCurrent) badge = "🎯 Aan de beurt";
-          else if (isLeader) badge = "👑 Komt uit";
+          const badges = [];
+          if (isCurrent) badges.push("🎯 Aan de beurt");
+          else if (isLeader) badges.push("👑 Komt uit");
+          if (seat === dealerPlayerIndex) badges.push("Ⓓ Dealer");
+          const badge = badges.length > 0 ? badges.join(" · ") : null;
 
           const cardAnimationName =
             seat === 0 || seat === 2 ? "seatCardSlideRight" : "seatCardSlideDown";

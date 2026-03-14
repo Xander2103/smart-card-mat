@@ -125,6 +125,15 @@ export default function App() {
     dispatchAction({ type: "start_dobbelkingen" });
   }, [dispatchAction, hasEnoughPlayers]);
 
+  const handleOpenKleurenwiezen = useCallback(() => {
+    if (!hasEnoughPlayers) {
+      setTab("players");
+      return;
+    }
+
+    dispatchAction({ type: "open_mode", mode: "KLEURENWIEZEN" });
+  }, [dispatchAction, hasEnoughPlayers]);
+
   const { mobileCompactHeader, mobileTableOnlyMode } = getMobileHeaderFlags(
     appState,
     isMobile
@@ -208,6 +217,7 @@ export default function App() {
           onOpenDobbelkingen={() =>
             dispatchAction({ type: "open_mode", mode: "DOBBELKINGEN" })
           }
+          onOpenKleurenwiezen={handleOpenKleurenwiezen}
           onCloseMode={() => dispatchAction({ type: "open_mode", mode: null })}
           onStartDobbelkingen={handleStartDobbelkingen}
           onChooseDobbelkingenContract={(contract) =>

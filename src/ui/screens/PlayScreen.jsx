@@ -6,6 +6,11 @@ import { DobbelkingenPanel } from "../DobbelkingenPanel";
 import { TableDirection } from "../TableDirection";
 import { ContractEndOverlay } from "../ContractEndOverlay";
 import { computeScoresFromTrickHistory } from "../../core/games/dobbelkingen/scoring";
+import {
+  getContractLabel as getKleurenContractLabel,
+  getTrickWinsByPlayer as getKleurenTrickWins,
+  getTrumpLabel as getKleurenTrumpLabel,
+} from "../../core/games/kleurenwiezen";
 import { EndScreen } from "../play/EndScreen";
 import { GameToolbar } from "../play/GameToolbar";
 import { useViewport } from "../play/useViewport";
@@ -17,6 +22,8 @@ import { TrickWinsPanel } from "./playscreen/TrickWinsPanel";
 import { DevPanel } from "./playscreen/DevPanel";
 import { MobileScoreOverlay } from "./playscreen/MobileScoreOverlay";
 import { getTrumpLabel, getTrickWinsByPlayer, toPrettyCard } from "./playscreen/cardFormatters";
+import { KleurenwiezenPanel } from "../kleurenwiezen/KleurenwiezenPanel";
+import { KleurenwiezenRoundPanel } from "../kleurenwiezen/KleurenwiezenRoundPanel";
 
 export function PlayScreen({
   appState,
@@ -31,6 +38,7 @@ export function PlayScreen({
   showDebug = true,
   onBackFromContract,
   onOpenDobbelkingen,
+  onOpenKleurenwiezen,
   onCloseMode,
   onStartDobbelkingen,
   onChooseDobbelkingenContract,
@@ -38,33 +46,45 @@ export function PlayScreen({
   onToggleMobileHeader,
   dispatchAction,
 }) {
+  const modeId = appState.modeId ?? null;
+  const isDobbelkingen = modeId === "dobbelkingen";
+  const isKleurenwiezen = modeId === "kleurenwiezen";
+
   const d = appState.game?.dobbelkingen ?? null;
+  const k = appState.game?.kleurenwiezen ?? null;
+  const activeSlice = isKleurenwiezen ? k : d;
+
   const players = appState.players ?? [];
   const playersCount = players.length || 4;
 
   const currentIndex =
-    typeof d?.currentPlayerIndex === "number"
-      ? d.currentPlayerIndex
+    typeof activeSlice?.currentPlayerIndex === "number"
+      ? activeSlice.currentPlayerIndex
       : typeof appState.currentPlayerIndex === "number"
         ? appState.currentPlayerIndex
         : 0;
 
-  const contractId = d?.contract ?? null;
-  const trickCount = d?.trickHistory?.length ?? 0;
+  const contractLabel = isKleurenwiezen
+    ? getKleurenContractLabel(activeSlice?.contractId)
+    : activeSlice?.contract ?? null;
 
-  const scoreboardScores =
-    appState.phase === "PLAYING_TRICK"
+  const trickCount = activeSlice?.trickHistory?.length ?? 0;
+
+  const scoreboardScores = isKleurenwiezen
+    ? activeSlice?.totalScores ?? Array(playersCount).fill(0)
+    : appState.phase === "PLAYING_TRICK"
       ? computeScoresFromTrickHistory(d?.trickHistory ?? [], playersCount)
       : d?.totalScores ?? [];
 
-  const trickWins =
-    appState.phase === "PLAYING_TRICK"
+  const trickWins = isKleurenwiezen
+    ? getKleurenTrickWins(activeSlice?.trickHistory ?? [], playersCount)
+    : appState.phase === "PLAYING_TRICK"
       ? getTrickWinsByPlayer(d?.trickHistory ?? [], playersCount)
       : Array(playersCount).fill(0);
 
-  const endedReason = d?.lastResult?.endedEarlyReason ?? null;
+  const endedReason = isDobbelkingen ? d?.lastResult?.endedEarlyReason ?? null : null;
   const endedByIndex =
-    typeof d?.lastResult?.endedByPlayerIndex === "number"
+    isDobbelkingen && typeof d?.lastResult?.endedByPlayerIndex === "number"
       ? d.lastResult.endedByPlayerIndex
       : null;
 
@@ -79,6 +99,7 @@ export function PlayScreen({
   const isAllQueensEnded = endedReason === "ALL_QUEENS_PLAYED";
 
   const showContractOverlay =
+    isDobbelkingen &&
     (isHeartsKingEnded || isAllHeartsEnded || isAllJkEnded || isAllQueensEnded) &&
     appState.phase === "PLAYING_TRICK" &&
     d?.lastResult?.overlayClosed !== true;
@@ -102,10 +123,10 @@ export function PlayScreen({
         : "Alle 4 queens zijn gespeeld — terug naar contract keuze";
 
   const showChooserBanner =
+    isDobbelkingen &&
     (appState.phase === "CHOOSING_CONTRACT" ||
       appState.phase === "CHOOSING_TROEF" ||
       appState.phase === "DOBBELKINGEN_READY") &&
-    appState.activeMode === "DOBBELKINGEN" &&
     (isHeartsKingEnded || isAllHeartsEnded || isAllJkEnded || isAllQueensEnded);
 
   const chooserBannerText = isHeartsKingEnded
@@ -120,7 +141,8 @@ export function PlayScreen({
   const showLobby =
     appState.phase === "DOBBELKINGEN_READY" ||
     appState.phase === "CHOOSING_CONTRACT" ||
-    appState.phase === "CHOOSING_TROEF";
+    appState.phase === "CHOOSING_TROEF" ||
+    appState.phase === "KLEURENWIEZEN_SETUP";
   const showGameUi = appState.phase === "PLAYING_TRICK";
   const showDoneUi = appState.phase === "DOBBELKINGEN_DONE";
 
@@ -149,8 +171,15 @@ export function PlayScreen({
         ? d.chooserIndex
         : currentIndex;
 
-  const leaderPlayerIndex =
-    appState.phase === "CHOOSING_CONTRACT"
+  const leaderPlayerIndex = isKleurenwiezen
+    ? typeof activeSlice?.lastTrickWinnerIndex === "number"
+      ? activeSlice.lastTrickWinnerIndex
+      : typeof activeSlice?.leaderIndex === "number"
+        ? activeSlice.leaderIndex
+        : typeof activeSlice?.starterSeat === "number"
+          ? activeSlice.starterSeat
+          : 0
+    : appState.phase === "CHOOSING_CONTRACT"
       ? (chooserIndex + 1) % playersCount
       : typeof d?.lastTrickWinnerIndex === "number"
         ? d.lastTrickWinnerIndex
@@ -159,6 +188,15 @@ export function PlayScreen({
           : typeof d?.leaderIndex === "number"
             ? d.leaderIndex
             : (chooserIndex + 1) % playersCount;
+
+
+  const dealerPlayerIndex = isKleurenwiezen
+    ? typeof activeSlice?.dealerSeat === "number"
+      ? activeSlice.dealerSeat
+      : ((leaderPlayerIndex + playersCount - 1) % playersCount)
+    : typeof d?.dealerSeat === "number"
+      ? d.dealerSeat
+      : ((leaderPlayerIndex + playersCount - 1) % playersCount);
 
   const seatCards = useMemo(() => {
     return Array.from({ length: playersCount }, (_, index) => {
@@ -169,19 +207,19 @@ export function PlayScreen({
   }, [appState.mapping, playersCount, zones]);
 
   const centerCards = useMemo(() => {
-    const currentTrick = d?.currentTrick ?? [];
+    const currentTrick = activeSlice?.currentTrick ?? [];
     const result = Array(playersCount).fill(null);
 
     for (const play of currentTrick) {
       const playerIndex = play?.playerIndex;
-      const cardCode = play?.cardCode;
+      const cardCode = play?.cardCode ?? play?.card;
       if (typeof playerIndex === "number" && cardCode) {
         result[playerIndex] = toPrettyCard(cardCode);
       }
     }
 
     return result;
-  }, [d?.currentTrick, playersCount]);
+  }, [activeSlice?.currentTrick, playersCount]);
 
   const [flyingCards, setFlyingCards] = useState([]);
   const prevTrickRef = useRef([]);
@@ -189,8 +227,11 @@ export function PlayScreen({
   const [flashWinnerIndex, setFlashWinnerIndex] = useState(null);
 
   useEffect(() => {
-    const winnerIdx = d?.lastTrickWinnerIndex;
-    const ts = d?.lastTrick?.timestamp ?? null;
+    const winnerIdx = activeSlice?.lastTrickWinnerIndex;
+    const ts =
+      activeSlice?.lastTrick?.timestamp ??
+      activeSlice?.trickHistory?.[activeSlice?.trickHistory?.length - 1]?.id ??
+      null;
     if (typeof winnerIdx !== "number" || !ts) return undefined;
 
     const name = players?.[winnerIdx]?.name ?? `Player ${winnerIdx + 1}`;
@@ -210,10 +251,10 @@ export function PlayScreen({
       window.clearTimeout(t1);
       window.clearTimeout(t2);
     };
-  }, [d?.lastTrick?.timestamp, d?.lastTrickWinnerIndex, players]);
+  }, [activeSlice?.lastTrick, activeSlice?.lastTrickWinnerIndex, activeSlice?.trickHistory, players]);
 
   useEffect(() => {
-    const currentTrick = Array.isArray(d?.currentTrick) ? d.currentTrick : [];
+    const currentTrick = Array.isArray(activeSlice?.currentTrick) ? activeSlice.currentTrick : [];
     const prevTrick = Array.isArray(prevTrickRef.current) ? prevTrickRef.current : [];
 
     if (currentTrick.length < prevTrick.length) {
@@ -227,7 +268,7 @@ export function PlayScreen({
       const created = newPlays
         .map((play, index) => {
           const playerIndex = play?.playerIndex;
-          const cardCode = play?.cardCode;
+          const cardCode = play?.cardCode ?? play?.card;
           if (typeof playerIndex !== "number" || !cardCode) return null;
 
           return {
@@ -240,7 +281,6 @@ export function PlayScreen({
 
       if (created.length > 0) {
         setFlyingCards((prev) => [...prev, ...created]);
-
         created.forEach((card) => {
           window.setTimeout(() => {
             setFlyingCards((prev) => prev.filter((entry) => entry.id !== card.id));
@@ -250,7 +290,7 @@ export function PlayScreen({
     }
 
     prevTrickRef.current = currentTrick;
-  }, [d?.currentTrick]);
+  }, [activeSlice?.currentTrick]);
 
   const { isMobile, isMobileLandscape, height } = useViewport();
   const [showMobileScore, setShowMobileScore] = useState(false);
@@ -258,10 +298,13 @@ export function PlayScreen({
   const showRecentCards = appState.showRecentCards !== false;
   const showCenterTrickLabel = appState.showCenterTrickLabel !== false;
 
-  const showTrumpInHeader = d?.roundPhase === 2 || contractId === "TROEF";
-  const visibleTrumpLabel = showTrumpInHeader ? getTrumpLabel(d?.currentTrumpSuit) : "—";
+  const visibleTrumpLabel = isKleurenwiezen
+    ? getKleurenTrumpLabel(activeSlice?.trumpSuit)
+    : d?.roundPhase === 2 || contractLabel === "TROEF"
+      ? getTrumpLabel(d?.currentTrumpSuit)
+      : "—";
 
-  const centerAnimationSeed = `${trickCount}-${JSON.stringify(d?.currentTrick ?? [])}`;
+  const centerAnimationSeed = `${trickCount}-${JSON.stringify(activeSlice?.currentTrick ?? [])}`;
   const mobileTableHeight = Math.max(isMobileLandscape ? 300 : 540, height - (isMobileLandscape ? 26 : 32));
 
   const mobileTopOverlayOffset = 6;
@@ -285,7 +328,8 @@ export function PlayScreen({
         players={players}
         currentPlayerIndex={currentIndex}
         leaderPlayerIndex={leaderPlayerIndex}
-        contractLabel={contractId ?? "—"}
+        dealerPlayerIndex={dealerPlayerIndex}
+        contractLabel={contractLabel ?? "—"}
         trumpLabel={visibleTrumpLabel}
         trickLabel={`${trickCount} / 13`}
         seatCards={seatCards}
@@ -339,7 +383,7 @@ export function PlayScreen({
         isMobileLandscape={isMobileLandscape}
         players={players}
         currentIndex={currentIndex}
-        contractId={contractId}
+        contractId={contractLabel}
         scoreboardScores={scoreboardScores}
         trickWins={trickWins}
       />
@@ -355,7 +399,12 @@ export function PlayScreen({
         onClose={() => dispatchAction?.({ type: "close_contract_overlay" })}
       />
 
-      {showModesHome && <GameModeCards onOpenDobbelkingen={onOpenDobbelkingen} />}
+      {showModesHome && (
+        <GameModeCards
+          onOpenDobbelkingen={onOpenDobbelkingen}
+          onOpenKleurenwiezen={onOpenKleurenwiezen}
+        />
+      )}
 
       {showLobby && appState.activeMode === "DOBBELKINGEN" && (
         <>
@@ -398,6 +447,10 @@ export function PlayScreen({
         </>
       )}
 
+      {showLobby && appState.activeMode === "KLEURENWIEZEN" && (
+        <KleurenwiezenPanel appState={appState} onClose={onCloseMode} dispatchAction={dispatchAction} />
+      )}
+
       {showDoneUi && (
         <EndScreen summary={d?.matchSummary} onNewGame={onStartDobbelkingen} onBackHome={onCloseMode} />
       )}
@@ -416,6 +469,7 @@ export function PlayScreen({
               />
             ) : null}
             {mobileGameTable}
+            {isKleurenwiezen ? <KleurenwiezenRoundPanel appState={appState} dispatchAction={dispatchAction} /> : null}
           </>
         ) : (
           <>
@@ -445,7 +499,8 @@ export function PlayScreen({
               players={players}
               currentPlayerIndex={currentIndex}
               leaderPlayerIndex={leaderPlayerIndex}
-              contractLabel={contractId ?? "—"}
+              dealerPlayerIndex={dealerPlayerIndex}
+              contractLabel={contractLabel ?? "—"}
               trumpLabel={visibleTrumpLabel}
               trickLabel={`${trickCount} / 13`}
               seatCards={seatCards}
@@ -467,14 +522,15 @@ export function PlayScreen({
               }
             />
 
-            {contractId === "TROEF" && <TrickWinsPanel players={players} trickWins={trickWins} />}
+            {isDobbelkingen && contractLabel === "TROEF" ? <TrickWinsPanel players={players} trickWins={trickWins} /> : null}
+            {isKleurenwiezen ? <KleurenwiezenRoundPanel appState={appState} dispatchAction={dispatchAction} /> : null}
 
-            {showRecentCards && <PlayedCardsPanel cardCodes={d?.usedCardCodes ?? appState.usedCardCodes ?? []} />}
+            {showRecentCards && <PlayedCardsPanel cardCodes={activeSlice?.usedCardCodes ?? appState.usedCardCodes ?? []} />}
 
             {showDebug && appState.devMode && (
               <DevPanel
                 appState={appState}
-                d={d}
+                d={activeSlice}
                 zonesForGrid={zonesForGrid}
                 DISPLAY_ZONES={DISPLAY_ZONES}
                 turnZoneForGrid={turnZoneForGrid}

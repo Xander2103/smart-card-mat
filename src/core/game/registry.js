@@ -1,9 +1,10 @@
 //registry.js
 import { dobbelkingenEngine } from "../games/dobbelkingen";
+import { kleurenwiezenEngine } from "../games/kleurenwiezen";
 
 const ENGINES = {
   dobbelkingen: dobbelkingenEngine,
-  // wiezen: wiezenEngine (later)
+  kleurenwiezen: kleurenwiezenEngine
 };
 
 export function getEngine(modeId) {

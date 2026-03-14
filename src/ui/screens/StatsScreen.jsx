@@ -116,14 +116,18 @@ function sortPlayers(rows, sortBy, activeSection) {
         ? a.gameModeStats?.dobbelkingen ?? getEmptyStats()
         : activeSection === "wiezen"
           ? a.gameModeStats?.wiezen ?? getEmptyStats()
-          : a.generalStats;
+          : activeSection === "kleurenwiezen"
+            ? a.gameModeStats?.kleurenwiezen ?? getEmptyStats()
+            : a.generalStats;
 
     const bStats =
       activeSection === "dobbelkingen"
         ? b.gameModeStats?.dobbelkingen ?? getEmptyStats()
         : activeSection === "wiezen"
           ? b.gameModeStats?.wiezen ?? getEmptyStats()
-          : b.generalStats;
+          : activeSection === "kleurenwiezen"
+            ? b.gameModeStats?.kleurenwiezen ?? getEmptyStats()
+            : b.generalStats;
 
     if (sortBy === "matchesPlayed") return bStats.matchesPlayed - aStats.matchesPlayed;
     if (sortBy === "wins") return bStats.wins - aStats.wins;
@@ -287,8 +291,8 @@ export function StatsScreen() {
       return;
     }
 
-    if (activeSection === "wiezen") {
-      if (!["wins", "matchesPlayed", "winRate"].includes(sortBy)) {
+    if (["wiezen", "kleurenwiezen"].includes(activeSection)) {
+      if (!["wins", "matchesPlayed", "winRate", "totalScore", "averageScore", "bestScore", "worstScore"].includes(sortBy)) {
         setSortBy("wins");
       }
     }
@@ -311,7 +315,9 @@ export function StatsScreen() {
           ? (gameModeStats?.dobbelkingen?.matchesPlayed ?? 0)
           : activeSection === "wiezen"
             ? (gameModeStats?.wiezen?.matchesPlayed ?? 0)
-            : generalStats.matchesPlayed;
+            : activeSection === "kleurenwiezen"
+              ? (gameModeStats?.kleurenwiezen?.matchesPlayed ?? 0)
+              : generalStats.matchesPlayed;
 
       const matchesSearch =
         normalizedSearch.length === 0 ||
@@ -347,7 +353,17 @@ export function StatsScreen() {
               { value: "matchesPlayed", label: "Matches" },
               { value: "winRate", label: "Winrate" },
             ]
-          : [
+          : activeSection === "kleurenwiezen"
+            ? [
+                { value: "wins", label: "Wins" },
+                { value: "matchesPlayed", label: "Matches" },
+                { value: "winRate", label: "Winrate" },
+                { value: "totalScore", label: "Total score" },
+                { value: "averageScore", label: "Average score" },
+                { value: "bestScore", label: "Best score" },
+                { value: "worstScore", label: "Worst score" },
+              ]
+            : [
               { value: "wins", label: "Wins" },
               { value: "matchesPlayed", label: "Matches" },
               { value: "winRate", label: "Win%" },
@@ -356,6 +372,7 @@ export function StatsScreen() {
   const sectionTabs = [
     { value: "general", label: "Algemeen" },
     { value: "dobbelkingen", label: "Dobbelkingen" },
+    { value: "kleurenwiezen", label: "Kleurenwiezen" },
     { value: "wiezen", label: "Wiezen" },
   ];
 
@@ -366,7 +383,9 @@ export function StatsScreen() {
         ? "Nog geen spelers met gespeelde Dobbelkingen matches."
         : activeSection === "wiezen"
           ? "Nog geen spelers met gespeelde Wiezen matches."
-          : "Nog geen spelers met gespeelde matches.";
+          : activeSection === "kleurenwiezen"
+            ? "Nog geen spelers met gespeelde Kleurenwiezen matches."
+            : "Nog geen spelers met gespeelde matches.";
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -488,6 +507,7 @@ export function StatsScreen() {
                 const medalStyle = getMedalStyle(place);
 
                 const dobbelkingenStats = gameModeStats?.dobbelkingen ?? getEmptyStats();
+                const kleurenwiezenStats = gameModeStats?.kleurenwiezen ?? getEmptyStats();
                 const wiezenStats = gameModeStats?.wiezen ?? getEmptyStats();
 
                 return (
@@ -607,6 +627,10 @@ export function StatsScreen() {
                           </div>
                         }
                       />
+                    )}
+
+                    {activeSection === "kleurenwiezen" && (
+                      <GameModeSection title="Kleurenwiezen" stats={kleurenwiezenStats} />
                     )}
 
                     {activeSection === "wiezen" && (
