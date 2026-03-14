@@ -10,9 +10,9 @@ function didDobbelkingenJustFinish(prevState, nextState) {
 function didKleurenwiezenJustFinish(prevState, nextState) {
   const prevSlice = prevState?.game?.kleurenwiezen;
   const nextSlice = nextState?.game?.kleurenwiezen;
-  const prevResultId = prevSlice?.lastResult?.id ?? null;
-  const nextResultId = nextSlice?.lastResult?.id ?? null;
-  return !prevSlice?.roundFinished && !!nextSlice?.roundFinished && !!nextResultId && nextResultId !== prevResultId;
+  const prevFinishedAt = prevSlice?.matchFinishedAt ?? null;
+  const nextFinishedAt = nextSlice?.matchFinishedAt ?? null;
+  return !prevFinishedAt && !!nextFinishedAt && nextFinishedAt !== prevFinishedAt;
 }
 
 export function persistFinishedMatchIfNeeded(prevState, nextState) {

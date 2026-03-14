@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { KLEURENWIEZEN_CONTRACTS, getKleurenwiezenContract } from "../../core/games/kleurenwiezen/contracts";
 import { getCalculatedStarterSeat, getEffectiveTargetTricks } from "../../core/games/kleurenwiezen/helpers";
 import { getTrumpLabel } from "../../core/games/kleurenwiezen";
-import { simulateKleurenwiezenMatch } from "../../core/dev/simulateKleurenwiezenMatches";
 import { buttonStyle, colors, panelStyle, softCardStyle } from "../play/theme";
 import { useViewport } from "../play/useViewport";
 import { ChoiceGrid, SelectButton } from "./SetupStepCard";
@@ -48,7 +47,7 @@ function CompactContractButton({ item, active, onClick }) {
         gap: 8,
         textAlign: "left",
         cursor: "pointer",
-        minHeight: 154,
+        minHeight: 146,
         border: active ? "1px solid rgba(251, 191, 36, 0.44)" : "1px solid rgba(255,255,255,0.08)",
         background: active
           ? "linear-gradient(180deg, rgba(120,53,15,0.52), rgba(255,255,255,0.05))"
@@ -135,30 +134,21 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
     if (ok) setShowContractPicker(true);
   }
 
-  function handleSimulate(success) {
-    try {
-      simulateKleurenwiezenMatch(players, {
-        contract: contract ?? KLEURENWIEZEN_CONTRACTS[0],
-        declarantSeat: typeof slice?.declarantSeat === "number" ? slice.declarantSeat : 0,
-        partnerSeat: typeof slice?.partnerSeat === "number" ? slice.partnerSeat : 2,
-        dealerSeat,
-        trumpSuit: slice?.trumpSuit ?? "H",
-        targetTricks: targetTricks ?? contract?.targetTricks ?? 8,
-        success,
-      });
-      window.alert(success ? "Gesimuleerde geslaagde match toegevoegd aan history/stats." : "Gesimuleerde mislukte match toegevoegd aan history/stats.");
-    } catch (error) {
-      window.alert(error?.message ?? "Simulatie mislukt.");
-    }
-  }
-
-  const contractGridStyle = isMobile
-    ? { display: "grid", gridTemplateColumns: "1fr", gap: 12 }
+  const contractColumns = isMobile
+    ? 2
     : width >= 1500
-      ? { display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 12 }
-      : width >= 1100
-        ? { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }
-        : { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 };
+      ? 5
+      : width >= 1180
+        ? 4
+        : width >= 820
+          ? 3
+          : 2;
+  const contractGridStyle = {
+    display: "grid",
+    gridTemplateColumns: `repeat(${contractColumns}, minmax(0, 1fr))`,
+    gap: 12,
+    alignItems: "stretch",
+  };
 
   return (
     <div style={panelStyle({ padding: isMobile ? 12 : 20, display: "grid", gap: 16 })}>
@@ -199,13 +189,6 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
               />
             ))}
           </div>
-
-          {appState?.devMode ? (
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={() => handleSimulate(true)} style={buttonStyle()}>Simuleer geslaagde match</button>
-              <button onClick={() => handleSimulate(false)} style={buttonStyle()}>Simuleer mislukte match</button>
-            </div>
-          ) : null}
         </Section>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.5fr) minmax(320px, 0.9fr)", gap: 16, alignItems: "start" }}>
@@ -274,15 +257,6 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
                     </ChoiceGrid>
                   </div>
                 ) : null}
-              </Section>
-            ) : null}
-
-            {appState?.devMode ? (
-              <Section title="Dev mode" subtitle="Snelle testtools om history en stats te vullen zonder de hele ronde te spelen.">
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <button onClick={() => handleSimulate(true)} style={buttonStyle()}>Simuleer geslaagde match</button>
-                  <button onClick={() => handleSimulate(false)} style={buttonStyle()}>Simuleer mislukte match</button>
-                </div>
               </Section>
             ) : null}
 

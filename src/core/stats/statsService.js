@@ -191,3 +191,27 @@ export function getDobbelkingenContractInsights(playerId, matches = []) {
     worstContract,
   };
 }
+
+export function getKleurenwiezenInsights(playerId, matches = []) {
+  const kleurenMatches = getMatchesForPlayer(playerId, matches).filter(
+    (match) => String(match.gameType ?? "").toLowerCase() === "kleurenwiezen"
+  );
+
+  let highestContract = null;
+  let highestOrder = -1;
+
+  for (const match of kleurenMatches) {
+    const success = !!match?.gameData?.success;
+    const order = Number(match?.gameData?.contractOrder ?? -1);
+    const label = match?.gameData?.contractLabel ?? null;
+    if (!success || !label) continue;
+    if (order > highestOrder) {
+      highestOrder = order;
+      highestContract = label;
+    }
+  }
+
+  return {
+    highestAchievedContract: highestContract,
+  };
+}

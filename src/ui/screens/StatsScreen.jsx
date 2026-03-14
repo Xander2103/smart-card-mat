@@ -6,6 +6,7 @@ import {
   getPlayerStatsByGameMode,
   getPlayerGeneralInsights,
   getDobbelkingenContractInsights,
+  getKleurenwiezenInsights,
 } from "../../core/stats/statsService";
 
 const panelStyle = {
@@ -305,6 +306,7 @@ export function StatsScreen() {
       gameModeStats: getPlayerStatsByGameMode(player.id, matches),
       insights: getPlayerGeneralInsights(player.id, matches),
       dobbelkingenContracts: getDobbelkingenContractInsights(player.id, matches),
+      kleurenwiezenInsights: getKleurenwiezenInsights(player.id, matches),
     }));
 
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -502,7 +504,7 @@ export function StatsScreen() {
         ) : (
           <div style={{ display: "grid", gap: 14 }}>
             {rows.map(
-              ({ player, generalStats, gameModeStats, insights, dobbelkingenContracts }, index) => {
+              ({ player, generalStats, gameModeStats, insights, dobbelkingenContracts, kleurenwiezenInsights }, index) => {
                 const place = index + 1;
                 const medalStyle = getMedalStyle(place);
 
@@ -630,7 +632,38 @@ export function StatsScreen() {
                     )}
 
                     {activeSection === "kleurenwiezen" && (
-                      <GameModeSection title="Kleurenwiezen" stats={kleurenwiezenStats} />
+                      <GameModeSection
+                        title="Kleurenwiezen"
+                        stats={kleurenwiezenStats}
+                        extraChildren={
+                          <div style={{ display: "grid", gap: 8 }}>
+                            <div
+                              style={{
+                                fontWeight: 800,
+                                fontSize: 14,
+                                color: "#fde68a",
+                              }}
+                            >
+                              Contract insights
+                            </div>
+
+                            <div
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns:
+                                  "repeat(auto-fit, minmax(160px, 1fr))",
+                                gap: 8,
+                              }}
+                            >
+                              <StatPill
+                                label="Hoogste gehaalde contract"
+                                value={kleurenwiezenInsights.highestAchievedContract ?? "-"}
+                                highlight
+                              />
+                            </div>
+                          </div>
+                        }
+                      />
                     )}
 
                     {activeSection === "wiezen" && (

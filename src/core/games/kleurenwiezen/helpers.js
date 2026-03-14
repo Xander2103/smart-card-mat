@@ -32,6 +32,7 @@ export function getInitialKleurenwiezenState(playersCount = 4) {
     history: [],
     matchStartedAt: null,
     matchFinishedAt: null,
+    pendingMatchFinalize: false,
     ...createEmptyRuntime(),
   };
 }

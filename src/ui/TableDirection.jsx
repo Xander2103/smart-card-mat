@@ -282,7 +282,7 @@ function TableOrnaments({ contractLabel, trumpLabel, compact = false }) {
   const leftBaseStyle = {
     position: "absolute",
     top: "50.5%",
-    left: compact ? "29%" : "28%",
+    left: compact ? "34%" : "33.5%",
     transform: "translate(-50%, -50%)",
     pointerEvents: "none",
     zIndex: 1,
@@ -293,7 +293,7 @@ function TableOrnaments({ contractLabel, trumpLabel, compact = false }) {
   const rightBaseStyle = {
     position: "absolute",
     top: "50.5%",
-    left: compact ? "71%" : "72%",
+    left: compact ? "66%" : "66.5%",
     transform: "translate(-50%, -50%)",
     pointerEvents: "none",
     zIndex: 1,

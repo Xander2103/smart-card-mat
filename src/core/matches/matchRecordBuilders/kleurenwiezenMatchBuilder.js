@@ -49,6 +49,7 @@ export function buildKleurenwiezenMatchRecord(state) {
     gameData: {
       contractId: slice?.contractId ?? null,
       contractLabel: contract?.label ?? slice?.contractId ?? "-",
+      contractOrder: contract?.order ?? null,
       declarantSeat: slice?.declarantSeat ?? null,
       partnerSeat: slice?.partnerSeat ?? null,
       dealerSeat: slice?.dealerSeat ?? null,

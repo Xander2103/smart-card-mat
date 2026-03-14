@@ -154,7 +154,9 @@ export function reduceKleurenwiezen(state, action) {
       leaderIndex: starterSeat,
       starterSeat,
       targetTricks: getEffectiveTargetTricks(slice),
-      matchStartedAt: slice.matchStartedAt ?? Date.now(),
+      matchStartedAt: Date.now(),
+      matchFinishedAt: null,
+      pendingMatchFinalize: false,
     };
 
     return setSlice(
@@ -170,6 +172,7 @@ export function reduceKleurenwiezen(state, action) {
 
   if (action.type === "finish_kleurenwiezen_round") {
     const resultEntry = slice.lastResult;
+    const finishedAt = Date.now();
     const nextDealer = normalizeSeat((slice.dealerSeat ?? playersCount - 1) + 1, playersCount);
     const nextSlice = syncDerivedFields(
       {
@@ -179,6 +182,8 @@ export function reduceKleurenwiezen(state, action) {
         dealerSeat: nextDealer,
         history: resultEntry ? [resultEntry, ...(slice.history ?? [])] : slice.history ?? [],
         lastResult: resultEntry ?? slice.lastResult ?? null,
+        pendingMatchFinalize: false,
+        matchFinishedAt: finishedAt,
       },
       playersCount
     );
@@ -200,6 +205,8 @@ export function reduceKleurenwiezen(state, action) {
         ...slice,
         ...createEmptyRuntime(),
         setupStep: 0,
+        pendingMatchFinalize: false,
+        matchFinishedAt: null,
       },
       playersCount
     );

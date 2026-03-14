@@ -12,13 +12,15 @@ export function KleurenwiezenRoundPanel({ appState, dispatchAction }) {
   const totalScores = slice?.totalScores ?? [];
 
   function handleBackToSetup() {
-    const ok = window.confirm(
-      slice?.roundFinished
-        ? "Terug naar setup voor een nieuwe ronde?"
-        : "Actieve ronde verlaten? Huidige voortgang kan verloren gaan."
-    );
+    const ok = window.confirm("Actieve ronde verlaten? Huidige voortgang kan verloren gaan.");
     if (!ok) return;
-    dispatchAction?.({ type: slice?.roundFinished ? "finish_kleurenwiezen_round" : "abort_contract" });
+    dispatchAction?.({ type: "abort_contract" });
+  }
+
+  function handleFinalizeMatch() {
+    const ok = window.confirm("Weet je zeker dat je deze match wilt afronden? Dit slaat de match op in history en statistieken.");
+    if (!ok) return;
+    dispatchAction?.({ type: "finish_kleurenwiezen_round" });
   }
 
   return (
@@ -32,8 +34,8 @@ export function KleurenwiezenRoundPanel({ appState, dispatchAction }) {
         </div>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={handleBackToSetup} style={slice?.roundFinished ? buttonStyle("primary") : buttonStyle("danger")}>
-            {slice?.roundFinished ? "Volgende ronde" : "Terug"}
+          <button onClick={handleBackToSetup} style={buttonStyle("danger")}>
+            {slice?.roundFinished ? "Terug" : "Terug"}
           </button>
         </div>
       </div>
@@ -50,12 +52,18 @@ export function KleurenwiezenRoundPanel({ appState, dispatchAction }) {
         <div style={softCardStyle({ padding: 16, display: "grid", gap: 10, border: `1px solid ${evaluation.success ? "rgba(74, 222, 128, 0.28)" : "rgba(248, 113, 113, 0.28)"}` })}>
           <div style={{ fontWeight: 900, fontSize: 20, color: evaluation.success ? colors.green : colors.red }}>{evaluation.resultLabel}</div>
           <div style={{ color: colors.muted }}>{evaluation.attackLabel} haalde {evaluation.attackTricks} slagen. Doel was {evaluation.targetTricks}.</div>
+          <div style={{ color: colors.muted, fontSize: 13 }}>Pas wanneer je hieronder op <strong>Match afronden</strong> drukt, telt deze ronde mee voor history en stats.</div>
           <div style={{ display: "grid", gap: 8 }}>
             {players.map((player, index) => {
               const delta = evaluation.playerDeltas?.[index] ?? 0;
               const sign = delta > 0 ? "+" : "";
               return <div key={player.id ?? index} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}><div style={{ fontWeight: 800 }}>{player.name}</div><div style={{ fontWeight: 900 }}>{sign}{delta} · totaal {totalScores[index] ?? 0}</div></div>;
             })}
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+            <button onClick={handleFinalizeMatch} style={buttonStyle("primary")}>
+              Match afronden
+            </button>
           </div>
         </div>
       ) : (

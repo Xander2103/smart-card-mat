@@ -78,5 +78,8 @@ export function simulateKleurenwiezenMatch(players, options = {}) {
   };
 
   storageService.saveMatch(record);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("smartcardmat:matches-updated", { detail: { source: "kleurenwiezen-sim" } }));
+  }
   return record;
 }

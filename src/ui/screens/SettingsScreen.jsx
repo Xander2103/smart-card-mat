@@ -3,6 +3,7 @@ import { buttonStyle, colors, panelStyle, softCardStyle } from "../play/theme";
 import { useViewport } from "../play/useViewport";
 import { storageService } from "../../core/storage/services/storageService";
 import { simulateDobbelkingenMatches } from "../../core/dev/simulateDobbelkingenMatches";
+import { simulateKleurenwiezenMatch } from "../../core/dev/simulateKleurenwiezenMatches";
 
 function ToggleRow({ checked, onChange, title, description }) {
   return (
@@ -41,6 +42,20 @@ export function SettingsScreen({ appState, dispatchAction }) {
   const devMode = !!appState.devMode;
   const showRecentCards = appState.showRecentCards !== false;
   const showCenterTrickLabel = appState.showCenterTrickLabel !== false;
+
+  function simulateKleurenwiezenMatches(count) {
+    const players = (appState?.players ?? []).slice(0, 4);
+    if (players.length < 4) {
+      window.alert("Minstens 4 spelers nodig om Kleurenwiezen te simuleren.");
+      return;
+    }
+
+    for (let i = 0; i < count; i += 1) {
+      simulateKleurenwiezenMatch(players);
+    }
+
+    window.dispatchEvent(new CustomEvent("smartcardmat:matches-updated", { detail: { source: "kleurenwiezen-dev-tools" } }));
+  }
 
   return (
     <div style={panelStyle({ padding: isMobile ? 16 : 22, display: "grid", gap: 16 })}>
@@ -171,6 +186,7 @@ export function SettingsScreen({ appState, dispatchAction }) {
         )}
 
         {appState?.devMode && (
+          <>
           <div
             style={{
               marginTop: 24,
@@ -221,6 +237,33 @@ export function SettingsScreen({ appState, dispatchAction }) {
               </button>
             </div>
           </div>
+
+          <div
+            style={{
+              marginTop: 16,
+              borderRadius: 18,
+              padding: 16,
+              border: "1px solid rgba(251,191,36,0.18)",
+              background: "rgba(217,119,6,0.08)",
+              display: "grid",
+              gap: 10,
+            }}
+          >
+            <div style={{ fontWeight: 900 }}>DEV Tools : Kleurenwiezen</div>
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button style={buttonStyle("secondary")} onClick={() => simulateKleurenwiezenMatches(1)}>
+                Simulate 1 match
+              </button>
+              <button style={buttonStyle("secondary")} onClick={() => simulateKleurenwiezenMatches(20)}>
+                Simulate 20 matches
+              </button>
+              <button style={buttonStyle("secondary")} onClick={() => simulateKleurenwiezenMatches(100)}>
+                Simulate 100 matches
+              </button>
+            </div>
+          </div>
+          </>
         )}
       </div>
     </div>
