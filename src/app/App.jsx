@@ -26,6 +26,7 @@ import { appTheme } from "./appTheme";
 import { useAutoConfirm } from "./useAutoConfirm";
 import { useBluetoothConnection } from "./useBluetoothConnection";
 import { useUiSounds } from "./useUiSounds";
+import { useLedSync } from "./useLedSync";
 
 export default function App() {
   const { isMobile, isLandscape } = useViewport();
@@ -103,6 +104,7 @@ export default function App() {
 
   useAutoConfirm(appState, setAppState, applyAppAction);
   useUiSounds(appState);
+  useLedSync(appState, gameState, bleStatus);
 
   const confirmTurnNow = useCallback(() => {
     dispatchAction({ type: "confirm_turn" });

@@ -1,3 +1,5 @@
+import { clearLedCharacteristic, setLedCharacteristic, leds } from "./ledClient";
+
 const DEVICE_NAME_PREFIX = "SmartCardMat";
 const SERVICE_UUID = "12345678-1234-1234-1234-1234567890ab";
 const CHARACTERISTIC_UUID = "abcd1234-1234-1234-1234-1234567890ab";
@@ -13,7 +15,11 @@ export async function connectBluetooth({ onLine, onDisconnected } = {}) {
   });
 
   const handleDisconnected = () => {
-    if (onDisconnected) onDisconnected();
+    clearLedCharacteristic();
+
+    if (onDisconnected) {
+      onDisconnected();
+    }
   };
 
   device.addEventListener("gattserverdisconnected", handleDisconnected);
@@ -36,7 +42,9 @@ export async function connectBluetooth({ onLine, onDisconnected } = {}) {
       .filter(Boolean);
 
     for (const line of lines) {
-      if (onLine) onLine(line);
+      if (onLine) {
+        onLine(line);
+      }
     }
   };
 
@@ -45,11 +53,18 @@ export async function connectBluetooth({ onLine, onDisconnected } = {}) {
     handleValueChanged
   );
 
+  setLedCharacteristic(characteristic);
+
+  await leds.connected();
+  await leds.intro();
+  await leds.setup();
+
   return {
     device,
     server,
     service,
     characteristic,
+
     async disconnect() {
       characteristic.removeEventListener(
         "characteristicvaluechanged",
@@ -60,6 +75,8 @@ export async function connectBluetooth({ onLine, onDisconnected } = {}) {
         "gattserverdisconnected",
         handleDisconnected
       );
+
+      clearLedCharacteristic();
 
       if (device.gatt?.connected) {
         device.gatt.disconnect();
