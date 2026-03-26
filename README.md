@@ -22,7 +22,7 @@ Features include:
 
 ## 🛠️ Technologies
 
-### Hardware
+### Hardware (Code C++) 
 - ESP32
 - NFC readers 
 - External antennas
