@@ -1,16 +1,44 @@
-# React + Vite
+# 🃏 Smart Card Mat – Interactive Card Game System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A real-time interactive card game system combining hardware and software.
 
-Currently, two official plugins are available:
+This project uses an ESP32 with NFC readers to detect physical playing cards on a custom mat and sends events via Bluetooth (BLE) to a web application built in React.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## React Compiler
+## 🚀 Overview
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The Smart Card Mat allows players to play card games using real physical cards while a web application tracks the game in real time.
 
-## Expanding the ESLint configuration
+The system works across multiple devices such as desktop, tablet, and mobile (iPad, smartphone), allowing players to follow the game state live on screen.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Features include:
+- Real-time card detection using NFC
+- Physical gameplay with real cards
+- Cross-device web application (PC, tablet, mobile)
+- Bluetooth communication between hardware and app
+- Automated game logic and scoring
+- Visual feedback via LED strips
+
+## 🛠️ Technologies
+
+### Hardware (Code C++) 
+- ESP32
+- NFC readers 
+- External antennas
+- WS2812 LED strips
+
+### Software
+- React (Vite)
+- JavaScript (modular state architecture)
+- Web Bluetooth API
+- Embedded C++ (Arduino / ESP32)
+
+---
+
+## ⚙️ How It Works
+
+1. A card is placed on the mat
+2. NFC reader detects the UID
+3. ESP32 maps UID → card
+4. Event is sent via BLE:
