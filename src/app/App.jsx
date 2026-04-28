@@ -21,7 +21,13 @@ import { playUiSound } from "../lib/uiSound";
 
 import { AppHeader } from "./AppHeader";
 import { DisconnectModal } from "./DisconnectModal";
-import { ZONES, AUTO_CONFIRM_DELAY_MS, getBleStatusStyles, getCardNames, getMobileHeaderFlags, isMatchLocked } from "./appHelpers";
+import {
+  ZONES,
+  getBleStatusStyles,
+  getCardNames,
+  getMobileHeaderFlags,
+  isMatchLocked,
+} from "./appHelpers";
 import { appTheme } from "./appTheme";
 import { useAutoConfirm } from "./useAutoConfirm";
 import { useBluetoothConnection } from "./useBluetoothConnection";
@@ -58,23 +64,7 @@ export default function App() {
       playUiSound("scan");
     }
 
-    setAppState((prev) => {
-      const nextState = applyRootEvent(prev, ev);
-
-      if (
-        nextState.phase === "PLAYING_TRICK" &&
-        nextState.autoConfirm &&
-        ev.type === "placed"
-      ) {
-        window.setTimeout(() => {
-          setAppState((prev2) =>
-            applyAppAction(prev2, { type: "confirm_turn" })
-          );
-        }, AUTO_CONFIRM_DELAY_MS);
-      }
-
-      return nextState;
-    });
+    setAppState((prev) => applyRootEvent(prev, ev));
   }, []);
 
   const {
@@ -97,6 +87,7 @@ export default function App() {
   }, [mapping]);
 
   const gameState = useMemo(() => computeGameState(appState), [appState]);
+
   const cardNames = useMemo(
     () => getCardNames(zones, mapping, CARD_BY_CODE),
     [zones, mapping]

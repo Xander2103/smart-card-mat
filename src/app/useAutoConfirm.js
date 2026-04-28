@@ -1,22 +1,8 @@
-import { useEffect, useRef } from "react";
-
-import { AUTO_CONFIRM_MS } from "./appHelpers";
+import { useEffect } from "react";
 
 export function useAutoConfirm(appState, setAppState, applyAppAction) {
-  const timerRef = useRef(null);
-  const armedKeyRef = useRef(null);
-
-  function clearAutoTimer() {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  }
-
   useEffect(() => {
     if (!appState?.autoConfirm || appState.phase !== "PLAYING_TRICK") {
-      clearAutoTimer();
-      armedKeyRef.current = null;
       return;
     }
 
@@ -35,24 +21,10 @@ export function useAutoConfirm(appState, setAppState, applyAppAction) {
     ).some((play) => play.playerIndex === currentPlayerIndex);
 
     if (!uidInExpected || !cardInExpected || alreadyPlayed) {
-      clearAutoTimer();
-      armedKeyRef.current = null;
       return;
     }
 
-    const key = `${currentPlayerIndex}|${uidInExpected}|${cardInExpected}`;
-
-    if (armedKeyRef.current === key && timerRef.current) {
-      return;
-    }
-
-    armedKeyRef.current = key;
-    clearAutoTimer();
-
-    timerRef.current = setTimeout(() => {
-      timerRef.current = null;
-      setAppState((prev) => applyAppAction(prev, { type: "confirm_turn" }));
-    }, AUTO_CONFIRM_MS);
+    setAppState((prev) => applyAppAction(prev, { type: "confirm_turn" }));
   }, [
     appState?.autoConfirm,
     appState?.phase,
@@ -64,10 +36,4 @@ export function useAutoConfirm(appState, setAppState, applyAppAction) {
     setAppState,
     applyAppAction,
   ]);
-
-  useEffect(() => {
-    return () => {
-      clearAutoTimer();
-    };
-  }, []);
 }

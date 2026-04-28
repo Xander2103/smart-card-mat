@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { buttonStyle, colors, panelStyle, softCardStyle } from "../play/theme";
 import { useViewport } from "../play/useViewport";
 import { storageService } from "../../core/storage/services/storageService";
 import { simulateDobbelkingenMatches } from "../../core/dev/simulateDobbelkingenMatches";
 import { simulateKleurenwiezenMatch } from "../../core/dev/simulateKleurenwiezenMatches";
+import { leds } from "../../transport/ledClient";
 
 function ToggleRow({ checked, onChange, title, description }) {
   return (
@@ -43,6 +44,26 @@ export function SettingsScreen({ appState, dispatchAction }) {
   const showRecentCards = appState.showRecentCards !== false;
   const showCenterTrickLabel = appState.showCenterTrickLabel !== false;
 
+  const initialLedBrightness = useMemo(() => {
+    const raw = Number(appState?.ledBrightness);
+    if (Number.isFinite(raw) && raw >= 0 && raw <= 255) {
+      return raw;
+    }
+    return 20;
+  }, [appState?.ledBrightness]);
+
+  const [ledBrightness, setLedBrightness] = useState(initialLedBrightness);
+
+  function applyLedBrightness(value) {
+    const safeValue = Math.max(0, Math.min(255, Number(value) || 0));
+    setLedBrightness(safeValue);
+    dispatchAction?.({
+      type: "set_led_brightness",
+      value: safeValue,
+    });
+    leds.brightness(safeValue);
+  }
+
   function simulateKleurenwiezenMatches(count) {
     const players = (appState?.players ?? []).slice(0, 4);
     if (players.length < 4) {
@@ -54,7 +75,11 @@ export function SettingsScreen({ appState, dispatchAction }) {
       simulateKleurenwiezenMatch(players);
     }
 
-    window.dispatchEvent(new CustomEvent("smartcardmat:matches-updated", { detail: { source: "kleurenwiezen-dev-tools" } }));
+    window.dispatchEvent(
+      new CustomEvent("smartcardmat:matches-updated", {
+        detail: { source: "kleurenwiezen-dev-tools" },
+      })
+    );
   }
 
   return (
@@ -108,6 +133,61 @@ export function SettingsScreen({ appState, dispatchAction }) {
       )}
 
       <div style={softCardStyle({ padding: 16, display: "grid", gap: 10 })}>
+        <div style={{ fontWeight: 700 }}>LED brightness</div>
+        <div style={{ color: colors.muted, lineHeight: 1.55 }}>
+          Stel de helderheid van de leds in. Begin laag en verhoog stap voor stap.
+          Voor jouw huidige prototype is <b>20 tot 60</b> meestal veilig.
+        </div>
+
+        <div style={{ display: "grid", gap: 10 }}>
+          <input
+            type="range"
+            min={0}
+            max={120}
+            step={1}
+            value={ledBrightness}
+            onChange={(e) => applyLedBrightness(e.target.value)}
+            style={{ width: "100%" }}
+          />
+
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ fontWeight: 800 }}>Huidige waarde: {ledBrightness}</div>
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => applyLedBrightness(20)}
+                style={buttonStyle("secondary")}
+              >
+                20
+              </button>
+              <button
+                type="button"
+                onClick={() => applyLedBrightness(40)}
+                style={buttonStyle("secondary")}
+              >
+                40
+              </button>
+              <button
+                type="button"
+                onClick={() => applyLedBrightness(60)}
+                style={buttonStyle("secondary")}
+              >
+                60
+              </button>
+              <button
+                type="button"
+                onClick={() => applyLedBrightness(100)}
+                style={buttonStyle("secondary")}
+              >
+                100
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={softCardStyle({ padding: 16, display: "grid", gap: 10 })}>
         <div style={{ fontWeight: 700 }}>Aanbevolen instelling</div>
         <div style={{ color: colors.muted, lineHeight: 1.55 }}>
           Voor desktop testing: laat <b>recent kaarten</b> uit, <b>slagnummer</b> uit en
@@ -120,6 +200,9 @@ export function SettingsScreen({ appState, dispatchAction }) {
               dispatchAction?.({ type: "set_auto_confirm", value: true });
               dispatchAction?.({ type: "set_show_recent_cards", value: false });
               dispatchAction?.({ type: "set_show_center_trick_label", value: false });
+              dispatchAction?.({ type: "set_led_brightness", value: 20 });
+              setLedBrightness(20);
+              leds.brightness(20);
             }}
             style={buttonStyle("primary")}
           >
@@ -171,7 +254,9 @@ export function SettingsScreen({ appState, dispatchAction }) {
                 Dev mode activeren
               </button>
             </div>
-            {devCodeError ? <div style={{ color: "#fca5a5", fontWeight: 700 }}>{devCodeError}</div> : null}
+            {devCodeError ? (
+              <div style={{ color: "#fca5a5", fontWeight: 700 }}>{devCodeError}</div>
+            ) : null}
           </>
         ) : (
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
@@ -187,82 +272,91 @@ export function SettingsScreen({ appState, dispatchAction }) {
 
         {appState?.devMode && (
           <>
-          <div
-            style={{
-              marginTop: 24,
-              borderRadius: 18,
-              padding: 16,
-              border: "1px solid rgba(251,191,36,0.18)",
-              background: "rgba(217,119,6,0.08)",
-              display: "grid",
-              gap: 10,
-            }}
-          >
-            <div style={{ fontWeight: 900 }}>DEV Tools : Dobbelkingen </div>
+            <div
+              style={{
+                marginTop: 24,
+                borderRadius: 18,
+                padding: 16,
+                border: "1px solid rgba(251,191,36,0.18)",
+                background: "rgba(217,119,6,0.08)",
+                display: "grid",
+                gap: 10,
+              }}
+            >
+              <div style={{ fontWeight: 900 }}>DEV Tools : Dobbelkingen</div>
 
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button
-                style={buttonStyle("secondary")}
-                onClick={() => simulateDobbelkingenMatches(1)}
-              >
-                Simulate 1 match
-              </button>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button
+                  style={buttonStyle("secondary")}
+                  onClick={() => simulateDobbelkingenMatches(1)}
+                >
+                  Simulate 1 match
+                </button>
 
-              <button
-                style={buttonStyle("secondary")}
-                onClick={() => simulateDobbelkingenMatches(20)}
-              >
-                Simulate 20 matches
-              </button>
+                <button
+                  style={buttonStyle("secondary")}
+                  onClick={() => simulateDobbelkingenMatches(20)}
+                >
+                  Simulate 20 matches
+                </button>
 
-              <button
-                style={buttonStyle("secondary")}
-                onClick={() => simulateDobbelkingenMatches(100)}
-              >
-                Simulate 100 matches
-              </button>
+                <button
+                  style={buttonStyle("secondary")}
+                  onClick={() => simulateDobbelkingenMatches(100)}
+                >
+                  Simulate 100 matches
+                </button>
 
-              <button
-                style={buttonStyle("secondary")}
-                onClick={() => {
-                  const ok = window.confirm(
-                    "Ben je zeker dat je alle gesimuleerde matches wilt verwijderen?"
-                  );
-                  if (!ok) return;
+                <button
+                  style={buttonStyle("secondary")}
+                  onClick={() => {
+                    const ok = window.confirm(
+                      "Ben je zeker dat je alle gesimuleerde matches wilt verwijderen?"
+                    );
+                    if (!ok) return;
 
-                  storageService.clearSimulatedMatches();
-                }}
-              >
-                Clear simulated matches
-              </button>
+                    storageService.clearSimulatedMatches();
+                  }}
+                >
+                  Clear simulated matches
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div
-            style={{
-              marginTop: 16,
-              borderRadius: 18,
-              padding: 16,
-              border: "1px solid rgba(251,191,36,0.18)",
-              background: "rgba(217,119,6,0.08)",
-              display: "grid",
-              gap: 10,
-            }}
-          >
-            <div style={{ fontWeight: 900 }}>DEV Tools : Kleurenwiezen</div>
+            <div
+              style={{
+                marginTop: 16,
+                borderRadius: 18,
+                padding: 16,
+                border: "1px solid rgba(251,191,36,0.18)",
+                background: "rgba(217,119,6,0.08)",
+                display: "grid",
+                gap: 10,
+              }}
+            >
+              <div style={{ fontWeight: 900 }}>DEV Tools : Kleurenwiezen</div>
 
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button style={buttonStyle("secondary")} onClick={() => simulateKleurenwiezenMatches(1)}>
-                Simulate 1 match
-              </button>
-              <button style={buttonStyle("secondary")} onClick={() => simulateKleurenwiezenMatches(20)}>
-                Simulate 20 matches
-              </button>
-              <button style={buttonStyle("secondary")} onClick={() => simulateKleurenwiezenMatches(100)}>
-                Simulate 100 matches
-              </button>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button
+                  style={buttonStyle("secondary")}
+                  onClick={() => simulateKleurenwiezenMatches(1)}
+                >
+                  Simulate 1 match
+                </button>
+                <button
+                  style={buttonStyle("secondary")}
+                  onClick={() => simulateKleurenwiezenMatches(20)}
+                >
+                  Simulate 20 matches
+                </button>
+                <button
+                  style={buttonStyle("secondary")}
+                  onClick={() => simulateKleurenwiezenMatches(100)}
+                >
+                  Simulate 100 matches
+                </button>
+              </div>
             </div>
-          </div>
           </>
         )}
       </div>

@@ -7,7 +7,11 @@ import {
   getCurrentStepKey,
   getEffectiveTargetTricks,
   getInitialKleurenwiezenState,
+  getAttackSeatList,
+  getDefenseSeatList,
+  getTotalTricksForContract,
   normalizeSeat,
+  shouldInstantFailAfterTrick,
 } from "./helpers";
 import { evaluateRound } from "./selectors";
 
@@ -83,6 +87,42 @@ function applyRoundEvaluation(slice, players) {
       result: evaluation,
       timestamp: Date.now(),
     },
+  };
+}
+
+function createClaimedTricks(slice, playersCount, awardedTo) {
+  const totalTricks = getTotalTricksForContract(slice);
+  const playedTricks = slice.trickHistory?.length ?? 0;
+  const remainingTricks = Math.max(0, totalTricks - playedTricks);
+  if (remainingTricks <= 0) {
+    return {
+      extraTricks: [],
+      lastWinnerIndex: slice.lastTrickWinnerIndex ?? null,
+      remainingTricks: 0,
+    };
+  }
+
+  const attackSeats = getAttackSeatList(slice, playersCount);
+  const defenseSeats = getDefenseSeatList(slice, playersCount);
+  const fallbackSeat = typeof slice.declarantSeat === "number" ? slice.declarantSeat : 0;
+  const awardedSeats = awardedTo === "defense" ? defenseSeats : attackSeats;
+  const winnerIndex = awardedSeats[0] ?? fallbackSeat;
+
+  const extraTricks = Array.from({ length: remainingTricks }, (_, index) => ({
+    id: playedTricks + index + 1,
+    plays: [],
+    winnerIndex,
+    contract: slice.contractId,
+    trumpSuit: slice.trumpSuit,
+    timestamp: Date.now() + index,
+    synthetic: true,
+    awardedTo,
+  }));
+
+  return {
+    extraTricks,
+    lastWinnerIndex: winnerIndex,
+    remainingTricks,
   };
 }
 
@@ -245,6 +285,38 @@ export function reduceKleurenwiezen(state, action) {
     );
   }
 
+  if (action.type === "finish_kleurenwiezen_round_early") {
+    if (state.phase !== "PLAYING_TRICK") return state;
+    if (slice.roundFinished) return state;
+
+    const awardedTo = action.awardedTo === "defense" ? "defense" : "attack";
+    const { extraTricks, lastWinnerIndex, remainingTricks } = createClaimedTricks(slice, playersCount, awardedTo);
+
+    let nextSlice = {
+      ...slice,
+      currentTrick: [],
+      trickHistory: [...(slice.trickHistory ?? []), ...extraTricks],
+      leaderIndex: lastWinnerIndex ?? slice.leaderIndex,
+      currentPlayerIndex: lastWinnerIndex ?? slice.currentPlayerIndex,
+      lastTrickWinnerIndex: lastWinnerIndex ?? slice.lastTrickWinnerIndex,
+      lastTrick: extraTricks[extraTricks.length - 1] ?? slice.lastTrick,
+      roundFinished: true,
+      earlyFinishAwardedTo: awardedTo,
+      earlyFinishRemainingTricks: remainingTricks,
+    };
+
+    nextSlice = applyRoundEvaluation(nextSlice, state.players ?? []);
+
+    return setSlice(
+      {
+        ...state,
+        lastError: null,
+        log: pushLog(state.log, `KLEURENWIEZEN|EARLY_FINISH|${awardedTo.toUpperCase()}|${remainingTricks}`),
+      },
+      nextSlice
+    );
+  }
+
   if (action.type === "reset_pile") {
     return setSlice(
       { ...state, lastError: null, log: pushLog(state.log, "KLEURENWIEZEN|RESET") },
@@ -310,7 +382,9 @@ export function reduceKleurenwiezen(state, action) {
       timestamp: Date.now(),
     };
     const nextTrickHistory = [...(slice.trickHistory ?? []), trickResult];
-    const roundFinished = nextTrickHistory.length >= 13;
+    const totalTricks = getTotalTricksForContract(slice);
+    const instantFail = shouldInstantFailAfterTrick(slice, winnerIndex);
+    const roundFinished = instantFail || nextTrickHistory.length >= totalTricks;
 
     let nextSlice = {
       ...slice,
@@ -324,6 +398,7 @@ export function reduceKleurenwiezen(state, action) {
       lastTrickWinnerIndex: winnerIndex,
       lastTrick: trickResult,
       roundFinished,
+      instantFailTriggered: instantFail,
     };
 
     if (roundFinished) {

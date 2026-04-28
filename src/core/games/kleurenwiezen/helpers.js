@@ -14,6 +14,9 @@ export function createEmptyRuntime() {
     roundFinished: false,
     pointsAppliedForRound: false,
     lastResult: null,
+    instantFailTriggered: false,
+    earlyFinishAwardedTo: null,
+    earlyFinishRemainingTricks: 0,
   };
 }
 
@@ -87,4 +90,37 @@ export function getEffectiveTargetTricks(slice) {
     return slice?.troelTargetMode === "otherTrump" ? 9 : 8;
   }
   return contract.targetTricks ?? null;
+}
+
+export function getTotalTricksForContract(slice) {
+  const contract = getKleurenwiezenContract(slice?.contractId);
+  return contract?.totalTricks ?? 13;
+}
+
+export function shouldInstantFailAfterTrick(slice, winnerIndex) {
+  const contract = getKleurenwiezenContract(slice?.contractId);
+  if (!contract?.instantFailOnDeclarantTrick) return false;
+  return typeof slice?.declarantSeat === "number" && winnerIndex === slice.declarantSeat;
+}
+
+export function getAttackSeatList(slice, playersCount = 4) {
+  const seats = [];
+  if (typeof slice?.declarantSeat === "number") {
+    seats.push(normalizeSeat(slice.declarantSeat, playersCount));
+  }
+  const contract = getKleurenwiezenContract(slice?.contractId);
+  if (contract?.needsPartner && typeof slice?.partnerSeat === "number") {
+    const partnerSeat = normalizeSeat(slice.partnerSeat, playersCount);
+    if (!seats.includes(partnerSeat)) seats.push(partnerSeat);
+  }
+  return seats;
+}
+
+export function getDefenseSeatList(slice, playersCount = 4) {
+  const attackSeats = new Set(getAttackSeatList(slice, playersCount));
+  const defenseSeats = [];
+  for (let i = 0; i < playersCount; i += 1) {
+    if (!attackSeats.has(i)) defenseSeats.push(i);
+  }
+  return defenseSeats;
 }

@@ -9,15 +9,17 @@ function getKleurenSlice(appState) {
   return appState?.game?.kleurenwiezen ?? null;
 }
 
-function getWinnerSeatIndex(appState) {
+function getWinnerZone(appState) {
   if (appState?.modeId === "dobbelkingen") {
     const d = getDobbelSlice(appState);
-    return d?.matchSummary?.winnerPlayerIndex ?? null;
+    const winnerIndex = d?.matchSummary?.winnerPlayerIndex ?? null;
+    return Number.isInteger(winnerIndex) ? winnerIndex + 1 : null;
   }
 
   if (appState?.modeId === "kleurenwiezen") {
     const k = getKleurenSlice(appState);
     const deltas = k?.lastResult?.result?.playerDeltas;
+
     if (!Array.isArray(deltas) || deltas.length === 0) {
       return null;
     }
@@ -33,21 +35,23 @@ function getWinnerSeatIndex(appState) {
       }
     }
 
-    return Number.isFinite(bestIndex) ? bestIndex : null;
+    return bestIndex + 1;
   }
 
   return null;
 }
 
-function getTrickWinnerSeatIndex(appState) {
+function getTrickWinnerZone(appState) {
   if (appState?.modeId === "dobbelkingen") {
     const d = getDobbelSlice(appState);
-    return d?.lastTrickWinnerIndex ?? null;
+    const winnerIndex = d?.lastTrickWinnerIndex ?? null;
+    return Number.isInteger(winnerIndex) ? winnerIndex + 1 : null;
   }
 
   if (appState?.modeId === "kleurenwiezen") {
     const k = getKleurenSlice(appState);
-    return k?.lastTrickWinnerIndex ?? null;
+    const winnerIndex = k?.lastTrickWinnerIndex ?? null;
+    return Number.isInteger(winnerIndex) ? winnerIndex + 1 : null;
   }
 
   return null;
@@ -66,24 +70,8 @@ function isPlayingPhase(appState) {
   return appState?.phase === "PLAYING_TRICK";
 }
 
-function getActiveSeatIndex(appState, gameState) {
-  if (!isPlayingPhase(appState)) return null;
-
-  if (appState?.modeId === "dobbelkingen") {
-    const d = getDobbelSlice(appState);
-    return d?.currentPlayerIndex ?? null;
-  }
-
-  if (appState?.modeId === "kleurenwiezen") {
-    const k = getKleurenSlice(appState);
-    return k?.currentPlayerIndex ?? null;
-  }
-
-  if (Number.isInteger(gameState?.expectedZone)) {
-    return gameState.expectedZone - 1;
-  }
-
-  return null;
+function getExpectedZone(gameState) {
+  return Number.isInteger(gameState?.expectedZone) ? gameState.expectedZone : null;
 }
 
 function buildSnapshot(appState, gameState, bleStatus) {
@@ -91,12 +79,11 @@ function buildSnapshot(appState, gameState, bleStatus) {
     bleStatus,
     modeId: appState?.modeId ?? null,
     phase: appState?.phase ?? null,
-    expectedZone: gameState?.expectedZone ?? null,
+    expectedZone: getExpectedZone(gameState),
     canConfirm: !!gameState?.canConfirm,
     lastError: appState?.lastError ?? null,
-    trickWinner: getTrickWinnerSeatIndex(appState),
-    winner: getWinnerSeatIndex(appState),
-    activeSeat: getActiveSeatIndex(appState, gameState),
+    trickWinnerZone: getTrickWinnerZone(appState),
+    winnerZone: getWinnerZone(appState),
   };
 }
 
@@ -118,14 +105,20 @@ export function useLedSync(appState, gameState, bleStatus) {
       leds.intro();
     }
 
-    if (current.winner != null) {
-      if (previous?.winner !== current.winner || previous?.phase !== current.phase) {
-        leds.winner(current.winner);
+    if (current.winnerZone != null) {
+      if (
+        previous?.winnerZone !== current.winnerZone ||
+        previous?.phase !== current.phase
+      ) {
+        leds.winner(current.winnerZone);
       }
       return;
     }
 
-    if (current.phase !== previous?.phase || current.modeId !== previous?.modeId) {
+    if (
+      current.phase !== previous?.phase ||
+      current.modeId !== previous?.modeId
+    ) {
       if (!current.modeId || current.phase === "HOME") {
         leds.off();
       } else if (isSetupPhase(appState)) {
@@ -133,32 +126,50 @@ export function useLedSync(appState, gameState, bleStatus) {
       }
     }
 
-    if (isSetupPhase(appState) && (current.phase !== previous?.phase || current.modeId !== previous?.modeId)) {
+    if (
+      isSetupPhase(appState) &&
+      (current.phase !== previous?.phase || current.modeId !== previous?.modeId)
+    ) {
       leds.setup();
     }
 
     if (isPlayingPhase(appState)) {
       if (
-        current.activeSeat !== previous?.activeSeat ||
+        current.expectedZone !== previous?.expectedZone ||
         current.canConfirm !== previous?.canConfirm ||
         current.phase !== previous?.phase
       ) {
-        if (current.activeSeat != null) {
+        if (current.expectedZone != null) {
           if (current.canConfirm) {
-            leds.turn(current.activeSeat);
+            leds.turn(current.expectedZone);
           } else {
-            leds.expect(current.activeSeat);
+            leds.expect(current.expectedZone);
           }
         }
       }
+
+      if (
+        current.canConfirm &&
+        !previous?.canConfirm &&
+        current.expectedZone != null
+      ) {
+        leds.scanOk(current.expectedZone);
+      }
     }
 
-    if (current.lastError && current.lastError !== previous?.lastError && current.activeSeat != null) {
-      leds.error(current.activeSeat);
+    if (
+      current.lastError &&
+      current.lastError !== previous?.lastError &&
+      current.expectedZone != null
+    ) {
+      leds.error(current.expectedZone);
     }
 
-    if (current.trickWinner != null && current.trickWinner !== previous?.trickWinner) {
-      leds.trickWin(current.trickWinner);
+    if (
+      current.trickWinnerZone != null &&
+      current.trickWinnerZone !== previous?.trickWinnerZone
+    ) {
+      leds.trickWin(current.trickWinnerZone);
     }
   }, [appState, bleStatus, gameState]);
 }

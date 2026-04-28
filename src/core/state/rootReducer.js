@@ -117,6 +117,11 @@ export function applyRootAction(state, action) {
     return { ...state, showCenterTrickLabel: !!action.value };
   }
 
+  if (action.type === "set_led_brightness") {
+    const value = Math.max(0, Math.min(255, Number(action.value) || 0));
+    return { ...state, ledBrightness: value };
+  }
+
   if (action.type === "set_deck_setup") {
     return { ...state, deckSetup: !!action.value };
   }

@@ -1,6 +1,4 @@
 export const ZONES = 4;
-export const AUTO_CONFIRM_DELAY_MS = 400;
-export const AUTO_CONFIRM_MS = 650;
 
 export function isMatchLocked(appState) {
   const phase = appState?.phase ?? "HOME";

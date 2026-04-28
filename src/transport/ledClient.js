@@ -70,4 +70,10 @@ export const leds = {
     if (seatIndex == null || seatIndex < 0) return;
     return sendLedCommand(`LED|FX|TRICK_WIN|${seatIndex + 1}`);
   },
+
+  brightness(value) {
+    if (value == null) return;
+    const safeValue = Math.max(0, Math.min(255, Number(value) || 0));
+    return sendLedCommand(`LED|BRIGHTNESS|${safeValue}`);
+  },
 };
