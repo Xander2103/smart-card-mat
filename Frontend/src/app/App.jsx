@@ -158,8 +158,19 @@ export default function App() {
     dispatchAction({ type: "select_uid", uid });
   }
 
+  async function testLaravelApi() {
+    const response = await fetch("http://127.0.0.1:8000/api/test");
+    const data = await response.json();
+
+    console.log(data);
+    alert(data.message);
+  }
+
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      <button type="button" onClick={testLaravelApi}>
+        Test Laravel API
+      </button>
       <style>{`
         @keyframes blePulseRed {
           0% { box-shadow: 0 0 0 0 rgba(248,113,113,0.32), 0 0 10px rgba(248,113,113,0.18); }
