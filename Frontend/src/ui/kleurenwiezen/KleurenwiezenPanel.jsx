@@ -70,6 +70,7 @@ function PlayerChoiceGrid({ players, activeSeat, excludeSeat = null, onPick, bod
       {(players ?? []).map((player, index) => {
         const disabled = typeof excludeSeat === "number" && index === excludeSeat;
         const active = activeSeat === index;
+
         return (
           <SelectButton
             key={player?.id ?? index}
@@ -78,6 +79,37 @@ function PlayerChoiceGrid({ players, activeSeat, excludeSeat = null, onPick, bod
             eyebrow={`Seat ${index + 1}`}
             title={player?.name ?? `Speler ${index + 1}`}
             body={disabled ? "Niet beschikbaar voor deze keuze" : active ? bodySelected : "Selecteer deze speler"}
+          />
+        );
+      })}
+    </ChoiceGrid>
+  );
+}
+
+function MultiPlayerChoiceGrid({ players, activeSeats = [], onToggle, maxSelected = 3 }) {
+  const activeSet = new Set(activeSeats);
+  const maxReached = activeSeats.length >= maxSelected;
+
+  return (
+    <ChoiceGrid min={190}>
+      {(players ?? []).map((player, index) => {
+        const active = activeSet.has(index);
+        const disabled = !active && maxReached;
+
+        return (
+          <SelectButton
+            key={player?.id ?? index}
+            active={active}
+            onClick={disabled ? undefined : () => onToggle?.(index)}
+            eyebrow={`Seat ${index + 1}`}
+            title={player?.name ?? `Speler ${index + 1}`}
+            body={
+              active
+                ? "Speelt mee"
+                : disabled
+                  ? `Maximum ${maxSelected} spelers`
+                  : "Klik om mee te spelen"
+            }
           />
         );
       })}
@@ -97,24 +129,56 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
   const lastResult = slice?.lastResult ?? null;
   const [showContractPicker, setShowContractPicker] = useState(!slice?.contractId);
 
+  const declarantSeats = Array.isArray(slice?.declarantSeats)
+    ? slice.declarantSeats
+    : typeof slice?.declarantSeat === "number"
+      ? [slice.declarantSeat]
+      : [];
+
+  const isMultiDeclarantContract = !!contract?.allowMultipleDeclarants;
+
   useEffect(() => {
     if (!slice?.contractId) setShowContractPicker(true);
   }, [slice?.contractId]);
 
   const canStart = useMemo(() => {
     if (!contract) return false;
-    if (typeof slice?.declarantSeat !== "number") return false;
+
+    if (contract.allowMultipleDeclarants) {
+      if (!Array.isArray(slice?.declarantSeats) || slice.declarantSeats.length === 0) return false;
+    } else if (typeof slice?.declarantSeat !== "number") {
+      return false;
+    }
+
     if (contract.needsPartner && typeof slice?.partnerSeat !== "number") return false;
     if (contract.needsPartner && slice?.partnerSeat === slice?.declarantSeat) return false;
     if (contract.needsTrump && !slice?.trumpSuit) return false;
     if (contract.id === "TROEL" && !["ownTrump", "otherTrump"].includes(slice?.troelTargetMode)) return false;
+
     return true;
-  }, [contract, slice?.declarantSeat, slice?.partnerSeat, slice?.trumpSuit, slice?.troelTargetMode]);
+  }, [
+    contract,
+    slice?.declarantSeat,
+    slice?.declarantSeats,
+    slice?.partnerSeat,
+    slice?.trumpSuit,
+    slice?.troelTargetMode,
+  ]);
 
   const summaryRows = [
     { label: "Dealer", value: `${getSeatName(players, dealerSeat)} · D` },
     { label: "Eerste uitkomst", value: getSeatName(players, starterSeat) },
     { label: "Troef", value: contract?.needsTrump ? getTrumpLabel(slice?.trumpSuit) : "Geen troef" },
+    {
+      label: isMultiDeclarantContract ? "Spelers" : "Declarant",
+      value: isMultiDeclarantContract
+        ? declarantSeats.length > 0
+          ? declarantSeats.map((seat) => getSeatName(players, seat)).join(", ")
+          : "Nog kiezen"
+        : typeof slice?.declarantSeat === "number"
+          ? getSeatName(players, slice.declarantSeat)
+          : "Nog kiezen",
+    },
     {
       label: "Doel",
       value: contract
@@ -134,6 +198,23 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
     if (ok) setShowContractPicker(true);
   }
 
+  function toggleDeclarantSeat(seat) {
+    const currentSeats = Array.isArray(slice?.declarantSeats) ? slice.declarantSeats : [];
+    const isAlreadySelected = currentSeats.includes(seat);
+
+    const nextSeats = isAlreadySelected
+      ? currentSeats.filter((item) => item !== seat)
+      : currentSeats.length >= 3
+        ? currentSeats
+        : [...currentSeats, seat];
+
+    dispatchAction?.({
+      type: "set_kleurenwiezen_setup_field",
+      field: "declarantSeats",
+      value: nextSeats,
+    });
+  }
+
   const contractColumns = isMobile
     ? 2
     : width >= 1500
@@ -143,6 +224,7 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
         : width >= 820
           ? 3
           : 2;
+
   const contractGridStyle = {
     display: "grid",
     gridTemplateColumns: `repeat(${contractColumns}, minmax(0, 1fr))`,
@@ -200,13 +282,35 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
               </div>
             </Section>
 
-            <Section title="1. Declarant" subtitle="Kies wie dit contract speelt. Eerste uitkomst wordt automatisch berekend.">
-              <PlayerChoiceGrid
-                players={players}
-                activeSeat={slice?.declarantSeat}
-                onPick={(value) => dispatchAction?.({ type: "set_kleurenwiezen_setup_field", field: "declarantSeat", value })}
-                bodySelected="Declarant geselecteerd"
-              />
+            <Section
+              title={isMultiDeclarantContract ? "1. Spelers" : "1. Declarant"}
+              subtitle={
+                isMultiDeclarantContract
+                  ? "Kies één of meerdere spelers die dit miserie/piccolo-contract spelen."
+                  : "Kies wie dit contract speelt. Eerste uitkomst wordt automatisch berekend."
+              }
+            >
+              {isMultiDeclarantContract ? (
+                <MultiPlayerChoiceGrid
+                  players={players}
+                  activeSeats={declarantSeats}
+                  onToggle={toggleDeclarantSeat}
+                  maxSelected={3}
+                />
+              ) : (
+                <PlayerChoiceGrid
+                  players={players}
+                  activeSeat={slice?.declarantSeat}
+                  onPick={(value) =>
+                    dispatchAction?.({
+                      type: "set_kleurenwiezen_setup_field",
+                      field: "declarantSeat",
+                      value,
+                    })
+                  }
+                  bodySelected="Declarant geselecteerd"
+                />
+              )}
             </Section>
 
             {contract?.needsPartner ? (
@@ -218,7 +322,13 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
                   players={players}
                   activeSeat={slice?.partnerSeat}
                   excludeSeat={slice?.declarantSeat}
-                  onPick={(value) => dispatchAction?.({ type: "set_kleurenwiezen_setup_field", field: "partnerSeat", value })}
+                  onPick={(value) =>
+                    dispatchAction?.({
+                      type: "set_kleurenwiezen_setup_field",
+                      field: "partnerSeat",
+                      value,
+                    })
+                  }
                   bodySelected="Partner geselecteerd"
                 />
               </Section>
@@ -231,7 +341,13 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
                     <SelectButton
                       key={item.suit}
                       active={slice?.trumpSuit === item.suit}
-                      onClick={() => dispatchAction?.({ type: "set_kleurenwiezen_setup_field", field: "trumpSuit", value: item.suit })}
+                      onClick={() =>
+                        dispatchAction?.({
+                          type: "set_kleurenwiezen_setup_field",
+                          field: "trumpSuit",
+                          value: item.suit,
+                        })
+                      }
                       title={item.label}
                       body="Gebruik deze kleur als troef voor de ronde."
                     />
@@ -244,13 +360,25 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
                     <ChoiceGrid min={220}>
                       <SelectButton
                         active={slice?.troelTargetMode !== "otherTrump"}
-                        onClick={() => dispatchAction?.({ type: "set_kleurenwiezen_setup_field", field: "troelTargetMode", value: "ownTrump" })}
+                        onClick={() =>
+                          dispatchAction?.({
+                            type: "set_kleurenwiezen_setup_field",
+                            field: "troelTargetMode",
+                            value: "ownTrump",
+                          })
+                        }
                         title="Partner kiest eigen troef"
                         body="Doel: 8 slagen halen."
                       />
                       <SelectButton
                         active={slice?.troelTargetMode === "otherTrump"}
-                        onClick={() => dispatchAction?.({ type: "set_kleurenwiezen_setup_field", field: "troelTargetMode", value: "otherTrump" })}
+                        onClick={() =>
+                          dispatchAction?.({
+                            type: "set_kleurenwiezen_setup_field",
+                            field: "troelTargetMode",
+                            value: "otherTrump",
+                          })
+                        }
                         title="Partner kiest andere troef"
                         body="Doel: 9 slagen halen."
                       />

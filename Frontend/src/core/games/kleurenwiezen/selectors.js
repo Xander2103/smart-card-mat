@@ -109,6 +109,56 @@ function getFailOppPoints(contract, actualAttackTricks, targetTricks) {
   return typeof contract.failOppMax === "number" ? Math.min(contract.failOppMax, value) : value;
 }
 
+function getDeclarantSeats(slice) {
+  if (Array.isArray(slice?.declarantSeats) && slice.declarantSeats.length > 0) {
+    return slice.declarantSeats;
+  }
+
+  if (typeof slice?.declarantSeat === "number") {
+    return [slice.declarantSeat];
+  }
+
+  return [];
+}
+
+function applyMiseriePiccoloTableScore({ contract, slice, playersCount }) {
+  const playerDeltas = Array(playersCount).fill(0);
+  const declarantSeats = getDeclarantSeats(slice);
+  const declarantSet = new Set(declarantSeats);
+
+  let failedDeclarants = 0;
+
+  for (const seat of declarantSeats) {
+    const tricksWon = getTrickWinsByPlayer(slice?.trickHistory ?? [], playersCount)[seat] ?? 0;
+
+    const succeeded =
+      contract.targetType === "exact"
+        ? tricksWon === contract.targetTricks
+        : tricksWon >= contract.targetTricks;
+
+    if (succeeded) {
+      playerDeltas[seat] += contract.successPoints ?? 0;
+    } else {
+      playerDeltas[seat] += contract.failPlayersPoints ?? 0;
+      failedDeclarants += 1;
+    }
+  }
+
+  const opponentGain = (contract.failOppPoints ?? 0) * failedDeclarants;
+
+  for (let i = 0; i < playersCount; i += 1) {
+    if (!declarantSet.has(i)) {
+      playerDeltas[i] += opponentGain;
+    }
+  }
+
+  return {
+    playerDeltas,
+    failedDeclarants,
+    success: failedDeclarants === 0,
+  };
+}
+
 export function evaluateRound(slice, players = []) {
   const contract = getKleurenwiezenContract(slice?.contractId);
   const teamSummary = getTeamTrickSummary(slice, players);
@@ -138,6 +188,26 @@ export function evaluateRound(slice, players = []) {
   let attackPoints = 0;
   let defensePoints = 0;
 
+  if (contract.scoringType === "miseriePiccoloTable") {
+    const result = applyMiseriePiccoloTableScore({
+      contract,
+      slice,
+      playersCount: playerCount,
+    });
+
+    return {
+      success: result.success,
+      targetTricks,
+      targetLabel: `${comparisonWord} ${targetTricks} slagen`,
+      resultLabel: result.success ? "Contract gehaald" : "Contract niet gehaald",
+      attackPoints: contract.successPoints ?? 0,
+      defensePoints: contract.failOppPoints ?? 0,
+      playerDeltas: result.playerDeltas,
+      starterSeat,
+      ...teamSummary,
+    };
+  }
+
   if (contract.scoringType === "pairTable") {
     const pairScore = success
       ? getSuccessPoints(contract, actual, targetTricks, slice)
@@ -155,6 +225,29 @@ export function evaluateRound(slice, players = []) {
     for (let i = 0; i < playerCount; i += 1) {
       if (!attackSeats.has(i)) {
         playerDeltas[i] -= pairScore;
+      }
+    }
+  } else if (contract.scoringType === "soloTable") {
+    const soloScore = success
+      ? getSuccessPoints(contract, actual, targetTricks, slice)
+      : getFailPlayersPoints(contract, actual, targetTricks);
+
+    const opponentScore = success
+      ? -Math.abs(soloScore) / 3
+      : getFailOppPoints(contract, actual, targetTricks);
+
+    attackPoints = soloScore;
+    defensePoints = opponentScore;
+
+    attackSeats.forEach((seat) => {
+      if (seat >= 0 && seat < playerCount) {
+        playerDeltas[seat] += soloScore;
+      }
+    });
+
+    for (let i = 0; i < playerCount; i += 1) {
+      if (!attackSeats.has(i)) {
+        playerDeltas[i] += opponentScore;
       }
     }
   } else if (success) {

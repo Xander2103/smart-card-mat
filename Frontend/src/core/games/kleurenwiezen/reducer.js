@@ -37,6 +37,7 @@ function setSlice(state, nextSlice) {
 function syncDerivedFields(slice, playersCount) {
   const starterSeat = getCalculatedStarterSeat(slice, playersCount);
   const targetTricks = getEffectiveTargetTricks(slice);
+
   return {
     ...slice,
     starterSeat,
@@ -44,29 +45,58 @@ function syncDerivedFields(slice, playersCount) {
   };
 }
 
+function getDeclarantSeatList(slice) {
+  if (Array.isArray(slice?.declarantSeats) && slice.declarantSeats.length > 0) {
+    return slice.declarantSeats;
+  }
+
+  if (typeof slice?.declarantSeat === "number") {
+    return [slice.declarantSeat];
+  }
+
+  return [];
+}
+
 function getSetupError(slice, playersCount) {
   const contract = getKleurenwiezenContract(slice?.contractId);
   if (!contract) return "Kies eerst een contract.";
-  if (typeof slice?.declarantSeat !== "number") return "Kies een declarant.";
+
+  if (contract.allowMultipleDeclarants) {
+    if (!Array.isArray(slice?.declarantSeats) || slice.declarantSeats.length === 0) {
+      return "Kies minstens één declarant.";
+    }
+  } else if (typeof slice?.declarantSeat !== "number") {
+    return "Kies een declarant.";
+  }
+
   if (contract.needsPartner && typeof slice?.partnerSeat !== "number") {
     return "Kies een partner voor dit contract.";
   }
+
   if (contract.needsPartner && slice?.partnerSeat === slice?.declarantSeat) {
     return "Declarant en partner mogen niet dezelfde speler zijn.";
   }
-  if (contract.needsTrump && !slice?.trumpSuit) return "Kies een troefkleur.";
+
+  if (contract.needsTrump && !slice?.trumpSuit) {
+    return "Kies een troefkleur.";
+  }
+
   if (contract.id === "TROEL" && !["ownTrump", "otherTrump"].includes(slice?.troelTargetMode)) {
     return "Kies voor troel of de partner eigen troef of andere troef speelt.";
   }
+
   const starterSeat = getCalculatedStarterSeat(slice, playersCount);
   if (starterSeat == null) return "Kan de eerste uitkomst niet bepalen.";
+
   return "";
 }
 
 function applyRoundEvaluation(slice, players) {
   const evaluation = evaluateRound(slice, players);
   const baseScores = slice.totalScores ?? Array(players.length || 4).fill(0);
-  const nextTotalScores = baseScores.map((score, index) => score + (evaluation.playerDeltas?.[index] ?? 0));
+  const nextTotalScores = baseScores.map((score, index) => {
+    return score + (evaluation.playerDeltas?.[index] ?? 0);
+  });
 
   return {
     ...slice,
@@ -78,6 +108,7 @@ function applyRoundEvaluation(slice, players) {
       contractId: slice.contractId,
       contractLabel: getKleurenwiezenContract(slice.contractId)?.label ?? slice.contractId,
       declarantSeat: slice.declarantSeat,
+      declarantSeats: getDeclarantSeatList(slice),
       partnerSeat: slice.partnerSeat,
       dealerSeat: slice.dealerSeat,
       starterSeat: slice.starterSeat,
@@ -94,6 +125,7 @@ function createClaimedTricks(slice, playersCount, awardedTo) {
   const totalTricks = getTotalTricksForContract(slice);
   const playedTricks = slice.trickHistory?.length ?? 0;
   const remainingTricks = Math.max(0, totalTricks - playedTricks);
+
   if (remainingTricks <= 0) {
     return {
       extraTricks: [],
@@ -104,7 +136,13 @@ function createClaimedTricks(slice, playersCount, awardedTo) {
 
   const attackSeats = getAttackSeatList(slice, playersCount);
   const defenseSeats = getDefenseSeatList(slice, playersCount);
-  const fallbackSeat = typeof slice.declarantSeat === "number" ? slice.declarantSeat : 0;
+
+  const declarantSeats = getDeclarantSeatList(slice);
+  const fallbackSeat =
+    typeof slice.declarantSeat === "number"
+      ? slice.declarantSeat
+      : declarantSeats[0] ?? 0;
+
   const awardedSeats = awardedTo === "defense" ? defenseSeats : attackSeats;
   const winnerIndex = awardedSeats[0] ?? fallbackSeat;
 
@@ -136,14 +174,23 @@ export function reduceKleurenwiezen(state, action) {
     const contract = getKleurenwiezenContract(action.contractId);
     if (!contract) return state;
 
+    const currentDeclarantSeats = getDeclarantSeatList(slice);
+
     let nextSlice = {
       ...slice,
       contractId: contract.id,
       setupStep: 0,
       trumpSuit: contract.needsTrump ? slice.trumpSuit : null,
+
+      declarantSeats: contract.allowMultipleDeclarants ? currentDeclarantSeats : [],
+      declarantSeat: contract.allowMultipleDeclarants
+        ? currentDeclarantSeats[0] ?? null
+        : slice.declarantSeat,
+
       partnerSeat: contract.needsPartner ? slice.partnerSeat : null,
       troelTargetMode: contract.id === "TROEL" ? slice.troelTargetMode ?? "ownTrump" : "ownTrump",
     };
+
     nextSlice = syncDerivedFields(nextSlice, playersCount);
     return setSlice({ ...state, lastError: null }, nextSlice);
   }
@@ -151,10 +198,49 @@ export function reduceKleurenwiezen(state, action) {
   if (action.type === "set_kleurenwiezen_setup_field") {
     const field = action.field;
     if (!field) return state;
+
     let value = action.value;
+
+    if (field === "declarantSeats") {
+      value = Array.isArray(value)
+        ? value
+            .map((seat) => normalizeSeat(seat, playersCount))
+            .filter((seat) => typeof seat === "number")
+        : [];
+
+      const uniqueSeats = [...new Set(value)];
+
+      const nextSlice = syncDerivedFields(
+        {
+          ...slice,
+          declarantSeats: uniqueSeats,
+          declarantSeat: uniqueSeats[0] ?? null,
+          partnerSeat:
+            typeof slice.partnerSeat === "number" && uniqueSeats.includes(slice.partnerSeat)
+              ? null
+              : slice.partnerSeat,
+        },
+        playersCount
+      );
+
+      return setSlice({ ...state, lastError: null }, nextSlice);
+    }
 
     if (["declarantSeat", "partnerSeat"].includes(field)) {
       value = value == null ? null : normalizeSeat(value, playersCount);
+    }
+
+    if (field === "declarantSeat") {
+      const nextSlice = syncDerivedFields(
+        {
+          ...slice,
+          declarantSeat: value,
+          declarantSeats: typeof value === "number" ? [value] : [],
+        },
+        playersCount
+      );
+
+      return setSlice({ ...state, lastError: null }, nextSlice);
     }
 
     if (field === "trumpSuit") {
@@ -171,15 +257,24 @@ export function reduceKleurenwiezen(state, action) {
   }
 
   if (action.type === "set_kleurenwiezen_step") {
-    return setSlice({ ...state, lastError: null }, { ...slice, setupStep: clampStep(slice, Number(action.step) || 0) });
+    return setSlice(
+      { ...state, lastError: null },
+      { ...slice, setupStep: clampStep(slice, Number(action.step) || 0) }
+    );
   }
 
   if (action.type === "next_kleurenwiezen_step") {
-    return setSlice({ ...state, lastError: null }, { ...slice, setupStep: clampStep(slice, (slice.setupStep ?? 0) + 1) });
+    return setSlice(
+      { ...state, lastError: null },
+      { ...slice, setupStep: clampStep(slice, (slice.setupStep ?? 0) + 1) }
+    );
   }
 
   if (action.type === "prev_kleurenwiezen_step") {
-    return setSlice({ ...state, lastError: null }, { ...slice, setupStep: clampStep(slice, (slice.setupStep ?? 0) - 1) });
+    return setSlice(
+      { ...state, lastError: null },
+      { ...slice, setupStep: clampStep(slice, (slice.setupStep ?? 0) - 1) }
+    );
   }
 
   if (action.type === "start_kleurenwiezen_round") {
@@ -187,6 +282,7 @@ export function reduceKleurenwiezen(state, action) {
     if (setupError) return { ...state, lastError: setupError };
 
     const starterSeat = getCalculatedStarterSeat(slice, playersCount);
+
     const nextSlice = {
       ...slice,
       ...createEmptyRuntime(),
@@ -212,30 +308,25 @@ export function reduceKleurenwiezen(state, action) {
 
   if (action.type === "finish_kleurenwiezen_round") {
     const resultEntry = slice.lastResult;
-    const finishedAt = Date.now();
     const nextDealer = normalizeSeat((slice.dealerSeat ?? playersCount - 1) + 1, playersCount);
+
     const nextSlice = syncDerivedFields(
       {
         ...slice,
         ...createEmptyRuntime(),
 
-        // Terug naar contractkeuze/setup
         setupStep: 0,
-
-        // Volgende deler
         dealerSeat: nextDealer,
 
-        // Resultaat wel bewaren in history
         history: resultEntry ? [resultEntry, ...(slice.history ?? [])] : slice.history ?? [],
 
-        // Belangrijk: actieve round-result leegmaken
         lastResult: null,
         pendingMatchFinalize: false,
         matchFinishedAt: null,
 
-        // Zeker leegmaken voor volgende contractronde
         contractId: null,
         declarantSeat: null,
+        declarantSeats: [],
         partnerSeat: null,
         trumpSuit: null,
         currentTrick: [],
@@ -298,7 +389,10 @@ export function reduceKleurenwiezen(state, action) {
         pile: nextPile,
         usedCardCodes: nextUsedCodes,
         usedCardSet: nextUsedSet,
-        currentPlayerIndex: typeof removed?.playerIndex === "number" ? removed.playerIndex : slice.currentPlayerIndex,
+        currentPlayerIndex:
+          typeof removed?.playerIndex === "number"
+            ? removed.playerIndex
+            : slice.currentPlayerIndex,
       }
     );
   }
@@ -308,7 +402,11 @@ export function reduceKleurenwiezen(state, action) {
     if (slice.roundFinished) return state;
 
     const awardedTo = action.awardedTo === "defense" ? "defense" : "attack";
-    const { extraTricks, lastWinnerIndex, remainingTricks } = createClaimedTricks(slice, playersCount, awardedTo);
+    const { extraTricks, lastWinnerIndex, remainingTricks } = createClaimedTricks(
+      slice,
+      playersCount,
+      awardedTo
+    );
 
     let nextSlice = {
       ...slice,
@@ -329,7 +427,10 @@ export function reduceKleurenwiezen(state, action) {
       {
         ...state,
         lastError: null,
-        log: pushLog(state.log, `KLEURENWIEZEN|EARLY_FINISH|${awardedTo.toUpperCase()}|${remainingTricks}`),
+        log: pushLog(
+          state.log,
+          `KLEURENWIEZEN|EARLY_FINISH|${awardedTo.toUpperCase()}|${remainingTricks}`
+        ),
       },
       nextSlice
     );
@@ -354,8 +455,14 @@ export function reduceKleurenwiezen(state, action) {
     const zoneIndex = slice.currentPlayerIndex ?? 0;
     const uid = state.zones?.[zoneIndex] ?? null;
     const card = uid ? state.mapping?.[uid] ?? null : null;
-    if (!uid || !card) return { ...state, lastError: "Leg eerst een kaart in de juiste zone." };
-    if (slice.usedCardSet?.[card]) return { ...state, lastError: `Kaart ${card} is al gespeeld in deze ronde.` };
+
+    if (!uid || !card) {
+      return { ...state, lastError: "Leg eerst een kaart in de juiste zone." };
+    }
+
+    if (slice.usedCardSet?.[card]) {
+      return { ...state, lastError: `Kaart ${card} is al gespeeld in deze ronde.` };
+    }
 
     const play = {
       zone: zoneIndex + 1,
@@ -391,6 +498,7 @@ export function reduceKleurenwiezen(state, action) {
     });
 
     const winnerIndex = winningPlay?.playerIndex ?? slice.leaderIndex ?? 0;
+
     const trickResult = {
       id: (slice.trickHistory?.length ?? 0) + 1,
       plays: nextCurrentTrick,
@@ -399,6 +507,7 @@ export function reduceKleurenwiezen(state, action) {
       trumpSuit: slice.trumpSuit,
       timestamp: Date.now(),
     };
+
     const nextTrickHistory = [...(slice.trickHistory ?? []), trickResult];
     const totalTricks = getTotalTricksForContract(slice);
     const instantFail = shouldInstantFailAfterTrick(slice, winnerIndex);
