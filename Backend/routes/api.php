@@ -12,3 +12,9 @@ Route::get('/test', function () {
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
+
+Route::post('/matches', function (Request $request) {
+    return response()->json([
+        'received' => $request->all(),
+    ]);
+});

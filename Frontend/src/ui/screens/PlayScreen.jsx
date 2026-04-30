@@ -24,6 +24,7 @@ import { MobileScoreOverlay } from "./playscreen/MobileScoreOverlay";
 import { getTrumpLabel, getTrickWinsByPlayer, toPrettyCard } from "./playscreen/cardFormatters";
 import { KleurenwiezenPanel } from "../kleurenwiezen/KleurenwiezenPanel";
 import { KleurenwiezenRoundPanel } from "../kleurenwiezen/KleurenwiezenRoundPanel";
+import { DevCardSimulator } from "./playscreen/DevCardSimulator";
 
 export function PlayScreen({
   appState,
@@ -45,6 +46,9 @@ export function PlayScreen({
   mobileHeaderExpanded = true,
   onToggleMobileHeader,
   dispatchAction,
+  onSimulateDevCard,
+  onSimulateRandomContract,
+
 }) {
   const modeId = appState.modeId ?? null;
   const isDobbelkingen = modeId === "dobbelkingen";
@@ -344,6 +348,7 @@ export function PlayScreen({
         mobileTopInset={mobileControlsHeight + 8}
       />
 
+
       <div
         style={{
           position: "absolute",
@@ -426,13 +431,13 @@ export function PlayScreen({
             style={
               isMobile
                 ? {
-                    minHeight: mobileLobbyHeight,
-                    height: mobileLobbyHeight,
-                    minWidth: 0,
-                    overflowY: appState.phase === "CHOOSING_TROEF" ? "hidden" : "auto",
-                    overflowX: "hidden",
-                    WebkitOverflowScrolling: "touch",
-                  }
+                  minHeight: mobileLobbyHeight,
+                  height: mobileLobbyHeight,
+                  minWidth: 0,
+                  overflowY: appState.phase === "CHOOSING_TROEF" ? "hidden" : "auto",
+                  overflowX: "hidden",
+                  WebkitOverflowScrolling: "touch",
+                }
                 : undefined
             }
           >
@@ -511,6 +516,17 @@ export function PlayScreen({
               flyingCards={flyingCards}
             />
 
+            {showDebug && appState.devMode && (
+              <DevCardSimulator
+                currentTurnZone={gameState?.expectedZone ?? currentIndex + 1}
+                currentTurnPlayerName={
+                  players?.[currentIndex]?.name ?? `Player ${currentIndex + 1}`
+                }
+                onSimulateDevCard={onSimulateDevCard}
+                onSimulateRandomContract={onSimulateRandomContract}
+              />
+            )}
+
             <Scoreboard
               players={players}
               scores={scoreboardScores}
@@ -539,6 +555,7 @@ export function PlayScreen({
                 onConfirmTurn={onConfirmTurn}
                 onResetPile={onResetPile}
                 dispatchAction={dispatchAction}
+                onSimulateRandomContract={onSimulateRandomContract}
               />
             )}
           </>

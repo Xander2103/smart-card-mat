@@ -158,12 +158,103 @@ export default function App() {
     dispatchAction({ type: "select_uid", uid });
   }
 
+  //dev simulates
+  function handleSimulateDevCard({ zone, cardCode, action }) {
+    const uid = `DEV_${cardCode}`;
+
+    setAppState((prev) => {
+      const mappedState = applyAppAction(prev, {
+        type: "assign_uid_to_card",
+        uid,
+        cardName: cardCode,
+      });
+
+      return applyRootEvent(mappedState, {
+        type: action,
+        zone,
+        uid,
+        raw: `DEV|${action.toUpperCase()}|ZONE=${zone}|CARD=${cardCode}|UID=${uid}`,
+      });
+    });
+  }
+
+  function handleSimulateRandomContract() {
+  setAppState((prev) => {
+    let nextState = prev;
+
+    const allCardCodes = Object.keys(CARD_BY_CODE);
+
+    const activeGameKey =
+      nextState.modeId === "kleurenwiezen" ? "kleurenwiezen" : "dobbelkingen";
+
+    const activeSlice = nextState.game?.[activeGameKey] ?? {};
+    const alreadyUsed = activeSlice.usedCardSet ?? {};
+
+    let availableCards = allCardCodes.filter((cardCode) => !alreadyUsed[cardCode]);
+
+    // Shuffle
+    availableCards = availableCards
+      .map((cardCode) => ({ cardCode, sort: Math.random() }))
+      .sort((a, b) => a.sort - b.sort)
+      .map((entry) => entry.cardCode);
+
+    for (let i = 0; i < 52; i++) {
+      const currentSlice = nextState.game?.[activeGameKey] ?? {};
+
+      if (nextState.phase !== "PLAYING_TRICK") break;
+      if (currentSlice.roundFinished) break;
+      if (availableCards.length === 0) break;
+
+      const currentPlayerIndex =
+        typeof currentSlice.currentPlayerIndex === "number"
+          ? currentSlice.currentPlayerIndex
+          : typeof nextState.currentPlayerIndex === "number"
+            ? nextState.currentPlayerIndex
+            : 0;
+
+      const zone = currentPlayerIndex + 1;
+      const cardCode = availableCards.shift();
+      const uid = `DEV_AUTO_${cardCode}`;
+
+      nextState = applyAppAction(nextState, {
+        type: "assign_uid_to_card",
+        uid,
+        cardName: cardCode,
+      });
+
+      nextState = applyRootEvent(nextState, {
+        type: "placed",
+        zone,
+        uid,
+        raw: `DEV_AUTO|PLACED|ZONE=${zone}|CARD=${cardCode}|UID=${uid}`,
+      });
+
+      nextState = applyAppAction(nextState, {
+        type: "confirm_turn",
+      });
+    }
+
+    return nextState;
+  });
+}
+
   async function testLaravelApi() {
-    const response = await fetch("http://127.0.0.1:8000/api/test");
+    const response = await fetch("http://127.0.0.1:8000/api/matches", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        mode: "dobbelkingen",
+        players: ["Xander", "Player 2"],
+        winner: "Xander"
+      })
+    });
+
     const data = await response.json();
 
     console.log(data);
-    alert(data.message);
+    alert("Match gestuurd!");
   }
 
   return (
@@ -231,6 +322,8 @@ export default function App() {
           mobileHeaderExpanded={mobileHeaderExpanded}
           onToggleMobileHeader={() => setMobileHeaderExpanded((prev) => !prev)}
           dispatchAction={dispatchAction}
+          onSimulateDevCard={handleSimulateDevCard}
+          onSimulateRandomContract={handleSimulateRandomContract}
         />
       )}
 

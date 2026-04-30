@@ -138,19 +138,47 @@ export function evaluateRound(slice, players = []) {
   let attackPoints = 0;
   let defensePoints = 0;
 
-  if (success) {
-    attackPoints = getSuccessPoints(contract, actual, targetTricks, slice);
+  if (contract.scoringType === "pairTable") {
+    const pairScore = success
+      ? getSuccessPoints(contract, actual, targetTricks, slice)
+      : getFailPlayersPoints(contract, actual, targetTricks);
+
+    attackPoints = pairScore;
+    defensePoints = -pairScore;
+
     attackSeats.forEach((seat) => {
-      if (seat >= 0 && seat < playerCount) playerDeltas[seat] += attackPoints;
+      if (seat >= 0 && seat < playerCount) {
+        playerDeltas[seat] += pairScore;
+      }
+    });
+
+    for (let i = 0; i < playerCount; i += 1) {
+      if (!attackSeats.has(i)) {
+        playerDeltas[i] -= pairScore;
+      }
+    }
+  } else if (success) {
+    attackPoints = getSuccessPoints(contract, actual, targetTricks, slice);
+
+    attackSeats.forEach((seat) => {
+      if (seat >= 0 && seat < playerCount) {
+        playerDeltas[seat] += attackPoints;
+      }
     });
   } else {
     attackPoints = getFailPlayersPoints(contract, actual, targetTricks);
     defensePoints = getFailOppPoints(contract, actual, targetTricks);
+
     attackSeats.forEach((seat) => {
-      if (seat >= 0 && seat < playerCount) playerDeltas[seat] += attackPoints;
+      if (seat >= 0 && seat < playerCount) {
+        playerDeltas[seat] += attackPoints;
+      }
     });
+
     for (let i = 0; i < playerCount; i += 1) {
-      if (!attackSeats.has(i)) playerDeltas[i] += defensePoints;
+      if (!attackSeats.has(i)) {
+        playerDeltas[i] += defensePoints;
+      }
     }
   }
 

@@ -2,6 +2,7 @@ import { ZoneGrid } from "../../ZoneGrid";
 import { DebugLog } from "../../DebugLog";
 import { buttonStyle, colors, panelStyle } from "../../play/theme";
 
+
 export function DevPanel({
   appState,
   d,
@@ -13,6 +14,7 @@ export function DevPanel({
   onConfirmTurn,
   onResetPile,
   dispatchAction,
+  onSimulateRandomContract,
 }) {
   return (
     <div style={panelStyle({ padding: 16, display: "grid", gap: 14 })}>
