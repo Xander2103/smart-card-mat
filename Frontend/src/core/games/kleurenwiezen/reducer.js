@@ -218,12 +218,30 @@ export function reduceKleurenwiezen(state, action) {
       {
         ...slice,
         ...createEmptyRuntime(),
+
+        // Terug naar contractkeuze/setup
         setupStep: 0,
+
+        // Volgende deler
         dealerSeat: nextDealer,
+
+        // Resultaat wel bewaren in history
         history: resultEntry ? [resultEntry, ...(slice.history ?? [])] : slice.history ?? [],
-        lastResult: resultEntry ?? slice.lastResult ?? null,
+
+        // Belangrijk: actieve round-result leegmaken
+        lastResult: null,
         pendingMatchFinalize: false,
-        matchFinishedAt: finishedAt,
+        matchFinishedAt: null,
+
+        // Zeker leegmaken voor volgende contractronde
+        contractId: null,
+        declarantSeat: null,
+        partnerSeat: null,
+        trumpSuit: null,
+        currentTrick: [],
+        trickHistory: [],
+        usedCardCodes: [],
+        roundFinished: false,
       },
       playersCount
     );
