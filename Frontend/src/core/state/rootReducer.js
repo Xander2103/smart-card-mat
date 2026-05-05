@@ -1,6 +1,5 @@
 import { setUniqueMappingOverwrite } from "../mapping/uniqueMapping";
 import { getEngine } from "../game/registry";
-import { persistFinishedMatchIfNeeded } from "../matches/matchPersistence";
 
 const LOG_MAX = 200;
 
@@ -87,6 +86,7 @@ export function applyRootAction(state, action) {
       players.length > 0
         ? normalizeSeat(previousDealerSeat, players.length)
         : 0;
+
     return {
       ...state,
       players,
@@ -169,5 +169,5 @@ export function rootReducer(state, action) {
   if (!engine?.reduce) return next;
 
   next = engine.reduce(next, action);
-  return persistFinishedMatchIfNeeded(state, next);
+  return next;
 }

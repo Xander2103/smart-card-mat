@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MatchModel extends Model
@@ -14,6 +15,7 @@ class MatchModel extends Model
 
     protected $fillable = [
         'client_match_id',
+        'user_id',
         'mode',
         'played_at',
         'winner_player_id',
@@ -28,6 +30,11 @@ class MatchModel extends Model
             'rounds_played' => 'integer',
             'raw_state' => 'array',
         ];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function players(): HasMany

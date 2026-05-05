@@ -10,21 +10,30 @@ use Illuminate\Support\Facades\DB;
 
 class MatchController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $matches = MatchModel::query()
-            ->with('players')
+        $query = MatchModel::query()
+            ->with(['user', 'players'])
             ->latest('played_at')
-            ->latest()
-            ->get();
+            ->latest();
+
+        if ($request->user()) {
+            $query->where('user_id', $request->user()->id);
+        }
+
+        $matches = $query->get();
 
         return response()->json($matches);
     }
 
-    public function show(MatchModel $match): JsonResponse
+    public function show(Request $request, MatchModel $match): JsonResponse
     {
+        if ($request->user() && $match->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
         return response()->json(
-            $match->load('players')
+            $match->load(['user', 'players'])
         );
     }
 
@@ -53,11 +62,15 @@ class MatchController extends Controller
         ]);
 
         $clientMatchId = $validated['id'] ?? null;
+        $userId = $request->user()?->id;
 
         if ($clientMatchId) {
             $existingMatch = MatchModel::query()
                 ->where('client_match_id', $clientMatchId)
-                ->with('players')
+                ->when($userId, function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                })
+                ->with(['user', 'players'])
                 ->first();
 
             if ($existingMatch) {
@@ -68,9 +81,10 @@ class MatchController extends Controller
         $scoreRowsByPlayerId = collect($validated['scores'])->keyBy('playerId');
         $winnerIds = collect($validated['winnerIds'] ?? []);
 
-        $match = DB::transaction(function () use ($validated, $scoreRowsByPlayerId, $winnerIds, $clientMatchId) {
+        $match = DB::transaction(function () use ($validated, $scoreRowsByPlayerId, $winnerIds, $clientMatchId, $userId) {
             $match = MatchModel::create([
                 'client_match_id' => $clientMatchId,
+                'user_id' => $userId,
                 'mode' => $validated['gameType'],
                 'played_at' => $validated['playedAt'],
                 'winner_player_id' => $winnerIds->first(),
@@ -93,7 +107,7 @@ class MatchController extends Controller
                 ]);
             }
 
-            return $match->load('players');
+            return $match->load(['user', 'players']);
         });
 
         return response()->json($match, 201);
@@ -105,6 +119,12 @@ class MatchController extends Controller
 
         if (is_numeric($metadataRoundCount)) {
             return (int) $metadataRoundCount;
+        }
+
+        $summaryTotalRounds = Arr::get($matchRecord, 'gameData.summary.totalRounds');
+
+        if (is_numeric($summaryTotalRounds)) {
+            return (int) $summaryTotalRounds;
         }
 
         $contracts = Arr::get($matchRecord, 'gameData.contracts');
