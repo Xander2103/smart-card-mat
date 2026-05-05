@@ -4,15 +4,15 @@ import { getCalculatedStarterSeat, getEffectiveTargetTricks } from "../../core/g
 import { getTrumpLabel } from "../../core/games/kleurenwiezen";
 import { buttonStyle, colors, panelStyle, softCardStyle } from "../play/theme";
 import { useViewport } from "../play/useViewport";
-import { ChoiceGrid, SelectButton } from "./SetupStepCard";
+import { ChoiceGrid } from "./SetupStepCard";
 import { SetupSummaryCard } from "./SetupSummaryCard";
 import { getSeatName } from "./helpers";
 
 const TRUMPS = [
-  { suit: "H", label: "♥ Harten" },
-  { suit: "D", label: "♦ Ruiten" },
-  { suit: "C", label: "♣ Klaveren" },
-  { suit: "S", label: "♠ Schoppen" },
+  { suit: "H", label: "Harten", symbol: "♥" },
+  { suit: "D", label: "Ruiten", symbol: "♦" },
+  { suit: "C", label: "Klaveren", symbol: "♣" },
+  { suit: "S", label: "Schoppen", symbol: "♠" },
 ];
 
 function Section({ title, subtitle, children }) {
@@ -64,25 +64,139 @@ function CompactContractButton({ item, active, onClick }) {
   );
 }
 
-function PlayerChoiceGrid({ players, activeSeat, excludeSeat = null, onPick, bodySelected = "Geselecteerd" }) {
+function CenteredPlayerCard({
+  eyebrow,
+  title,
+  status,
+  active = false,
+  disabled = false,
+  onClick,
+}) {
   return (
-    <ChoiceGrid min={190}>
-      {(players ?? []).map((player, index) => {
-        const disabled = typeof excludeSeat === "number" && index === excludeSeat;
-        const active = activeSeat === index;
-
-        return (
-          <SelectButton
-            key={player?.id ?? index}
-            active={active}
-            onClick={disabled ? undefined : () => onPick?.(index)}
-            eyebrow={`Seat ${index + 1}`}
-            title={player?.name ?? `Speler ${index + 1}`}
-            body={disabled ? "Niet beschikbaar voor deze keuze" : active ? bodySelected : "Selecteer deze speler"}
-          />
-        );
+    <button
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      style={softCardStyle({
+        padding: 14,
+        minHeight: 112,
+        display: "grid",
+        gridTemplateRows: "auto 1fr auto",
+        alignItems: "center",
+        justifyItems: "center",
+        gap: 8,
+        textAlign: "center",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+        border: active
+          ? "1px solid rgba(251, 191, 36, 0.68)"
+          : "1px solid rgba(255,255,255,0.08)",
+        background: active
+          ? "radial-gradient(circle at top, rgba(251,191,36,0.20), transparent 42%), linear-gradient(180deg, rgba(92,45,24,0.78), rgba(45,30,24,0.92))"
+          : "linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025))",
+        boxShadow: active ? "0 14px 30px rgba(217, 119, 6, 0.16)" : undefined,
       })}
-    </ChoiceGrid>
+    >
+      <div
+        style={{
+          color: colors.muted,
+          fontSize: 11,
+          textTransform: "uppercase",
+          fontWeight: 900,
+          letterSpacing: 0.5,
+        }}
+      >
+        {eyebrow}
+      </div>
+
+      <div
+        style={{
+          fontWeight: 1000,
+          fontSize: 20,
+          lineHeight: 1.05,
+          maxWidth: "100%",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {title}
+      </div>
+
+      <div
+        style={{
+          width: "100%",
+          padding: "7px 8px",
+          borderRadius: 12,
+          fontSize: 12,
+          fontWeight: 900,
+          color: active ? "#fef3c7" : colors.muted,
+          background: active ? "rgba(251, 191, 36, 0.14)" : "rgba(255,255,255,0.045)",
+          border: active ? "1px solid rgba(251, 191, 36, 0.26)" : "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
+        {status}
+      </div>
+    </button>
+  );
+}
+
+function TrumpChoiceCard({ item, active, onClick }) {
+  const isRed = item.suit === "H" || item.suit === "D";
+
+  return (
+    <button
+      onClick={onClick}
+      style={softCardStyle({
+        padding: "14px 16px",
+        minHeight: 88,
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        textAlign: "left",
+        cursor: "pointer",
+        border: active
+          ? "1px solid rgba(251, 191, 36, 0.7)"
+          : "1px solid rgba(255,255,255,0.08)",
+        background: active
+          ? "linear-gradient(135deg, rgba(120,53,15,0.65), rgba(70,35,20,0.72))"
+          : "linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025))",
+        boxShadow: active ? "0 12px 26px rgba(217, 119, 6, 0.16)" : undefined,
+      })}
+    >
+      <div
+        style={{
+          width: 46,
+          height: 58,
+          borderRadius: 10,
+          display: "grid",
+          placeItems: "center",
+          background: "linear-gradient(180deg, #fff7ed, #f5e7d3)",
+          color: isRed ? "#dc2626" : "#111827",
+          fontSize: 34,
+          fontWeight: 950,
+          boxShadow: "0 8px 18px rgba(0,0,0,0.24)",
+          border: "1px solid rgba(255,255,255,0.45)",
+        }}
+      >
+        {item.symbol}
+      </div>
+
+      <div style={{ display: "grid", gap: 3 }}>
+        <div
+          style={{
+            fontWeight: 950,
+            fontSize: 18,
+            color: isRed ? "#fecaca" : "#f8fafc",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div style={{ color: colors.muted, fontSize: 12, fontWeight: 700 }}>
+          {active ? "Troef gekozen" : "Kies als troef"}
+        </div>
+      </div>
+    </button>
   );
 }
 
@@ -97,13 +211,14 @@ function MultiPlayerChoiceGrid({ players, activeSeats = [], onToggle, maxSelecte
         const disabled = !active && maxReached;
 
         return (
-          <SelectButton
+          <CenteredPlayerCard
             key={player?.id ?? index}
             active={active}
-            onClick={disabled ? undefined : () => onToggle?.(index)}
+            disabled={disabled}
+            onClick={() => onToggle?.(index)}
             eyebrow={`Seat ${index + 1}`}
             title={player?.name ?? `Speler ${index + 1}`}
-            body={
+            status={
               active
                 ? "Speelt mee"
                 : disabled
@@ -117,21 +232,42 @@ function MultiPlayerChoiceGrid({ players, activeSeats = [], onToggle, maxSelecte
   );
 }
 
-function TeamPlayerChoiceGrid({ players, declarantSeat, partnerSeat, onChange }) {
+function SinglePlayerChoiceGrid({ players, activeSeat, onPick }) {
+  return (
+    <ChoiceGrid min={190}>
+      {(players ?? []).map((player, index) => {
+        const active = activeSeat === index;
+
+        return (
+          <CenteredPlayerCard
+            key={player?.id ?? index}
+            active={active}
+            onClick={() => onPick?.(index)}
+            eyebrow={`Seat ${index + 1}`}
+            title={player?.name ?? `Speler ${index + 1}`}
+            status={active ? "Declarant geselecteerd" : "Klik voor declarant"}
+          />
+        );
+      })}
+    </ChoiceGrid>
+  );
+}
+
+function TeamPlayerChoiceGrid({ players, declarantSeat, partnerSeat, onChange, partnerLabel = "Partner" }) {
   return (
     <ChoiceGrid min={190}>
       {(players ?? []).map((player, index) => {
         const isDeclarant = declarantSeat === index;
         const isPartner = partnerSeat === index;
 
-        let body = "Selecteer als declarant";
+        let status = "Klik voor declarant";
 
         if (isDeclarant) {
-          body = "Declarant geselecteerd";
+          status = "Declarant geselecteerd";
         } else if (isPartner) {
-          body = "Partner geselecteerd";
+          status = `${partnerLabel} geselecteerd`;
         } else if (typeof declarantSeat === "number") {
-          body = "Selecteer als partner";
+          status = `Klik voor ${partnerLabel.toLowerCase()}`;
         }
 
         function handleClick() {
@@ -166,13 +302,13 @@ function TeamPlayerChoiceGrid({ players, declarantSeat, partnerSeat, onChange })
         }
 
         return (
-          <SelectButton
+          <CenteredPlayerCard
             key={player?.id ?? index}
             active={isDeclarant || isPartner}
             onClick={handleClick}
             eyebrow={`Seat ${index + 1}`}
             title={player?.name ?? `Speler ${index + 1}`}
-            body={body}
+            status={status}
           />
         );
       })}
@@ -231,11 +367,7 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
     { label: "Eerste uitkomst", value: getSeatName(players, starterSeat) },
     { label: "Troef", value: contract?.needsTrump ? getTrumpLabel(slice?.trumpSuit) : "Geen troef" },
     {
-      label: isMultiDeclarantContract
-        ? "Spelers"
-        : contract?.needsPartner
-          ? "Team"
-          : "Speler",
+      label: isMultiDeclarantContract ? "Spelers" : contract?.needsPartner ? "Team" : "Declarant",
       value: isMultiDeclarantContract
         ? declarantSeats.length > 0
           ? declarantSeats.map((seat) => getSeatName(players, seat)).join(", ")
@@ -243,9 +375,7 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
         : contract?.needsPartner
           ? typeof slice?.declarantSeat === "number" && typeof slice?.partnerSeat === "number"
             ? `${getSeatName(players, slice.declarantSeat)} + ${getSeatName(players, slice.partnerSeat)}`
-            : typeof slice?.declarantSeat === "number"
-              ? `${getSeatName(players, slice.declarantSeat)} + nog kiezen`
-              : "Nog kiezen"
+            : "Nog kiezen"
           : typeof slice?.declarantSeat === "number"
             ? getSeatName(players, slice.declarantSeat)
             : "Nog kiezen",
@@ -283,20 +413,6 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
       type: "set_kleurenwiezen_setup_field",
       field: "declarantSeats",
       value: nextSeats,
-    });
-  }
-
-  function setTeamPlayers({ declarantSeat, partnerSeat }) {
-    dispatchAction?.({
-      type: "set_kleurenwiezen_setup_field",
-      field: "declarantSeat",
-      value: declarantSeat,
-    });
-
-    dispatchAction?.({
-      type: "set_kleurenwiezen_setup_field",
-      field: "partnerSeat",
-      value: partnerSeat,
     });
   }
 
@@ -342,7 +458,7 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
       ) : null}
 
       {showContractPicker ? (
-        <Section title="1. Contract" subtitle="Kies eerst het uiteindelijke contract in de officiële volgorde. Daarna ga je door naar spelers en eventueel troef.">
+        <Section title="1. Contract" subtitle="Kies eerst het uiteindelijke contract in de officiële volgorde. Daarna ga je door naar spelers en troef op het setupscherm.">
           <div style={contractGridStyle}>
             {KLEURENWIEZEN_CONTRACTS.map((item) => (
               <CompactContractButton
@@ -368,37 +484,44 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
             </Section>
 
             <Section
-              title={
-                contract?.needsPartner || isMultiDeclarantContract
-                  ? "1. Spelers"
-                  : "1. Speler"
-              }
+              title="1. Spelers"
               subtitle={
-                contract?.needsPartner
-                  ? contract?.id === "TROEL"
-                    ? "Kies eerst de declarant en daarna de partner. Troel blijft altijd met 2 spelers."
-                    : "Kies eerst de vrager/declarant en daarna de partner die meegaat."
-                  : isMultiDeclarantContract
-                    ? "Kies één of meerdere spelers die dit miserie/piccolo-contract spelen. Maximum 3 spelers."
+                isMultiDeclarantContract
+                  ? "Kies één of meerdere spelers die dit miserie/piccolo-contract spelen."
+                  : contract?.needsPartner
+                    ? "Kies eerst de vrager/declarant en daarna de partner die meegaat."
                     : "Kies wie dit contract speelt. Eerste uitkomst wordt automatisch berekend."
               }
             >
-              {contract?.needsPartner ? (
-                <TeamPlayerChoiceGrid
-                  players={players}
-                  declarantSeat={slice?.declarantSeat}
-                  partnerSeat={slice?.partnerSeat}
-                  onChange={setTeamPlayers}
-                />
-              ) : isMultiDeclarantContract ? (
+              {isMultiDeclarantContract ? (
                 <MultiPlayerChoiceGrid
                   players={players}
                   activeSeats={declarantSeats}
                   onToggle={toggleDeclarantSeat}
                   maxSelected={3}
                 />
+              ) : contract?.needsPartner ? (
+                <TeamPlayerChoiceGrid
+                  players={players}
+                  declarantSeat={slice?.declarantSeat}
+                  partnerSeat={slice?.partnerSeat}
+                  partnerLabel={contract?.id === "TROEL" ? "Partner" : "Meegaan"}
+                  onChange={({ declarantSeat, partnerSeat }) => {
+                    dispatchAction?.({
+                      type: "set_kleurenwiezen_setup_field",
+                      field: "declarantSeat",
+                      value: declarantSeat,
+                    });
+
+                    dispatchAction?.({
+                      type: "set_kleurenwiezen_setup_field",
+                      field: "partnerSeat",
+                      value: partnerSeat,
+                    });
+                  }}
+                />
               ) : (
-                <PlayerChoiceGrid
+                <SinglePlayerChoiceGrid
                   players={players}
                   activeSeat={slice?.declarantSeat}
                   onPick={(value) =>
@@ -408,7 +531,6 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
                       value,
                     })
                   }
-                  bodySelected="Speler geselecteerd"
                 />
               )}
             </Section>
@@ -416,16 +538,13 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
             {contract?.needsTrump ? (
               <Section
                 title="2. Troef"
-                subtitle={
-                  contract?.id === "TROEL"
-                    ? "Kies de troefkleur. Troel wint vanaf 9 slagen; bij 13 slagen krijgen de troelspelers de hoogste score."
-                    : "De tafel kiest troef in het echt. Vul hier alleen het resultaat in zodat de app daarna alles automatisch kan volgen."
-                }
+                subtitle="De tafel kiest troef in het echt. Vul hier alleen het resultaat in zodat de app daarna alles automatisch kan volgen."
               >
                 <ChoiceGrid min={180}>
                   {TRUMPS.map((item) => (
-                    <SelectButton
+                    <TrumpChoiceCard
                       key={item.suit}
+                      item={item}
                       active={slice?.trumpSuit === item.suit}
                       onClick={() =>
                         dispatchAction?.({
@@ -434,8 +553,6 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
                           value: item.suit,
                         })
                       }
-                      title={item.label}
-                      body="Gebruik deze kleur als troef voor de ronde."
                     />
                   ))}
                 </ChoiceGrid>
