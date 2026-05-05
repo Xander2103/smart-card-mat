@@ -4,7 +4,6 @@ import { getCalculatedStarterSeat, getEffectiveTargetTricks } from "../../core/g
 import { getTrumpLabel } from "../../core/games/kleurenwiezen";
 import { buttonStyle, colors, panelStyle, softCardStyle } from "../play/theme";
 import { useViewport } from "../play/useViewport";
-import { ChoiceGrid } from "./SetupStepCard";
 import { SetupSummaryCard } from "./SetupSummaryCard";
 import { getSeatName } from "./helpers";
 
@@ -22,6 +21,21 @@ function Section({ title, subtitle, children }) {
         <div style={{ fontWeight: 900, fontSize: 18 }}>{title}</div>
         {subtitle ? <div style={{ color: colors.muted, lineHeight: 1.5 }}>{subtitle}</div> : null}
       </div>
+      {children}
+    </div>
+  );
+}
+
+function SetupChoiceGrid({ children }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))",
+        gap: 10,
+        alignItems: "stretch",
+      }}
+    >
       {children}
     </div>
   );
@@ -70,6 +84,8 @@ function CenteredPlayerCard({
   status,
   active = false,
   disabled = false,
+  isDealer = false,
+  compactDealerBadge = false,
   onClick,
 }) {
   return (
@@ -77,32 +93,87 @@ function CenteredPlayerCard({
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
       style={softCardStyle({
-        padding: 14,
-        minHeight: 112,
+        padding: "12px 10px",
+        minHeight: 104,
+        position: "relative",
         display: "grid",
         gridTemplateRows: "auto 1fr auto",
         alignItems: "center",
         justifyItems: "center",
-        gap: 8,
+        gap: 6,
         textAlign: "center",
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.5 : 1,
         border: active
-          ? "1px solid rgba(251, 191, 36, 0.68)"
+          ? "1px solid rgba(251, 191, 36, 0.7)"
           : "1px solid rgba(255,255,255,0.08)",
         background: active
-          ? "radial-gradient(circle at top, rgba(251,191,36,0.20), transparent 42%), linear-gradient(180deg, rgba(92,45,24,0.78), rgba(45,30,24,0.92))"
+          ? "radial-gradient(circle at top, rgba(251,191,36,0.18), transparent 45%), linear-gradient(180deg, rgba(92,45,24,0.82), rgba(45,30,24,0.92))"
           : "linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025))",
-        boxShadow: active ? "0 14px 30px rgba(217, 119, 6, 0.16)" : undefined,
+        boxShadow: active ? "0 10px 24px rgba(217, 119, 6, 0.14)" : undefined,
       })}
     >
+      {isDealer ? (
+        <>
+          <style>
+            {`
+              @keyframes dealerChipPulse {
+                0%, 100% {
+                  box-shadow: 0 8px 18px rgba(0,0,0,0.22), 0 0 0 rgba(251, 191, 36, 0);
+                }
+
+                50% {
+                  box-shadow: 0 8px 18px rgba(0,0,0,0.22), 0 0 14px rgba(251, 191, 36, 0.55);
+                }
+              }
+            `}
+          </style>
+
+          <div
+            title="Dealer"
+            style={{
+              position: "absolute",
+              top: 7,
+              right: 7,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: compactDealerBadge ? 20 : undefined,
+              height: compactDealerBadge ? 20 : undefined,
+              gap: compactDealerBadge ? 0 : 4,
+              padding: compactDealerBadge ? 0 : "4px 8px",
+              borderRadius: 999,
+              fontSize: compactDealerBadge ? 10 : 9,
+              lineHeight: 1,
+              letterSpacing: compactDealerBadge ? 0 : 0.4,
+              textTransform: "uppercase",
+              fontWeight: 1000,
+              color: "#fef3c7",
+              background: "linear-gradient(180deg, rgba(120,53,15,0.95), rgba(69,35,17,0.96))",
+              border: "1px solid rgba(251, 191, 36, 0.55)",
+              boxShadow: "0 8px 18px rgba(0,0,0,0.22)",
+              animation: "dealerChipPulse 1.6s ease-in-out infinite",
+            }}
+          >
+            {compactDealerBadge ? (
+              "D"
+            ) : (
+              <>
+                <span style={{ fontSize: 10 }}>●</span>
+                Dealer
+              </>
+            )}
+          </div>
+        </>
+      ) : null}
+
       <div
         style={{
           color: colors.muted,
-          fontSize: 11,
+          fontSize: 10,
           textTransform: "uppercase",
           fontWeight: 900,
-          letterSpacing: 0.5,
+          letterSpacing: 0.4,
         }}
       >
         {eyebrow}
@@ -111,7 +182,7 @@ function CenteredPlayerCard({
       <div
         style={{
           fontWeight: 1000,
-          fontSize: 20,
+          fontSize: 17,
           lineHeight: 1.05,
           maxWidth: "100%",
           overflow: "hidden",
@@ -125,13 +196,16 @@ function CenteredPlayerCard({
       <div
         style={{
           width: "100%",
-          padding: "7px 8px",
-          borderRadius: 12,
-          fontSize: 12,
+          padding: "6px 6px",
+          borderRadius: 10,
+          fontSize: 11,
           fontWeight: 900,
           color: active ? "#fef3c7" : colors.muted,
           background: active ? "rgba(251, 191, 36, 0.14)" : "rgba(255,255,255,0.045)",
           border: active ? "1px solid rgba(251, 191, 36, 0.26)" : "1px solid rgba(255,255,255,0.06)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
         }}
       >
         {status}
@@ -147,11 +221,12 @@ function TrumpChoiceCard({ item, active, onClick }) {
     <button
       onClick={onClick}
       style={softCardStyle({
-        padding: "14px 16px",
-        minHeight: 88,
-        display: "flex",
+        padding: "12px 10px",
+        minHeight: 86,
+        display: "grid",
+        gridTemplateColumns: "42px 1fr",
         alignItems: "center",
-        gap: 14,
+        gap: 10,
         textAlign: "left",
         cursor: "pointer",
         border: active
@@ -160,52 +235,62 @@ function TrumpChoiceCard({ item, active, onClick }) {
         background: active
           ? "linear-gradient(135deg, rgba(120,53,15,0.65), rgba(70,35,20,0.72))"
           : "linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025))",
-        boxShadow: active ? "0 12px 26px rgba(217, 119, 6, 0.16)" : undefined,
+        boxShadow: active ? "0 10px 24px rgba(217, 119, 6, 0.14)" : undefined,
       })}
     >
       <div
         style={{
-          width: 46,
-          height: 58,
-          borderRadius: 10,
+          width: 38,
+          height: 50,
+          borderRadius: 9,
           display: "grid",
           placeItems: "center",
           background: "linear-gradient(180deg, #fff7ed, #f5e7d3)",
           color: isRed ? "#dc2626" : "#111827",
-          fontSize: 34,
+          fontSize: 28,
           fontWeight: 950,
-          boxShadow: "0 8px 18px rgba(0,0,0,0.24)",
+          boxShadow: "0 7px 15px rgba(0,0,0,0.22)",
           border: "1px solid rgba(255,255,255,0.45)",
         }}
       >
         {item.symbol}
       </div>
 
-      <div style={{ display: "grid", gap: 3 }}>
+      <div style={{ display: "grid", gap: 3, minWidth: 0 }}>
         <div
           style={{
             fontWeight: 950,
-            fontSize: 18,
+            fontSize: 16,
             color: isRed ? "#fecaca" : "#f8fafc",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
           {item.label}
         </div>
 
-        <div style={{ color: colors.muted, fontSize: 12, fontWeight: 700 }}>
-          {active ? "Troef gekozen" : "Kies als troef"}
+        <div style={{ color: colors.muted, fontSize: 11, fontWeight: 800 }}>
+          {active ? "Gekozen" : "Kies"}
         </div>
       </div>
     </button>
   );
 }
 
-function MultiPlayerChoiceGrid({ players, activeSeats = [], onToggle, maxSelected = 3 }) {
+function MultiPlayerChoiceGrid({
+  players,
+  activeSeats = [],
+  onToggle,
+  maxSelected = 3,
+  dealerSeat = null,
+  isMobile = false,
+}) {
   const activeSet = new Set(activeSeats);
   const maxReached = activeSeats.length >= maxSelected;
 
   return (
-    <ChoiceGrid min={190}>
+    <SetupChoiceGrid>
       {(players ?? []).map((player, index) => {
         const active = activeSet.has(index);
         const disabled = !active && maxReached;
@@ -215,26 +300,22 @@ function MultiPlayerChoiceGrid({ players, activeSeats = [], onToggle, maxSelecte
             key={player?.id ?? index}
             active={active}
             disabled={disabled}
+            isDealer={dealerSeat === index}
+            compactDealerBadge={isMobile}
             onClick={() => onToggle?.(index)}
             eyebrow={`Seat ${index + 1}`}
             title={player?.name ?? `Speler ${index + 1}`}
-            status={
-              active
-                ? "Speelt mee"
-                : disabled
-                  ? `Maximum ${maxSelected} spelers`
-                  : "Klik om mee te spelen"
-            }
+            status={active ? "Speelt mee" : disabled ? `Max. ${maxSelected}` : "Kies"}
           />
         );
       })}
-    </ChoiceGrid>
+    </SetupChoiceGrid>
   );
 }
 
-function SinglePlayerChoiceGrid({ players, activeSeat, onPick }) {
+function SinglePlayerChoiceGrid({ players, activeSeat, onPick, dealerSeat = null, isMobile = false }) {
   return (
-    <ChoiceGrid min={190}>
+    <SetupChoiceGrid>
       {(players ?? []).map((player, index) => {
         const active = activeSeat === index;
 
@@ -242,32 +323,42 @@ function SinglePlayerChoiceGrid({ players, activeSeat, onPick }) {
           <CenteredPlayerCard
             key={player?.id ?? index}
             active={active}
+            isDealer={dealerSeat === index}
+            compactDealerBadge={isMobile}
             onClick={() => onPick?.(index)}
             eyebrow={`Seat ${index + 1}`}
             title={player?.name ?? `Speler ${index + 1}`}
-            status={active ? "Declarant geselecteerd" : "Klik voor declarant"}
+            status={active ? "Speler" : "Kies"}
           />
         );
       })}
-    </ChoiceGrid>
+    </SetupChoiceGrid>
   );
 }
 
-function TeamPlayerChoiceGrid({ players, declarantSeat, partnerSeat, onChange, partnerLabel = "Partner" }) {
+function TeamPlayerChoiceGrid({
+  players,
+  declarantSeat,
+  partnerSeat,
+  onChange,
+  partnerLabel = "Partner",
+  dealerSeat = null,
+  isMobile = false,
+}) {
   return (
-    <ChoiceGrid min={190}>
+    <SetupChoiceGrid>
       {(players ?? []).map((player, index) => {
         const isDeclarant = declarantSeat === index;
         const isPartner = partnerSeat === index;
 
-        let status = "Klik voor declarant";
+        let status = "Kies vrager";
 
         if (isDeclarant) {
-          status = "Declarant geselecteerd";
+          status = "Vrager";
         } else if (isPartner) {
-          status = `${partnerLabel} geselecteerd`;
+          status = partnerLabel;
         } else if (typeof declarantSeat === "number") {
-          status = `Klik voor ${partnerLabel.toLowerCase()}`;
+          status = `Kies ${partnerLabel.toLowerCase()}`;
         }
 
         function handleClick() {
@@ -305,6 +396,8 @@ function TeamPlayerChoiceGrid({ players, declarantSeat, partnerSeat, onChange, p
           <CenteredPlayerCard
             key={player?.id ?? index}
             active={isDeclarant || isPartner}
+            isDealer={dealerSeat === index}
+            compactDealerBadge={isMobile}
             onClick={handleClick}
             eyebrow={`Seat ${index + 1}`}
             title={player?.name ?? `Speler ${index + 1}`}
@@ -312,7 +405,7 @@ function TeamPlayerChoiceGrid({ players, declarantSeat, partnerSeat, onChange, p
           />
         );
       })}
-    </ChoiceGrid>
+    </SetupChoiceGrid>
   );
 }
 
@@ -435,16 +528,38 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
 
   return (
     <div style={panelStyle({ padding: isMobile ? 12 : 20, display: "grid", gap: 16 })}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
         <div>
-          <div style={{ fontWeight: 900, fontSize: isMobile ? 24 : 28 }}>Kleurenwiezen</div>
-          <div style={{ color: colors.muted, marginTop: 4 }}>
-            Officiële contractvolgorde, heldere setup en daarna automatische slagen, winnaars en punten.
+          <div style={{ fontWeight: 900, fontSize: isMobile ? 22 : 28 }}>
+            Kleurenwiezen
           </div>
-        </div>
-        <button onClick={handleBack} style={buttonStyle("danger")}>Terug</button>
-      </div>
 
+          {!isMobile ? (
+            <div style={{ color: colors.muted, marginTop: 4 }}>
+              Officiële contractvolgorde, heldere setup en daarna automatische slagen, winnaars en punten.
+            </div>
+          ) : null}
+        </div>
+
+        <button
+          onClick={handleBack}
+          style={{
+            ...buttonStyle("danger"),
+            minHeight: isMobile ? 40 : undefined,
+            padding: isMobile ? "9px 14px" : undefined,
+          }}
+        >
+          Terug
+        </button>
+      </div>
       {lastResult ? (
         <div style={softCardStyle({ padding: 16, display: "grid", gap: 8, border: "1px solid rgba(74, 222, 128, 0.24)" })}>
           <div style={{ fontWeight: 900, fontSize: 18 }}>Laatste ronde</div>
@@ -474,14 +589,61 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
           </div>
         </Section>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.5fr) minmax(320px, 0.9fr)", gap: 16, alignItems: "start" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.5fr) minmax(320px, 0.9fr)",
+            gap: 16,
+            alignItems: "start",
+          }}
+        >
           <div style={{ display: "grid", gap: 16 }}>
-            <Section title="Ronde setup" subtitle="Vul hier de spelers en troef in. Dealer en eerste uitkomst lopen automatisch.">
-              <div style={{ display: "grid", gap: 4 }}>
-                <div style={{ fontWeight: 900, fontSize: 18 }}>{contract?.label ?? "—"}</div>
-                <div style={{ color: colors.muted }}>{contract?.desc ?? ""}</div>
+            {isMobile ? (
+              <div
+                style={softCardStyle({
+                  padding: "16px 18px",
+                  display: "grid",
+                  placeItems: "center",
+                  textAlign: "center",
+                  border: "1px solid rgba(251, 191, 36, 0.32)",
+                  background:
+                    "radial-gradient(circle at top, rgba(251,191,36,0.16), transparent 42%), linear-gradient(180deg, rgba(120,53,15,0.38), rgba(255,255,255,0.035))",
+                  boxShadow: "0 14px 30px rgba(0,0,0,0.18)",
+                })}
+              >
+                <div
+                  style={{
+                    color: colors.muted,
+                    fontSize: 11,
+                    textTransform: "uppercase",
+                    fontWeight: 900,
+                    letterSpacing: 0.6,
+                    marginBottom: 5,
+                  }}
+                >
+                </div>
+
+                <div
+                  style={{
+                    fontWeight: 1000,
+                    fontSize: 23,
+                    lineHeight: 1.1,
+                  }}
+                >
+                  {contract?.label ?? "—"}
+                </div>
               </div>
-            </Section>
+            ) : (
+              <Section
+                title="Ronde setup"
+                subtitle="Vul hier de spelers en troef in. Dealer en eerste uitkomst lopen automatisch."
+              >
+                <div style={{ display: "grid", gap: 4 }}>
+                  <div style={{ fontWeight: 900, fontSize: 18 }}>{contract?.label ?? "—"}</div>
+                  <div style={{ color: colors.muted }}>{contract?.desc ?? ""}</div>
+                </div>
+              </Section>
+            )}
 
             <Section
               title="1. Spelers"
@@ -499,6 +661,8 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
                   activeSeats={declarantSeats}
                   onToggle={toggleDeclarantSeat}
                   maxSelected={3}
+                  dealerSeat={dealerSeat}
+                  isMobile={isMobile}
                 />
               ) : contract?.needsPartner ? (
                 <TeamPlayerChoiceGrid
@@ -506,6 +670,8 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
                   declarantSeat={slice?.declarantSeat}
                   partnerSeat={slice?.partnerSeat}
                   partnerLabel={contract?.id === "TROEL" ? "Partner" : "Meegaan"}
+                  dealerSeat={dealerSeat}
+                  isMobile={isMobile}
                   onChange={({ declarantSeat, partnerSeat }) => {
                     dispatchAction?.({
                       type: "set_kleurenwiezen_setup_field",
@@ -524,6 +690,8 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
                 <SinglePlayerChoiceGrid
                   players={players}
                   activeSeat={slice?.declarantSeat}
+                  dealerSeat={dealerSeat}
+                  isMobile={isMobile}
                   onPick={(value) =>
                     dispatchAction?.({
                       type: "set_kleurenwiezen_setup_field",
@@ -540,7 +708,7 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
                 title="2. Troef"
                 subtitle="De tafel kiest troef in het echt. Vul hier alleen het resultaat in zodat de app daarna alles automatisch kan volgen."
               >
-                <ChoiceGrid min={180}>
+                <SetupChoiceGrid>
                   {TRUMPS.map((item) => (
                     <TrumpChoiceCard
                       key={item.suit}
@@ -555,7 +723,7 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
                       }
                     />
                   ))}
-                </ChoiceGrid>
+                </SetupChoiceGrid>
               </Section>
             ) : null}
 
@@ -570,7 +738,9 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
             </div>
           </div>
 
-          <SetupSummaryCard slice={{ ...slice, dealerSeat }} players={players} extraRows={summaryRows} />
+          {!isMobile ? (
+            <SetupSummaryCard slice={{ ...slice, dealerSeat }} players={players} extraRows={summaryRows} />
+          ) : null}
         </div>
       )}
     </div>
