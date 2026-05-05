@@ -179,6 +179,41 @@ export function reduceKleurenwiezen(state, action) {
   const playersCount = state.players?.length ?? 4;
   const slice = syncDerivedFields(getSlice(state), playersCount);
 
+  if (action.type === "adjust_total_score") {
+    const playerIndex = Number(action.playerIndex);
+    const delta = Number(action.delta);
+
+    if (
+      !Number.isFinite(playerIndex) ||
+      playerIndex < 0 ||
+      playerIndex >= playersCount
+    ) {
+      return state;
+    }
+
+    if (!Number.isFinite(delta) || delta === 0) return state;
+
+    const prev = slice.totalScores ?? Array(playersCount).fill(0);
+    const nextTotalScores = prev.map((score, index) =>
+      index === playerIndex ? (score ?? 0) + delta : (score ?? 0)
+    );
+
+    return setSlice(
+      {
+        ...state,
+        lastError: null,
+        log: pushLog(
+          state.log,
+          `KLEURENWIEZEN|SCORE_ADJUST|P${playerIndex}|DELTA=${delta}|TOTAL=${nextTotalScores[playerIndex]}`
+        ),
+      },
+      {
+        ...slice,
+        totalScores: nextTotalScores,
+      }
+    );
+  }
+
   if (action.type === "set_kleurenwiezen_contract") {
     const contract = getKleurenwiezenContract(action.contractId);
     if (!contract) return state;

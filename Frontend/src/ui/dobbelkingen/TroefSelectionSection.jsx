@@ -22,6 +22,7 @@ export function TroefSelectionSection({
   currentRoundTrickCounts,
   handleFinishMatch,
   setShowMobileScore,
+  onAdjustScore,
 }) {
   return (
     <div style={{ display: "grid", gridTemplateRows: isMobile ? "auto 1fr auto" : undefined, gap: isMobile ? 12 : 16, minHeight: 0 }}>
@@ -115,6 +116,8 @@ export function TroefSelectionSection({
           progressCounts={troefPickCounts}
           progressLabel="troef gekozen"
           trickCounts={currentRoundTrickCounts}
+          allowEdit
+          onAdjustScore={onAdjustScore}
         />
       ) : null}
 

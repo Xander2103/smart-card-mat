@@ -89,6 +89,14 @@ export function DobbelkingenPanel({
     return !getContractDisabledReason(contractId);
   }
 
+  function handleAdjustTotalScore(playerIndex, delta) {
+    dispatchAction?.({
+      type: "adjust_total_score",
+      playerIndex,
+      delta,
+    });
+  }
+
   function handleBackClick() {
     if (isChoosingTroef || (isPlaying && d?.roundPhase === 2)) {
       const ok = window.confirm(
@@ -291,6 +299,7 @@ export function DobbelkingenPanel({
             phase1PickCounts={phase1PickCounts}
             currentRoundTrickCounts={currentRoundTrickCounts}
             handleContinueToPhase2={handleContinueToPhase2}
+            onAdjustScore={handleAdjustTotalScore}
           />
         ) : null}
 
@@ -315,6 +324,7 @@ export function DobbelkingenPanel({
             currentRoundTrickCounts={currentRoundTrickCounts}
             handleFinishMatch={handleFinishMatch}
             setShowMobileScore={setShowMobileScore}
+            onAdjustScore={handleAdjustTotalScore}
           />
         ) : null}
 

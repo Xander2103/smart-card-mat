@@ -41,8 +41,74 @@ function SetupChoiceGrid({ children }) {
   );
 }
 
-function CollapsibleScoreboard({ players = [], scores = [], open, onToggle, isMobile = false }) {
+function ScoreAdjustButton({ children, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        width: 36,
+        height: 32,
+        borderRadius: 12,
+        border: "1px solid rgba(251, 191, 36, 0.28)",
+        background: "rgba(251, 191, 36, 0.10)",
+        color: "#fef3c7",
+        fontWeight: 1000,
+        fontSize: 18,
+        cursor: "pointer",
+        display: "grid",
+        placeItems: "center",
+        padding: 0,
+        lineHeight: 1,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function CollapsibleScoreboard({
+  players = [],
+  scores = [],
+  open,
+  onToggle,
+  isMobile = false,
+  onAdjustScore,
+}) {
   const shouldShowScores = !isMobile || open;
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftScores, setDraftScores] = useState(scores);
+
+  function startEditing() {
+    setDraftScores([...(scores ?? [])]);
+    setIsEditing(true);
+  }
+
+  function cancelEditing() {
+    setDraftScores([...(scores ?? [])]);
+    setIsEditing(false);
+  }
+
+  function updateDraftScore(playerIndex, delta) {
+    setDraftScores((prev) => {
+      const next = [...(prev ?? [])];
+      next[playerIndex] = (next[playerIndex] ?? 0) + delta;
+      return next;
+    });
+  }
+
+  function saveScores() {
+    draftScores.forEach((score, index) => {
+      const oldScore = scores?.[index] ?? 0;
+      const delta = (score ?? 0) - oldScore;
+
+      if (delta !== 0) {
+        onAdjustScore?.(index, delta);
+      }
+    });
+
+    setIsEditing(false);
+  }
 
   return (
     <div
@@ -54,24 +120,30 @@ function CollapsibleScoreboard({ players = [], scores = [], open, onToggle, isMo
         background: "linear-gradient(180deg, rgba(120,53,15,0.24), rgba(255,255,255,0.03))",
       })}
     >
-      <button
-        type="button"
-        onClick={isMobile ? onToggle : undefined}
+      <div
         style={{
-          border: "none",
-          background: "transparent",
-          color: "#f5efe6",
-          padding: 0,
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: "start",
           gap: 12,
-          cursor: isMobile ? "pointer" : "default",
-          textAlign: "left",
-          width: "100%",
+          flexWrap: "wrap",
         }}
       >
-        <div style={{ display: "grid", gap: 3 }}>
+        <button
+          type="button"
+          onClick={isMobile ? onToggle : undefined}
+          style={{
+            border: "none",
+            background: "transparent",
+            color: "#f5efe6",
+            padding: 0,
+            display: "grid",
+            gap: 3,
+            cursor: isMobile ? "pointer" : "default",
+            textAlign: "left",
+            minWidth: 0,
+          }}
+        >
           <div style={{ fontWeight: 900, fontSize: isMobile ? 16 : 17 }}>
             Scoreboard
           </div>
@@ -81,25 +153,93 @@ function CollapsibleScoreboard({ players = [], scores = [], open, onToggle, isMo
               Huidige totaalscore.
             </div>
           ) : null}
-        </div>
+        </button>
 
-        {isMobile ? (
-          <div
-            style={{
-              padding: "7px 11px",
-              borderRadius: 999,
-              border: "1px solid rgba(251, 191, 36, 0.26)",
-              background: "rgba(251, 191, 36, 0.10)",
-              color: "#fef3c7",
-              fontWeight: 900,
-              whiteSpace: "nowrap",
-              fontSize: 13,
-            }}
-          >
-            {open ? "Verberg ↑" : "Toon ↓"}
-          </div>
-        ) : null}
-      </button>
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
+          }}
+        >
+          {shouldShowScores && !isEditing ? (
+            <button
+              type="button"
+              onClick={startEditing}
+              style={{
+                padding: "7px 10px",
+                borderRadius: 999,
+                border: "1px solid rgba(251, 191, 36, 0.26)",
+                background: "rgba(255,255,255,0.045)",
+                color: "#fef3c7",
+                fontWeight: 900,
+                cursor: "pointer",
+              }}
+              title="Score aanpassen"
+            >
+              ✎ Edit
+            </button>
+          ) : null}
+
+          {shouldShowScores && isEditing ? (
+            <>
+              <button
+                type="button"
+                onClick={cancelEditing}
+                style={{
+                  padding: "7px 10px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  background: "rgba(255,255,255,0.045)",
+                  color: "#f5efe6",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                Annuleer
+              </button>
+
+              <button
+                type="button"
+                onClick={saveScores}
+                style={{
+                  padding: "7px 10px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(134, 239, 172, 0.34)",
+                  background: "rgba(22, 163, 74, 0.36)",
+                  color: "#dcfce7",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                Opslaan
+              </button>
+            </>
+          ) : null}
+
+          {isMobile ? (
+            <button
+              type="button"
+              onClick={onToggle}
+              style={{
+                padding: "7px 11px",
+                borderRadius: 999,
+                border: "1px solid rgba(251, 191, 36, 0.26)",
+                background: "rgba(251, 191, 36, 0.10)",
+                color: "#fef3c7",
+                fontWeight: 900,
+                whiteSpace: "nowrap",
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              {open ? "Verberg ↑" : "Toon ↓"}
+            </button>
+          ) : null}
+        </div>
+      </div>
 
       {shouldShowScores ? (
         <div
@@ -112,19 +252,22 @@ function CollapsibleScoreboard({ players = [], scores = [], open, onToggle, isMo
           }}
         >
           {(players ?? []).map((player, index) => {
-            const score = scores?.[index] ?? 0;
+            const score = isEditing ? draftScores?.[index] ?? 0 : scores?.[index] ?? 0;
 
             return (
               <div
                 key={player?.id ?? index}
                 style={softCardStyle({
                   padding: isMobile ? "10px 11px" : 14,
-                  minHeight: isMobile ? 86 : 92,
+                  minHeight: isEditing ? 132 : isMobile ? 86 : 92,
                   display: "grid",
-                  alignContent: "center",
+                  gridTemplateRows: isEditing ? "auto auto 1fr auto" : "auto auto 1fr",
+                  alignItems: "center",
                   gap: isMobile ? 5 : 8,
                   background: "rgba(255,255,255,0.045)",
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  border: isEditing
+                    ? "1px solid rgba(251, 191, 36, 0.18)"
+                    : "1px solid rgba(255,255,255,0.08)",
                 })}
               >
                 <div
@@ -160,6 +303,26 @@ function CollapsibleScoreboard({ players = [], scores = [], open, onToggle, isMo
                 >
                   {score > 0 ? `+${score}` : score}
                 </div>
+
+                {isEditing ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      width: "100%",
+                      marginTop: 2,
+                    }}
+                  >
+                    <ScoreAdjustButton onClick={() => updateDraftScore(index, -1)}>
+                      -
+                    </ScoreAdjustButton>
+                    <ScoreAdjustButton onClick={() => updateDraftScore(index, 1)}>
+                      +
+                    </ScoreAdjustButton>
+                  </div>
+                ) : null}
               </div>
             );
           })}
@@ -712,6 +875,9 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
             open={scoreboardOpen}
             isMobile={isMobile}
             onToggle={() => setShowSetupScoreboard((value) => !value)}
+            onAdjustScore={(playerIndex, delta) =>
+              dispatchAction?.({ type: "adjust_total_score", playerIndex, delta })
+            }
           />
 
           <Section

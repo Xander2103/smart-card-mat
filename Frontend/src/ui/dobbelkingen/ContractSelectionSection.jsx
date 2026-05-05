@@ -26,6 +26,7 @@ export function ContractSelectionSection({
   phase1PickCounts,
   currentRoundTrickCounts,
   handleContinueToPhase2,
+  onAdjustScore,
 }) {
   return (
     <div style={{ display: "grid", gap: isMobile ? 10 : 16, minHeight: 0, alignContent: "start" }}>
@@ -155,6 +156,8 @@ export function ContractSelectionSection({
           progressCounts={phase1PickCounts}
           progressLabel="gekozen"
           trickCounts={currentRoundTrickCounts}
+          allowEdit
+          onAdjustScore={onAdjustScore}
         />
       ) : null}
 
