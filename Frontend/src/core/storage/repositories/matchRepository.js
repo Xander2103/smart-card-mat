@@ -76,6 +76,26 @@ export const matchRepository = {
 
     const matches = localStorageAdapter.get(STORAGE_KEYS.MATCHES, []);
 
+    const existingMatchKey =
+      matchData?.gameData?.summary?.matchId ??
+      matchData?.metadata?.matchId ??
+      null;
+
+    if (existingMatchKey) {
+      const existingMatch = matches.find((match) => {
+        const storedMatchKey =
+          match?.gameData?.summary?.matchId ??
+          match?.metadata?.matchId ??
+          null;
+
+        return storedMatchKey === existingMatchKey;
+      });
+
+      if (existingMatch) {
+        return existingMatch;
+      }
+    }
+
     const match = {
       id: createId("match"),
       playedAt: matchData.playedAt ?? nowIso(),
