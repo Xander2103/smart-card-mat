@@ -22,6 +22,13 @@ export function PlayersScreen({ appState, dispatchAction, locked = false, onGoPl
     [appState?.players]
   );
 
+  const tableDealerSeat =
+    typeof appState?.tableDealerSeat === "number"
+      ? appState.tableDealerSeat
+      : selectedPlayers.length > 0
+        ? selectedPlayers.length - 1
+        : 0;
+
   function refreshProfiles() {
     setProfiles(storageService.getPlayers());
   }
@@ -138,6 +145,16 @@ export function PlayersScreen({ appState, dispatchAction, locked = false, onGoPl
     dispatchAction({ type: "set_players", players: nextPlayers });
   }
 
+  function handleSetDealerSeat(index) {
+    if (failWhenLocked()) return;
+    if (selectedPlayers.length !== 4) return;
+
+    dispatchAction({
+      type: "set_table_dealer",
+      dealerSeat: index,
+    });
+  }
+
   function handleDeleteProfile(profile) {
     if (failWhenLocked()) return;
 
@@ -237,6 +254,8 @@ export function PlayersScreen({ appState, dispatchAction, locked = false, onGoPl
           compactMobile={compactMobile}
           isLandscape={isLandscape}
           locked={locked}
+          tableDealerSeat={tableDealerSeat}
+          onSetDealerSeat={handleSetDealerSeat}
           onRemoveSeatPlayer={handleRemoveSeatPlayer}
           onMovePlayerLeft={handleMovePlayerLeft}
           onMovePlayerRight={handleMovePlayerRight}

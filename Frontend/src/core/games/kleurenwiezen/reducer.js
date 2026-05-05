@@ -21,7 +21,20 @@ function pushLog(prevLog, raw) {
 }
 
 function getSlice(state) {
-  return state.game?.kleurenwiezen ?? getInitialKleurenwiezenState(state.players?.length ?? 4);
+  if (state.game?.kleurenwiezen) {
+    return state.game.kleurenwiezen;
+  }
+
+  const playersCount = state.players?.length ?? 4;
+  const initial = getInitialKleurenwiezenState(playersCount);
+
+  return {
+    ...initial,
+    dealerSeat:
+      typeof state.tableDealerSeat === "number"
+        ? normalizeSeat(state.tableDealerSeat, playersCount)
+        : 0,
+  };
 }
 
 function setSlice(state, nextSlice) {
@@ -200,8 +213,8 @@ export function reduceKleurenwiezen(state, action) {
     if (field === "declarantSeats") {
       value = Array.isArray(value)
         ? value
-            .map((seat) => normalizeSeat(seat, playersCount))
-            .filter((seat) => typeof seat === "number")
+          .map((seat) => normalizeSeat(seat, playersCount))
+          .filter((seat) => typeof seat === "number")
         : [];
 
       const uniqueSeats = [...new Set(value)];

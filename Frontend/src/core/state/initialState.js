@@ -22,8 +22,11 @@ export function createInitialState({ zonesCount = 4 } = {}) {
     deckSetup: false,
     deckIndex: 0,
 
-    // spelers worden nu gekozen via PlayersScreen
+    // spelers worden gekozen via PlayersScreen
     players: [],
+
+    // startdealer voor kaartspellen
+    tableDealerSeat: 0,
 
     confirmedTurnCard: null,
     lastError: null,

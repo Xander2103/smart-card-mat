@@ -5,6 +5,7 @@ import {
   clearHandRuntimeFields,
   pushLog,
   clampIndex,
+  getStartDealerIndex,
 } from "../state";
 import { canPickContract } from "../contractsRules";
 import { normalizeTroefSuit, getTroefStarterIndex } from "../troefFlow.js";
@@ -104,18 +105,20 @@ export function handleDobbelFlowAction(state, action) {
 
   if (action.type === "start_dobbelkingen") {
     const now = Date.now();
+    const startDealerIndex = getStartDealerIndex(state, playersCount);
+    const firstLeaderIndex = clampIndex(startDealerIndex + 1, playersCount);
 
     const nextD = {
       ...d,
-      chooserIndex: 0,
-      leaderIndex: 0,
-      currentPlayerIndex: 0,
+      chooserIndex: startDealerIndex,
+      leaderIndex: firstLeaderIndex,
+      currentPlayerIndex: startDealerIndex,
       contract: null,
       contractPlays: {},
       lastContract: null,
       roundPhase: 1,
       troefPickCounts: Array(playersCount).fill(0),
-      troefChooserIndex: 0,
+      troefChooserIndex: startDealerIndex,
       currentTrumpSuit: null,
       currentContractStarterIndex: 0,
       totalScores: Array(playersCount).fill(0),
@@ -133,7 +136,10 @@ export function handleDobbelFlowAction(state, action) {
         phase: "CHOOSING_CONTRACT",
         turnZone: null,
         lastError: null,
-        log: pushLog(state.log, "DOBBELKINGEN|START|PHASE=1"),
+        log: pushLog(
+          state.log,
+          `DOBBELKINGEN|START|PHASE=1|START_DEALER=P${startDealerIndex}`
+        ),
       },
       nextD
     );
@@ -172,6 +178,8 @@ export function handleDobbelFlowAction(state, action) {
 
   if (action.type === "go_back_to_phase1") {
     const now = Date.now();
+    const startDealerIndex = getStartDealerIndex(state, playersCount);
+    const firstLeaderIndex = clampIndex(startDealerIndex + 1, playersCount);
 
     return setDobbelState(
       {
@@ -183,15 +191,15 @@ export function handleDobbelFlowAction(state, action) {
       },
       {
         ...d,
-        chooserIndex: 0,
-        leaderIndex: 0,
-        currentPlayerIndex: 0,
+        chooserIndex: startDealerIndex,
+        leaderIndex: firstLeaderIndex,
+        currentPlayerIndex: startDealerIndex,
         contract: null,
         contractPlays: {},
         lastContract: null,
         roundPhase: 1,
         troefPickCounts: Array(playersCount).fill(0),
-        troefChooserIndex: 0,
+        troefChooserIndex: startDealerIndex,
         currentTrumpSuit: null,
         currentContractStarterIndex: 0,
         totalScores: Array(playersCount).fill(0),

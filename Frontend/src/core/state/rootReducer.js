@@ -9,6 +9,13 @@ function pushLog(prevLog, raw) {
   return next.length > LOG_MAX ? next.slice(0, LOG_MAX) : next;
 }
 
+function normalizeSeat(value, playersCount = 4) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return playersCount > 0 ? playersCount - 1 : 0;
+  if (playersCount <= 0) return 0;
+  return ((n % playersCount) + playersCount) % playersCount;
+}
+
 function normalizePlayers(players) {
   if (!Array.isArray(players)) return [];
 
@@ -17,6 +24,7 @@ function normalizePlayers(players) {
     .map((player, index) => ({
       id: player?.id ?? `player_${index}`,
       name: player?.name ?? `Player ${index + 1}`,
+      isGuest: !!player?.isGuest,
     }));
 }
 
@@ -70,14 +78,32 @@ export function applyRootAction(state, action) {
   }
 
   if (action.type === "set_players") {
+    const players = normalizePlayers(action.players);
+    const fallbackDealer = 0;
+    const previousDealerSeat =
+      typeof state.tableDealerSeat === "number" ? state.tableDealerSeat : fallbackDealer;
+
+    const nextDealerSeat =
+      players.length > 0
+        ? normalizeSeat(previousDealerSeat, players.length)
+        : 0;
     return {
       ...state,
-      players: normalizePlayers(action.players),
+      players,
+      tableDealerSeat: nextDealerSeat,
       lastError: null,
-      log: pushLog(
-        state.log,
-        `PLAYERS|SET|COUNT=${normalizePlayers(action.players).length}`
-      ),
+      log: pushLog(state.log, `PLAYERS|SET|COUNT=${players.length}`),
+    };
+  }
+
+  if (action.type === "set_table_dealer") {
+    const playersCount = state.players?.length ?? 4;
+    const dealerSeat = normalizeSeat(action.dealerSeat, playersCount);
+
+    return {
+      ...state,
+      tableDealerSeat: dealerSeat,
+      log: pushLog(state.log, `TABLE|DEALER|SEAT=${dealerSeat + 1}`),
     };
   }
 
@@ -94,6 +120,7 @@ export function applyRootAction(state, action) {
     if (!uid || !cardName) return state;
 
     const nextMapping = setUniqueMappingOverwrite(state.mapping, uid, cardName);
+
     return {
       ...state,
       mapping: nextMapping,

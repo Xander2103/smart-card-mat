@@ -30,13 +30,23 @@ export function clearHandRuntimeFields() {
   };
 }
 
+export function getStartDealerIndex(state, playersCount) {
+  return clampIndex(
+    typeof state.tableDealerSeat === "number"
+      ? state.tableDealerSeat
+      : 0,
+    playersCount
+  );
+}
+
 export function getDobbelState(state) {
   const playersCount = state.players?.length ?? 4;
+  const startDealerIndex = getStartDealerIndex(state, playersCount);
 
   return state.game?.dobbelkingen ?? {
-    chooserIndex: 0,
-    leaderIndex: 0,
-    currentPlayerIndex: 0,
+    chooserIndex: startDealerIndex,
+    leaderIndex: clampIndex(startDealerIndex + 1, playersCount),
+    currentPlayerIndex: startDealerIndex,
     contract: null,
 
     contracts: [
@@ -52,7 +62,7 @@ export function getDobbelState(state) {
 
     roundPhase: 1,
     troefPickCounts: Array(playersCount).fill(0),
-    troefChooserIndex: 0,
+    troefChooserIndex: startDealerIndex,
     currentTrumpSuit: null,
     currentContractStarterIndex: 0,
 

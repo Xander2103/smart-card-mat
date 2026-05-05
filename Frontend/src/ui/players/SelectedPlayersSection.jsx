@@ -4,24 +4,53 @@ function SeatPlayerCard({
   player,
   index,
   compactMobile,
-  isLandscape,
   locked,
   selectedPlayersLength,
+  tableDealerSeat,
+  onSetDealerSeat,
   onRemoveSeatPlayer,
   onMovePlayerLeft,
   onMovePlayerRight,
 }) {
+  const isDealer = selectedPlayersLength === 4 && tableDealerSeat === index;
+
   return (
     <div
       style={{
         borderRadius: 16,
         padding: "10px 14px",
-        border: "1px solid rgba(251, 191, 36, 0.24)",
-        background: "rgba(217, 119, 6, 0.12)",
+        border: isDealer
+          ? "1px solid rgba(251, 191, 36, 0.58)"
+          : "1px solid rgba(251, 191, 36, 0.24)",
+        background: isDealer
+          ? "radial-gradient(circle at top, rgba(251,191,36,0.18), transparent 45%), rgba(217, 119, 6, 0.15)"
+          : "rgba(217, 119, 6, 0.12)",
         minWidth: compactMobile ? 0 : 170,
         position: "relative",
+        boxShadow: isDealer ? "0 0 22px rgba(251, 191, 36, 0.10)" : undefined,
       }}
     >
+      {isDealer ? (
+        <div
+          style={{
+            position: "absolute",
+            top: 10,
+            left: 10,
+            padding: "4px 8px",
+            borderRadius: 999,
+            background: "linear-gradient(180deg, #fbbf24, #f59e0b)",
+            color: "#241305",
+            border: "1px solid rgba(255,255,255,0.28)",
+            fontSize: 10,
+            fontWeight: 1000,
+            textTransform: "uppercase",
+            boxShadow: "0 8px 18px rgba(0,0,0,0.18)",
+          }}
+        >
+          Dealer
+        </div>
+      ) : null}
+
       <button
         type="button"
         onClick={() => onRemoveSeatPlayer(player.id)}
@@ -70,13 +99,42 @@ function SeatPlayerCard({
         </span>
       </button>
 
-      <div style={{ fontSize: 12, color: "#d6c4b1" }}>Seat {index + 1}</div>
+      <div style={{ fontSize: 12, color: "#d6c4b1", marginTop: isDealer ? 28 : 0 }}>
+        Seat {index + 1}
+      </div>
 
       <div style={{ fontWeight: 900, fontSize: 18 }}>{player.name}</div>
 
       <div style={{ fontSize: 12, color: "#c8b6a1", marginTop: 4 }}>
         {player.isGuest ? "Tijdelijke gastspeler" : "Vaste speler"}
       </div>
+
+      {selectedPlayersLength === 4 ? (
+        <button
+          type="button"
+          disabled={locked || isDealer}
+          onClick={() => onSetDealerSeat?.(index)}
+          style={{
+            marginTop: 10,
+            width: "100%",
+            borderRadius: 12,
+            border: isDealer
+              ? "1px solid rgba(251, 191, 36, 0.35)"
+              : "1px solid rgba(255,255,255,0.10)",
+            background: isDealer
+              ? "rgba(251, 191, 36, 0.14)"
+              : "rgba(255,255,255,0.045)",
+            color: isDealer ? "#fef3c7" : "#d6c4b1",
+            padding: "8px 10px",
+            fontWeight: 900,
+            cursor: locked || isDealer ? "default" : "pointer",
+            opacity: locked ? 0.55 : 1,
+          }}
+          title="Kies deze speler als eerste dealer"
+        >
+          {isDealer ? "Eerste dealer" : "Maak dealer"}
+        </button>
+      ) : null}
 
       <div
         style={{
@@ -149,6 +207,8 @@ export function SelectedPlayersSection({
   compactMobile,
   isLandscape,
   locked,
+  tableDealerSeat,
+  onSetDealerSeat,
   onRemoveSeatPlayer,
   onMovePlayerLeft,
   onMovePlayerRight,
@@ -182,9 +242,10 @@ export function SelectedPlayersSection({
               player={player}
               index={index}
               compactMobile={compactMobile}
-              isLandscape={isLandscape}
               locked={locked}
               selectedPlayersLength={selectedPlayers.length}
+              tableDealerSeat={tableDealerSeat}
+              onSetDealerSeat={onSetDealerSeat}
               onRemoveSeatPlayer={onRemoveSeatPlayer}
               onMovePlayerLeft={onMovePlayerLeft}
               onMovePlayerRight={onMovePlayerRight}
@@ -194,13 +255,34 @@ export function SelectedPlayersSection({
       )}
 
       {selectedPlayers.length === 4 ? (
-        <div style={{ marginBottom: 18, marginTop: 18 }}>
+        <div
+          style={{
+            marginTop: 14,
+            marginBottom: 18,
+            display: "grid",
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              borderRadius: 16,
+              padding: "12px 14px",
+              border: "1px solid rgba(251, 191, 36, 0.22)",
+              background: "rgba(120, 53, 15, 0.26)",
+              color: "#fef3c7",
+              fontWeight: 800,
+              lineHeight: 1.45,
+            }}
+          >
+            Kies wie als eerste deelt. Daarna schuift de dealer automatisch door na elke ronde.
+          </div>
+
           <button
             type="button"
             onClick={() => onGoPlay?.()}
             style={{
               ...actionButtonStyle,
-              width: compactMobile ? "100%" : "auto",
+              width: compactMobile ? "100%" : "fit-content",
               minHeight: 46,
               padding: "12px 18px",
               background:
