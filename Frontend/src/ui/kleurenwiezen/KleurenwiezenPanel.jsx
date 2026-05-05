@@ -41,6 +41,134 @@ function SetupChoiceGrid({ children }) {
   );
 }
 
+function CollapsibleScoreboard({ players = [], scores = [], open, onToggle, isMobile = false }) {
+  const shouldShowScores = !isMobile || open;
+
+  return (
+    <div
+      style={softCardStyle({
+        padding: isMobile ? 12 : 14,
+        display: "grid",
+        gap: shouldShowScores ? 12 : 0,
+        border: "1px solid rgba(251, 191, 36, 0.26)",
+        background: "linear-gradient(180deg, rgba(120,53,15,0.24), rgba(255,255,255,0.03))",
+      })}
+    >
+      <button
+        type="button"
+        onClick={isMobile ? onToggle : undefined}
+        style={{
+          border: "none",
+          background: "transparent",
+          color: "#f5efe6",
+          padding: 0,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+          cursor: isMobile ? "pointer" : "default",
+          textAlign: "left",
+          width: "100%",
+        }}
+      >
+        <div style={{ display: "grid", gap: 3 }}>
+          <div style={{ fontWeight: 900, fontSize: isMobile ? 16 : 17 }}>
+            Scoreboard
+          </div>
+
+          {!isMobile ? (
+            <div style={{ color: colors.muted, fontSize: 13 }}>
+              Huidige totaalscore.
+            </div>
+          ) : null}
+        </div>
+
+        {isMobile ? (
+          <div
+            style={{
+              padding: "7px 11px",
+              borderRadius: 999,
+              border: "1px solid rgba(251, 191, 36, 0.26)",
+              background: "rgba(251, 191, 36, 0.10)",
+              color: "#fef3c7",
+              fontWeight: 900,
+              whiteSpace: "nowrap",
+              fontSize: 13,
+            }}
+          >
+            {open ? "Verberg ↑" : "Toon ↓"}
+          </div>
+        ) : null}
+      </button>
+
+      {shouldShowScores ? (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "repeat(2, minmax(0, 1fr))"
+              : "repeat(4, minmax(0, 1fr))",
+            gap: isMobile ? 8 : 10,
+          }}
+        >
+          {(players ?? []).map((player, index) => {
+            const score = scores?.[index] ?? 0;
+
+            return (
+              <div
+                key={player?.id ?? index}
+                style={softCardStyle({
+                  padding: isMobile ? "10px 11px" : 14,
+                  minHeight: isMobile ? 86 : 92,
+                  display: "grid",
+                  alignContent: "center",
+                  gap: isMobile ? 5 : 8,
+                  background: "rgba(255,255,255,0.045)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                })}
+              >
+                <div
+                  style={{
+                    color: colors.muted,
+                    fontSize: isMobile ? 10 : 11,
+                    textTransform: "uppercase",
+                    fontWeight: 900,
+                  }}
+                >
+                  Seat {index + 1}
+                </div>
+
+                <div
+                  style={{
+                    fontWeight: 1000,
+                    fontSize: isMobile ? 15 : 17,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {player?.name ?? `Speler ${index + 1}`}
+                </div>
+
+                <div
+                  style={{
+                    fontWeight: 1000,
+                    fontSize: isMobile ? 22 : 26,
+                    lineHeight: 1,
+                    color: score > 0 ? "#86efac" : score < 0 ? "#fca5a5" : "#f5efe6",
+                  }}
+                >
+                  {score > 0 ? `+${score}` : score}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function CompactContractButton({ item, active, onClick }) {
   const category = item.id.startsWith("SAMEN") || item.id === "TROEL"
     ? "Samen / duo"
@@ -419,7 +547,10 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
   const starterSeat = getCalculatedStarterSeat(slice, playersCount);
   const targetTricks = getEffectiveTargetTricks(slice);
   const lastResult = slice?.lastResult ?? null;
+  const scoreboardScores = slice?.totalScores ?? Array(playersCount).fill(0);
   const [showContractPicker, setShowContractPicker] = useState(!slice?.contractId);
+  const [showSetupScoreboard, setShowSetupScoreboard] = useState(false);
+  const scoreboardOpen = isMobile ? showSetupScoreboard : true;
 
   const declarantSeats = Array.isArray(slice?.declarantSeats)
     ? slice.declarantSeats
@@ -560,6 +691,7 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
           Terug
         </button>
       </div>
+
       {lastResult ? (
         <div style={softCardStyle({ padding: 16, display: "grid", gap: 8, border: "1px solid rgba(74, 222, 128, 0.24)" })}>
           <div style={{ fontWeight: 900, fontSize: 18 }}>Laatste ronde</div>
@@ -573,21 +705,34 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
       ) : null}
 
       {showContractPicker ? (
-        <Section title="1. Contract" subtitle="Kies eerst het uiteindelijke contract in de officiële volgorde. Daarna ga je door naar spelers en troef op het setupscherm.">
-          <div style={contractGridStyle}>
-            {KLEURENWIEZEN_CONTRACTS.map((item) => (
-              <CompactContractButton
-                key={item.id}
-                item={item}
-                active={slice?.contractId === item.id}
-                onClick={() => {
-                  dispatchAction?.({ type: "set_kleurenwiezen_contract", contractId: item.id });
-                  setShowContractPicker(false);
-                }}
-              />
-            ))}
-          </div>
-        </Section>
+        <>
+          <CollapsibleScoreboard
+            players={players}
+            scores={scoreboardScores}
+            open={scoreboardOpen}
+            isMobile={isMobile}
+            onToggle={() => setShowSetupScoreboard((value) => !value)}
+          />
+
+          <Section
+            title="1. Contract"
+            subtitle="Kies eerst het uiteindelijke contract in de officiële volgorde. Daarna ga je door naar spelers en troef op het setupscherm."
+          >
+            <div style={contractGridStyle}>
+              {KLEURENWIEZEN_CONTRACTS.map((item) => (
+                <CompactContractButton
+                  key={item.id}
+                  item={item}
+                  active={slice?.contractId === item.id}
+                  onClick={() => {
+                    dispatchAction?.({ type: "set_kleurenwiezen_contract", contractId: item.id });
+                    setShowContractPicker(false);
+                  }}
+                />
+              ))}
+            </div>
+          </Section>
+        </>
       ) : (
         <div
           style={{
@@ -621,6 +766,7 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
                     marginBottom: 5,
                   }}
                 >
+                  Contract
                 </div>
 
                 <div
