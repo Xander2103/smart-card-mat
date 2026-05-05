@@ -2,6 +2,7 @@ import { STORAGE_KEYS } from "../keys";
 import { localStorageAdapter } from "../adapter/localStorageAdapter";
 import { createId } from "../../utils/id";
 import { nowIso } from "../../utils/time";
+import { saveMatchToApi } from "../../api/matchApi";
 
 function validateMatchRecord(matchData) {
   if (!matchData?.gameType) {
@@ -15,6 +16,46 @@ function validateMatchRecord(matchData) {
   if (!Array.isArray(matchData?.scores)) {
     throw new Error("scores moet een array zijn.");
   }
+}
+
+function updateStoredMatch(matchId, updates) {
+  const matches = localStorageAdapter.get(STORAGE_KEYS.MATCHES, []);
+
+  const updated = matches.map((match) => {
+    if (match.id !== matchId) {
+      return match;
+    }
+
+    return {
+      ...match,
+      ...updates,
+    };
+  });
+
+  localStorageAdapter.set(STORAGE_KEYS.MATCHES, updated);
+}
+
+function syncMatchToApi(match) {
+  saveMatchToApi(match)
+    .then((savedMatch) => {
+      updateStoredMatch(match.id, {
+        apiSyncStatus: "synced",
+        apiId: savedMatch.id,
+        syncedAt: nowIso(),
+        syncError: null,
+      });
+
+      console.log("Match synced to Laravel:", savedMatch);
+    })
+    .catch((error) => {
+      updateStoredMatch(match.id, {
+        apiSyncStatus: "failed",
+        syncError: error.message,
+        lastSyncAttemptAt: nowIso(),
+      });
+
+      console.warn("Match saved locally, but Laravel sync failed:", error);
+    });
 }
 
 export const matchRepository = {
@@ -42,11 +83,17 @@ export const matchRepository = {
       metadata: matchData.metadata ?? {},
       gameData: matchData.gameData ?? {},
       ...matchData,
+      apiSyncStatus: "pending",
+      apiId: null,
+      syncedAt: null,
+      syncError: null,
       createdAt: nowIso(),
     };
 
     const updated = [...matches, match];
     localStorageAdapter.set(STORAGE_KEYS.MATCHES, updated);
+
+    syncMatchToApi(match);
 
     return match;
   },
