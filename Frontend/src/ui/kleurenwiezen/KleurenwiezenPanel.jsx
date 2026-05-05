@@ -117,6 +117,69 @@ function MultiPlayerChoiceGrid({ players, activeSeats = [], onToggle, maxSelecte
   );
 }
 
+function TeamPlayerChoiceGrid({ players, declarantSeat, partnerSeat, onChange }) {
+  return (
+    <ChoiceGrid min={190}>
+      {(players ?? []).map((player, index) => {
+        const isDeclarant = declarantSeat === index;
+        const isPartner = partnerSeat === index;
+
+        let body = "Selecteer als declarant";
+
+        if (isDeclarant) {
+          body = "Declarant geselecteerd";
+        } else if (isPartner) {
+          body = "Partner geselecteerd";
+        } else if (typeof declarantSeat === "number") {
+          body = "Selecteer als partner";
+        }
+
+        function handleClick() {
+          if (isDeclarant) {
+            onChange?.({
+              declarantSeat: null,
+              partnerSeat: null,
+            });
+            return;
+          }
+
+          if (isPartner) {
+            onChange?.({
+              declarantSeat,
+              partnerSeat: null,
+            });
+            return;
+          }
+
+          if (typeof declarantSeat !== "number") {
+            onChange?.({
+              declarantSeat: index,
+              partnerSeat: null,
+            });
+            return;
+          }
+
+          onChange?.({
+            declarantSeat,
+            partnerSeat: index,
+          });
+        }
+
+        return (
+          <SelectButton
+            key={player?.id ?? index}
+            active={isDeclarant || isPartner}
+            onClick={handleClick}
+            eyebrow={`Seat ${index + 1}`}
+            title={player?.name ?? `Speler ${index + 1}`}
+            body={body}
+          />
+        );
+      })}
+    </ChoiceGrid>
+  );
+}
+
 export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
   const { isMobile, width } = useViewport();
   const slice = appState?.game?.kleurenwiezen ?? {};
@@ -161,7 +224,6 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
     slice?.declarantSeats,
     slice?.partnerSeat,
     slice?.trumpSuit,
-    slice?.troelTargetMode,
   ]);
 
   const summaryRows = [
@@ -169,14 +231,24 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
     { label: "Eerste uitkomst", value: getSeatName(players, starterSeat) },
     { label: "Troef", value: contract?.needsTrump ? getTrumpLabel(slice?.trumpSuit) : "Geen troef" },
     {
-      label: isMultiDeclarantContract ? "Spelers" : "Declarant",
+      label: isMultiDeclarantContract
+        ? "Spelers"
+        : contract?.needsPartner
+          ? "Team"
+          : "Speler",
       value: isMultiDeclarantContract
         ? declarantSeats.length > 0
           ? declarantSeats.map((seat) => getSeatName(players, seat)).join(", ")
           : "Nog kiezen"
-        : typeof slice?.declarantSeat === "number"
-          ? getSeatName(players, slice.declarantSeat)
-          : "Nog kiezen",
+        : contract?.needsPartner
+          ? typeof slice?.declarantSeat === "number" && typeof slice?.partnerSeat === "number"
+            ? `${getSeatName(players, slice.declarantSeat)} + ${getSeatName(players, slice.partnerSeat)}`
+            : typeof slice?.declarantSeat === "number"
+              ? `${getSeatName(players, slice.declarantSeat)} + nog kiezen`
+              : "Nog kiezen"
+          : typeof slice?.declarantSeat === "number"
+            ? getSeatName(players, slice.declarantSeat)
+            : "Nog kiezen",
     },
     {
       label: "Doel",
@@ -211,6 +283,20 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
       type: "set_kleurenwiezen_setup_field",
       field: "declarantSeats",
       value: nextSeats,
+    });
+  }
+
+  function setTeamPlayers({ declarantSeat, partnerSeat }) {
+    dispatchAction?.({
+      type: "set_kleurenwiezen_setup_field",
+      field: "declarantSeat",
+      value: declarantSeat,
+    });
+
+    dispatchAction?.({
+      type: "set_kleurenwiezen_setup_field",
+      field: "partnerSeat",
+      value: partnerSeat,
     });
   }
 
@@ -256,7 +342,7 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
       ) : null}
 
       {showContractPicker ? (
-        <Section title="1. Contract" subtitle="Kies eerst het uiteindelijke contract in de officiële volgorde. Daarna ga je door naar declarant, partner en troef op het setupscherm.">
+        <Section title="1. Contract" subtitle="Kies eerst het uiteindelijke contract in de officiële volgorde. Daarna ga je door naar spelers en eventueel troef.">
           <div style={contractGridStyle}>
             {KLEURENWIEZEN_CONTRACTS.map((item) => (
               <CompactContractButton
@@ -274,7 +360,7 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.5fr) minmax(320px, 0.9fr)", gap: 16, alignItems: "start" }}>
           <div style={{ display: "grid", gap: 16 }}>
-            <Section title="Ronde setup" subtitle="Vul hier de declarant, partner en troef in op één scherm. Dealer en eerste uitkomst lopen automatisch.">
+            <Section title="Ronde setup" subtitle="Vul hier de spelers en troef in. Dealer en eerste uitkomst lopen automatisch.">
               <div style={{ display: "grid", gap: 4 }}>
                 <div style={{ fontWeight: 900, fontSize: 18 }}>{contract?.label ?? "—"}</div>
                 <div style={{ color: colors.muted }}>{contract?.desc ?? ""}</div>
@@ -282,14 +368,29 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
             </Section>
 
             <Section
-              title={isMultiDeclarantContract ? "1. Spelers" : "1. Declarant"}
+              title={
+                contract?.needsPartner || isMultiDeclarantContract
+                  ? "1. Spelers"
+                  : "1. Speler"
+              }
               subtitle={
-                isMultiDeclarantContract
-                  ? "Kies één of meerdere spelers die dit miserie/piccolo-contract spelen."
-                  : "Kies wie dit contract speelt. Eerste uitkomst wordt automatisch berekend."
+                contract?.needsPartner
+                  ? contract?.id === "TROEL"
+                    ? "Kies eerst de declarant en daarna de partner. Troel blijft altijd met 2 spelers."
+                    : "Kies eerst de vrager/declarant en daarna de partner die meegaat."
+                  : isMultiDeclarantContract
+                    ? "Kies één of meerdere spelers die dit miserie/piccolo-contract spelen. Maximum 3 spelers."
+                    : "Kies wie dit contract speelt. Eerste uitkomst wordt automatisch berekend."
               }
             >
-              {isMultiDeclarantContract ? (
+              {contract?.needsPartner ? (
+                <TeamPlayerChoiceGrid
+                  players={players}
+                  declarantSeat={slice?.declarantSeat}
+                  partnerSeat={slice?.partnerSeat}
+                  onChange={setTeamPlayers}
+                />
+              ) : isMultiDeclarantContract ? (
                 <MultiPlayerChoiceGrid
                   players={players}
                   activeSeats={declarantSeats}
@@ -307,35 +408,14 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
                       value,
                     })
                   }
-                  bodySelected="Declarant geselecteerd"
+                  bodySelected="Speler geselecteerd"
                 />
               )}
             </Section>
 
-            {contract?.needsPartner ? (
-              <Section
-                title={contract?.id === "TROEL" ? "2. Partner" : "2. Partner / meegaan"}
-                subtitle={contract?.id === "TROEL" ? "Bij troel kies je de partner handmatig. Die speler komt ook automatisch uit." : "Voor samen-contracten kies je hier wie meegaat met de declarant."}
-              >
-                <PlayerChoiceGrid
-                  players={players}
-                  activeSeat={slice?.partnerSeat}
-                  excludeSeat={slice?.declarantSeat}
-                  onPick={(value) =>
-                    dispatchAction?.({
-                      type: "set_kleurenwiezen_setup_field",
-                      field: "partnerSeat",
-                      value,
-                    })
-                  }
-                  bodySelected="Partner geselecteerd"
-                />
-              </Section>
-            ) : null}
-
             {contract?.needsTrump ? (
               <Section
-                title={contract?.needsPartner ? "3. Troef" : "2. Troef"}
+                title="2. Troef"
                 subtitle={
                   contract?.id === "TROEL"
                     ? "Kies de troefkleur. Troel wint vanaf 9 slagen; bij 13 slagen krijgen de troelspelers de hoogste score."

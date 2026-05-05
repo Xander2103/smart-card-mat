@@ -2,7 +2,7 @@ export const KLEURENWIEZEN_CONTRACTS = [
   {
     id: "SAMEN_8",
     label: "Samen 8",
-    desc: "Emballage / vragen & meegaan. Twee tegen twee, minstens 8 slagen.",
+    desc: "Vragen & meegaan. Twee tegen twee, minstens 8 slagen.",
     needsTrump: true,
     needsPartner: true,
     targetType: "atLeast",
@@ -17,7 +17,7 @@ export const KLEURENWIEZEN_CONTRACTS = [
   {
     id: "SAMEN_9",
     label: "Samen 9",
-    desc: "Emballage / vragen & meegaan. Twee tegen twee, minstens 9 slagen.",
+    desc: "Vragen & meegaan. Twee tegen twee, minstens 9 slagen.",
     needsTrump: true,
     needsPartner: true,
     targetType: "atLeast",
@@ -49,7 +49,7 @@ export const KLEURENWIEZEN_CONTRACTS = [
   {
     id: "SAMEN_10",
     label: "Samen 10",
-    desc: "Emballage / vragen & meegaan. Twee tegen twee, minstens 10 slagen.",
+    desc: "Vragen & meegaan. Twee tegen twee, minstens 10 slagen.",
     needsTrump: true,
     needsPartner: true,
     targetType: "atLeast",
@@ -81,7 +81,7 @@ export const KLEURENWIEZEN_CONTRACTS = [
   {
     id: "SAMEN_11",
     label: "Samen 11",
-    desc: "Emballage / vragen & meegaan. Twee tegen twee, minstens 11 slagen.",
+    desc: "Vragen & meegaan. Twee tegen twee, minstens 11 slagen.",
     needsTrump: true,
     needsPartner: true,
     targetType: "atLeast",
@@ -132,7 +132,7 @@ export const KLEURENWIEZEN_CONTRACTS = [
   {
     id: "SAMEN_12",
     label: "Samen 12",
-    desc: "Emballage / vragen & meegaan. Twee tegen twee, minstens 12 slagen.",
+    desc: "Vragen & meegaan. Twee tegen twee, minstens 12 slagen.",
     needsTrump: true,
     needsPartner: true,
     targetType: "atLeast",
@@ -163,7 +163,7 @@ export const KLEURENWIEZEN_CONTRACTS = [
   {
     id: "SAMEN_13",
     label: "Samen 13",
-    desc: "Emballage / vragen & meegaan. Twee tegen twee, alle 13 slagen.",
+    desc: "Vragen & meegaan. Twee tegen twee, alle 13 slagen.",
     needsTrump: true,
     needsPartner: true,
     targetType: "exact",
