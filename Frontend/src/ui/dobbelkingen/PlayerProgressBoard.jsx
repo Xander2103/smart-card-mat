@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { colors, softCardStyle } from "../play/theme";
 import { useViewport } from "../play/useViewport";
 import { formatRoundDelta } from "./helpers";
@@ -9,8 +9,8 @@ function ScoreAdjustButton({ children, onClick }) {
       type="button"
       onClick={onClick}
       style={{
-        width: 34,
-        height: 34,
+        width: 36,
+        height: 32,
         borderRadius: 12,
         border: "1px solid rgba(251, 191, 36, 0.28)",
         background: "rgba(251, 191, 36, 0.10)",
@@ -18,6 +18,10 @@ function ScoreAdjustButton({ children, onClick }) {
         fontWeight: 1000,
         fontSize: 18,
         cursor: "pointer",
+        display: "grid",
+        placeItems: "center",
+        padding: 0,
+        lineHeight: 1,
       }}
     >
       {children}
@@ -84,6 +88,12 @@ export function PlayerProgressBoard({
   const [isEditing, setIsEditing] = useState(false);
   const [draftScores, setDraftScores] = useState(totalScores ?? []);
 
+  useEffect(() => {
+    if (!isEditing) {
+      setDraftScores([...(totalScores ?? [])]);
+    }
+  }, [totalScores, isEditing]);
+
   function startEditing() {
     setDraftScores([...(totalScores ?? [])]);
     setIsEditing(true);
@@ -127,7 +137,7 @@ export function PlayerProgressBoard({
         }}
       >
         <div style={{ display: "grid", gap: 4 }}>
-          <div style={{ fontWeight: 700, fontSize: 18 }}>
+          <div style={{ fontWeight: 900, fontSize: 18 }}>
             Rondestatus
           </div>
           <div style={{ color: colors.muted, fontSize: 13 }}>
@@ -202,11 +212,15 @@ export function PlayerProgressBoard({
             <div
               key={player.id ?? index}
               style={softCardStyle({
-                padding: "14px 16px",
+                padding: isMobile ? "13px 14px" : "14px 16px",
                 display: "grid",
-                gridTemplateColumns: isEditing ? "1fr auto auto" : "1fr auto 1fr",
+                gridTemplateColumns: isEditing
+                  ? isMobile
+                    ? "1fr auto"
+                    : "minmax(180px, 1fr) minmax(120px, 1fr) 70px"
+                  : "1fr auto 70px",
                 alignItems: "center",
-                gap: 16,
+                gap: isMobile ? 10 : 16,
                 minHeight: isEditing ? 82 : 72,
                 background: isCurrent
                   ? "rgba(251,191,36,0.08)"
@@ -233,7 +247,7 @@ export function PlayerProgressBoard({
               >
                 <span
                   style={{
-                    fontWeight: 800,
+                    fontWeight: 900,
                     fontSize: 18,
                     minWidth: 0,
                     overflow: "hidden",
@@ -272,9 +286,22 @@ export function PlayerProgressBoard({
                   <span>{trickCounts[index] ?? 0} slagen</span>
                 </div>
               ) : (
-                <div style={{ display: "flex", gap: 8, justifySelf: "center" }}>
-                  <ScoreAdjustButton onClick={() => updateDraftScore(index, -1)}>-</ScoreAdjustButton>
-                  <ScoreAdjustButton onClick={() => updateDraftScore(index, 1)}>+</ScoreAdjustButton>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    justifySelf: isMobile ? "end" : "center",
+                    width: isMobile ? "auto" : "100%",
+                  }}
+                >
+                  <ScoreAdjustButton onClick={() => updateDraftScore(index, -1)}>
+                    -
+                  </ScoreAdjustButton>
+                  <ScoreAdjustButton onClick={() => updateDraftScore(index, 1)}>
+                    +
+                  </ScoreAdjustButton>
                 </div>
               )}
 
@@ -282,11 +309,12 @@ export function PlayerProgressBoard({
                 style={{
                   justifySelf: "end",
                   alignSelf: "center",
-                  fontWeight: 900,
-                  fontSize: 22,
-                  minWidth: 48,
+                  fontWeight: 1000,
+                  fontSize: 24,
+                  minWidth: 56,
                   textAlign: "right",
                   color: score > 0 ? "#86efac" : score < 0 ? "#fca5a5" : "#f5efe6",
+                  gridColumn: isEditing && isMobile ? "1 / -1" : undefined,
                 }}
               >
                 {score > 0 ? `+${score}` : score}
