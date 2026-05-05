@@ -41,9 +41,20 @@ export function DobbelkingenPanel({
     phase === "CHOOSING_TROEF"
       ? typeof d?.troefChooserIndex === "number"
         ? d.troefChooserIndex
-        : 0
+        : typeof appState?.tableDealerSeat === "number"
+          ? appState.tableDealerSeat
+          : 0
       : typeof d?.chooserIndex === "number"
         ? d.chooserIndex
+        : typeof appState?.tableDealerSeat === "number"
+          ? appState.tableDealerSeat
+          : 0;
+
+  const dealerIndex =
+    typeof d?.chooserIndex === "number"
+      ? d.chooserIndex
+      : typeof appState?.tableDealerSeat === "number"
+        ? appState.tableDealerSeat
         : 0;
 
   const leaderIndex =
@@ -168,16 +179,38 @@ export function DobbelkingenPanel({
           >
             <div style={{ fontWeight: 800, fontSize: isMobile ? 15 : 28 }}>Dobbelkingen</div>
             <div style={{ color: colors.muted, marginTop: 1, fontSize: isMobile ? 11 : 15 }}>
-              {isReady ? "Nieuwe match" : isChoosingContract ? "Contract kiezen" : isChoosingTroef ? "Troef kiezen" : "Dobbelkingen"}
+              {isReady
+                ? "Nieuwe match"
+                : isChoosingContract
+                  ? "Contract kiezen"
+                  : isChoosingTroef
+                    ? "Troef kiezen"
+                    : "Dobbelkingen"}
             </div>
           </div>
 
           <div style={{ display: "flex", gap: compact ? 6 : 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-            <button onClick={() => setShowInfo(true)} style={{ ...buttonStyle(), padding: isMobile ? "8px 12px" : undefined, fontSize: isMobile ? 13 : undefined, minHeight: isMobile ? 40 : undefined }}>
+            <button
+              onClick={() => setShowInfo(true)}
+              style={{
+                ...buttonStyle(),
+                padding: isMobile ? "8px 12px" : undefined,
+                fontSize: isMobile ? 13 : undefined,
+                minHeight: isMobile ? 40 : undefined,
+              }}
+            >
               Info
             </button>
 
-            <button onClick={handleBackClick} style={{ ...buttonStyle("danger"), padding: isMobile ? "8px 12px" : undefined, fontSize: isMobile ? 13 : undefined, minHeight: isMobile ? 40 : undefined }}>
+            <button
+              onClick={handleBackClick}
+              style={{
+                ...buttonStyle("danger"),
+                padding: isMobile ? "8px 12px" : undefined,
+                fontSize: isMobile ? 13 : undefined,
+                minHeight: isMobile ? 40 : undefined,
+              }}
+            >
               Terug
             </button>
           </div>
@@ -198,13 +231,17 @@ export function DobbelkingenPanel({
                 Start een nieuwe match
               </div>
               <div style={{ color: colors.muted, lineHeight: 1.6, maxWidth: 620, fontSize: isMobile ? 16 : 16 }}>
-                {isMobile
-                  ? "Iedere speler kiest 2 contracten. Daarna volgt troef."
-                  : <>
-                      Iedere speler kiest 2 contracten.<br />
-                      Na fase 1 volgt fase 2 waarin troef gekozen wordt.<br />
-                      De speler na de troefkiezer komt uit in de eerste slag.
-                    </>}
+                {isMobile ? (
+                  "Iedere speler kiest 2 contracten. Daarna volgt troef."
+                ) : (
+                  <>
+                    Iedere speler kiest 2 contracten.
+                    <br />
+                    Na fase 1 volgt fase 2 waarin troef gekozen wordt.
+                    <br />
+                    De speler na de troefkiezer komt uit in de eerste slag.
+                  </>
+                )}
               </div>
             </div>
 
@@ -239,6 +276,7 @@ export function DobbelkingenPanel({
             mobileScale={mobileScale}
             mobileContractCardMinHeight={mobileContractCardMinHeight}
             chooserName={chooserName}
+            dealerIndex={dealerIndex}
             contractList={contractList}
             plays={plays}
             hoveredContract={hoveredContract}
@@ -264,6 +302,7 @@ export function DobbelkingenPanel({
             mobileScale={mobileScale}
             compact={compact}
             chooserName={chooserName}
+            dealerIndex={dealerIndex}
             leaderName={leaderName}
             hoveredTroef={hoveredTroef}
             setHoveredTroef={setHoveredTroef}

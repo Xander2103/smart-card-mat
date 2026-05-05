@@ -9,6 +9,7 @@ export function TroefSelectionSection({
   mobileScale,
   compact,
   chooserName,
+  dealerIndex,
   leaderName,
   hoveredTroef,
   setHoveredTroef,
@@ -108,6 +109,7 @@ export function TroefSelectionSection({
         <PlayerProgressBoard
           players={players}
           currentIndex={currentIndex}
+          dealerIndex={dealerIndex}
           totalScores={totalScores}
           roundDeltas={roundDeltas}
           progressCounts={troefPickCounts}

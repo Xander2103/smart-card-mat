@@ -11,6 +11,7 @@ export function ContractSelectionSection({
   mobileScale,
   mobileContractCardMinHeight,
   chooserName,
+  dealerIndex,
   contractList,
   plays,
   hoveredContract,
@@ -148,6 +149,7 @@ export function ContractSelectionSection({
         <PlayerProgressBoard
           players={players}
           currentIndex={currentIndex}
+          dealerIndex={dealerIndex}
           totalScores={totalScores}
           roundDeltas={roundDeltas}
           progressCounts={phase1PickCounts}
