@@ -81,10 +81,6 @@ function getSetupError(slice, playersCount) {
     return "Kies een troefkleur.";
   }
 
-  if (contract.id === "TROEL" && !["ownTrump", "otherTrump"].includes(slice?.troelTargetMode)) {
-    return "Kies voor troel of de partner eigen troef of andere troef speelt.";
-  }
-
   const starterSeat = getCalculatedStarterSeat(slice, playersCount);
   if (starterSeat == null) return "Kan de eerste uitkomst niet bepalen.";
 
@@ -246,10 +242,6 @@ export function reduceKleurenwiezen(state, action) {
     if (field === "trumpSuit") {
       value = String(value ?? "").toUpperCase();
       value = ["H", "D", "C", "S"].includes(value) ? value : null;
-    }
-
-    if (field === "troelTargetMode") {
-      value = value === "otherTrump" ? "otherTrump" : "ownTrump";
     }
 
     const nextSlice = syncDerivedFields({ ...slice, [field]: value }, playersCount);

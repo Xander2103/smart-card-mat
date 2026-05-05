@@ -153,7 +153,6 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
     if (contract.needsPartner && typeof slice?.partnerSeat !== "number") return false;
     if (contract.needsPartner && slice?.partnerSeat === slice?.declarantSeat) return false;
     if (contract.needsTrump && !slice?.trumpSuit) return false;
-    if (contract.id === "TROEL" && !["ownTrump", "otherTrump"].includes(slice?.troelTargetMode)) return false;
 
     return true;
   }, [
@@ -335,7 +334,14 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
             ) : null}
 
             {contract?.needsTrump ? (
-              <Section title={contract?.id === "TROEL" ? "3. Troef en troel-modus" : contract?.needsPartner ? "3. Troef" : "2. Troef"} subtitle="De tafel kiest troef in het echt. Vul hier alleen het resultaat in zodat de app daarna alles automatisch kan volgen.">
+              <Section
+                title={contract?.needsPartner ? "3. Troef" : "2. Troef"}
+                subtitle={
+                  contract?.id === "TROEL"
+                    ? "Kies de troefkleur. Troel wint vanaf 9 slagen; bij 13 slagen krijgen de troelspelers de hoogste score."
+                    : "De tafel kiest troef in het echt. Vul hier alleen het resultaat in zodat de app daarna alles automatisch kan volgen."
+                }
+              >
                 <ChoiceGrid min={180}>
                   {TRUMPS.map((item) => (
                     <SelectButton
@@ -353,38 +359,6 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
                     />
                   ))}
                 </ChoiceGrid>
-
-                {contract?.id === "TROEL" ? (
-                  <div style={{ display: "grid", gap: 10 }}>
-                    <div style={{ fontWeight: 800 }}>Troel-doel</div>
-                    <ChoiceGrid min={220}>
-                      <SelectButton
-                        active={slice?.troelTargetMode !== "otherTrump"}
-                        onClick={() =>
-                          dispatchAction?.({
-                            type: "set_kleurenwiezen_setup_field",
-                            field: "troelTargetMode",
-                            value: "ownTrump",
-                          })
-                        }
-                        title="Partner kiest eigen troef"
-                        body="Doel: 8 slagen halen."
-                      />
-                      <SelectButton
-                        active={slice?.troelTargetMode === "otherTrump"}
-                        onClick={() =>
-                          dispatchAction?.({
-                            type: "set_kleurenwiezen_setup_field",
-                            field: "troelTargetMode",
-                            value: "otherTrump",
-                          })
-                        }
-                        title="Partner kiest andere troef"
-                        body="Doel: 9 slagen halen."
-                      />
-                    </ChoiceGrid>
-                  </div>
-                ) : null}
               </Section>
             ) : null}
 

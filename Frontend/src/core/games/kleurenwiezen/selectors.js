@@ -22,26 +22,74 @@ export function getContractLabel(contractId) {
 
 export function getTrickWinsByPlayer(trickHistory = [], playersCount = 4) {
   const wins = Array(playersCount).fill(0);
+
   for (const trick of trickHistory ?? []) {
     const winnerIndex = trick?.winnerIndex;
-    if (typeof winnerIndex === "number" && winnerIndex >= 0 && winnerIndex < playersCount) {
+
+    if (
+      typeof winnerIndex === "number" &&
+      winnerIndex >= 0 &&
+      winnerIndex < playersCount
+    ) {
       wins[winnerIndex] += 1;
     }
   }
+
   return wins;
+}
+
+function getDeclarantSeats(slice) {
+  if (Array.isArray(slice?.declarantSeats) && slice.declarantSeats.length > 0) {
+    return slice.declarantSeats;
+  }
+
+  if (typeof slice?.declarantSeat === "number") {
+    return [slice.declarantSeat];
+  }
+
+  return [];
 }
 
 export function getAttackSeatSet(slice) {
   const contract = getKleurenwiezenContract(slice?.contractId);
   const attackSeats = new Set();
-  if (typeof slice?.declarantSeat === "number") attackSeats.add(slice.declarantSeat);
-  if (contract?.needsPartner && typeof slice?.partnerSeat === "number") attackSeats.add(slice.partnerSeat);
+
+  if (contract?.allowMultipleDeclarants) {
+    for (const seat of getDeclarantSeats(slice)) {
+      if (typeof seat === "number") {
+        attackSeats.add(seat);
+      }
+    }
+
+    return attackSeats;
+  }
+
+  if (typeof slice?.declarantSeat === "number") {
+    attackSeats.add(slice.declarantSeat);
+  }
+
+  if (contract?.needsPartner && typeof slice?.partnerSeat === "number") {
+    attackSeats.add(slice.partnerSeat);
+  }
+
   return attackSeats;
 }
 
 export function getFriendlyTeamLabel(slice, players = []) {
   const contract = getKleurenwiezenContract(slice?.contractId);
   if (!contract) return "—";
+
+  if (contract.allowMultipleDeclarants) {
+    const seats = getDeclarantSeats(slice);
+
+    if (seats.length === 0) {
+      return "Nog geen spelers";
+    }
+
+    return seats
+      .map((seat) => players?.[seat]?.name ?? `Player ${seat + 1}`)
+      .join(" + ");
+  }
 
   const declarantName =
     typeof slice?.declarantSeat === "number"
@@ -69,8 +117,11 @@ export function getTeamTrickSummary(slice, players = []) {
   let defenseTricks = 0;
 
   trickWins.forEach((count, index) => {
-    if (attackSeats.has(index)) attackTricks += count;
-    else defenseTricks += count;
+    if (attackSeats.has(index)) {
+      attackTricks += count;
+    } else {
+      defenseTricks += count;
+    }
   });
 
   return {
@@ -82,12 +133,12 @@ export function getTeamTrickSummary(slice, players = []) {
 }
 
 function getSuccessPoints(contract, actualAttackTricks, targetTricks, slice) {
-  if (contract.id === "TROEL") {
-    return slice?.troelTargetMode === "otherTrump" ? contract.troelSuccessOther : contract.troelSuccessOwn;
-  }
-
   if (Array.isArray(contract.successScores) && contract.successScores.length > 0) {
-    const index = Math.max(0, Math.min(contract.successScores.length - 1, actualAttackTricks - targetTricks));
+    const index = Math.max(
+      0,
+      Math.min(contract.successScores.length - 1, actualAttackTricks - targetTricks)
+    );
+
     return contract.successScores[index];
   }
 
@@ -95,41 +146,38 @@ function getSuccessPoints(contract, actualAttackTricks, targetTricks, slice) {
 }
 
 function getFailPlayersPoints(contract, actualAttackTricks, targetTricks) {
-  if (typeof contract.failPlayersPoints === "number") return contract.failPlayersPoints;
+  if (typeof contract.failPlayersPoints === "number") {
+    return contract.failPlayersPoints;
+  }
+
   const under = Math.max(1, targetTricks - actualAttackTricks);
   const value = (contract.failStart ?? 0) + (under - 1) * (contract.failStep ?? 0);
   const limited = typeof contract.failMax === "number" ? Math.min(contract.failMax, value) : value;
+
   return -limited;
 }
 
 function getFailOppPoints(contract, actualAttackTricks, targetTricks) {
-  if (typeof contract.failOppPoints === "number") return contract.failOppPoints;
+  if (typeof contract.failOppPoints === "number") {
+    return contract.failOppPoints;
+  }
+
   const under = Math.max(1, targetTricks - actualAttackTricks);
   const value = (contract.failOppBase ?? 0) + (under - 1) * (contract.failOppStep ?? 0);
+
   return typeof contract.failOppMax === "number" ? Math.min(contract.failOppMax, value) : value;
-}
-
-function getDeclarantSeats(slice) {
-  if (Array.isArray(slice?.declarantSeats) && slice.declarantSeats.length > 0) {
-    return slice.declarantSeats;
-  }
-
-  if (typeof slice?.declarantSeat === "number") {
-    return [slice.declarantSeat];
-  }
-
-  return [];
 }
 
 function applyMiseriePiccoloTableScore({ contract, slice, playersCount }) {
   const playerDeltas = Array(playersCount).fill(0);
   const declarantSeats = getDeclarantSeats(slice);
   const declarantSet = new Set(declarantSeats);
+  const trickWinsByPlayer = getTrickWinsByPlayer(slice?.trickHistory ?? [], playersCount);
 
   let failedDeclarants = 0;
 
   for (const seat of declarantSeats) {
-    const tricksWon = getTrickWinsByPlayer(slice?.trickHistory ?? [], playersCount)[seat] ?? 0;
+    const tricksWon = trickWinsByPlayer[seat] ?? 0;
 
     const succeeded =
       contract.targetType === "exact"
@@ -208,7 +256,33 @@ export function evaluateRound(slice, players = []) {
     };
   }
 
-  if (contract.scoringType === "pairTable") {
+  if (contract.scoringType === "troelTable") {
+    let troelScore = 0;
+    let opponentScore = 15;
+
+    if (actual === 13) {
+      troelScore = contract.bonusAllTricksPoints ?? 30;
+      opponentScore = 0;
+    } else if (actual >= 9) {
+      troelScore = contract.successPoints ?? 15;
+      opponentScore = 0;
+    }
+
+    attackPoints = troelScore;
+    defensePoints = opponentScore;
+
+    attackSeats.forEach((seat) => {
+      if (seat >= 0 && seat < playerCount) {
+        playerDeltas[seat] += troelScore;
+      }
+    });
+
+    for (let i = 0; i < playerCount; i += 1) {
+      if (!attackSeats.has(i)) {
+        playerDeltas[i] += opponentScore;
+      }
+    }
+  } else if (contract.scoringType === "pairTable") {
     const pairScore = success
       ? getSuccessPoints(contract, actual, targetTricks, slice)
       : getFailPlayersPoints(contract, actual, targetTricks);
