@@ -1,12 +1,25 @@
 import { API_BASE_URL } from "./apiConfig";
+import { getAuthToken } from "./authStorage";
+
+function createAuthHeaders() {
+  const token = getAuthToken();
+
+  const headers = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
+}
 
 export async function saveMatchToApi(matchRecord) {
   const response = await fetch(`${API_BASE_URL}/matches`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-    },
+    headers: createAuthHeaders(),
     body: JSON.stringify(matchRecord),
   });
 
@@ -24,13 +37,15 @@ export async function saveMatchToApi(matchRecord) {
 export async function getMatchesFromApi() {
   const response = await fetch(`${API_BASE_URL}/matches`, {
     method: "GET",
-    headers: {
-      "Accept": "application/json",
-    },
+    headers: createAuthHeaders(),
   });
 
   if (!response.ok) {
-    throw new Error(`Match API fetch failed with status ${response.status}`);
+    const errorData = await response.json().catch(() => null);
+
+    throw new Error(
+      errorData?.message ?? `Match API fetch failed with status ${response.status}`
+    );
   }
 
   return response.json();

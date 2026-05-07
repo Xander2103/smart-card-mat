@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "../styles/App.css";
 
+import { getCurrentUser } from "../core/api/authApi";
 import { parseEvent } from "../core/protocol/parseEvent";
 import { applyAppAction } from "../core/state/applyAppAction";
 import { applyRootEvent } from "../core/state/rootEvents";
@@ -14,6 +15,7 @@ import { SettingsScreen } from "../ui/screens/SettingsScreen";
 import { PlayersScreen } from "../ui/screens/PlayersScreen";
 import { HistoryScreen } from "../ui/screens/HistoryScreen";
 import { StatsScreen } from "../ui/screens/StatsScreen";
+import { AuthModal } from "../ui/auth/AuthModal";
 import { useViewport } from "../ui/play/useViewport";
 
 import { CARD_BY_CODE } from "../core/mapping/deck52";
@@ -39,9 +41,11 @@ export default function App() {
 
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showBlePanel, setShowBlePanel] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [lockToast, setLockToast] = useState(false);
   const [mobileHeaderExpanded, setMobileHeaderExpanded] = useState(true);
   const [tab, setTab] = useState("play");
+  const [authUser, setAuthUser] = useState(null);
 
   const [appState, setAppState] = useState(() =>
     createInitialState({ zonesCount: ZONES })
@@ -49,6 +53,17 @@ export default function App() {
 
   const dispatchAction = useCallback((action) => {
     setAppState((prev) => applyAppAction(prev, action));
+  }, []);
+
+  useEffect(() => {
+    getCurrentUser()
+      .then((user) => {
+        setAuthUser(user);
+      })
+      .catch((error) => {
+        console.warn("Current user check failed:", error);
+        setAuthUser(null);
+      });
   }, []);
 
   const handleLine = useCallback((line) => {
@@ -134,7 +149,9 @@ export default function App() {
 
   useEffect(() => {
     if (!lockToast) return undefined;
+
     const id = window.setTimeout(() => setLockToast(false), 2500);
+
     return () => window.clearTimeout(id);
   }, [lockToast]);
 
@@ -158,7 +175,7 @@ export default function App() {
     dispatchAction({ type: "select_uid", uid });
   }
 
-  //dev simulates
+  // Dev simulates
   function handleSimulateDevCard({ zone, cardCode, action }) {
     const uid = `DEV_${cardCode}`;
 
@@ -179,89 +196,69 @@ export default function App() {
   }
 
   function handleSimulateRandomContract() {
-  setAppState((prev) => {
-    let nextState = prev;
+    setAppState((prev) => {
+      let nextState = prev;
 
-    const allCardCodes = Object.keys(CARD_BY_CODE);
+      const allCardCodes = Object.keys(CARD_BY_CODE);
 
-    const activeGameKey =
-      nextState.modeId === "kleurenwiezen" ? "kleurenwiezen" : "dobbelkingen";
+      const activeGameKey =
+        nextState.modeId === "kleurenwiezen" ? "kleurenwiezen" : "dobbelkingen";
 
-    const activeSlice = nextState.game?.[activeGameKey] ?? {};
-    const alreadyUsed = activeSlice.usedCardSet ?? {};
+      const activeSlice = nextState.game?.[activeGameKey] ?? {};
+      const alreadyUsed = activeSlice.usedCardSet ?? {};
 
-    let availableCards = allCardCodes.filter((cardCode) => !alreadyUsed[cardCode]);
+      let availableCards = allCardCodes.filter(
+        (cardCode) => !alreadyUsed[cardCode]
+      );
 
-    // Shuffle
-    availableCards = availableCards
-      .map((cardCode) => ({ cardCode, sort: Math.random() }))
-      .sort((a, b) => a.sort - b.sort)
-      .map((entry) => entry.cardCode);
+      // Shuffle
+      availableCards = availableCards
+        .map((cardCode) => ({ cardCode, sort: Math.random() }))
+        .sort((a, b) => a.sort - b.sort)
+        .map((entry) => entry.cardCode);
 
-    for (let i = 0; i < 52; i++) {
-      const currentSlice = nextState.game?.[activeGameKey] ?? {};
+      for (let i = 0; i < 52; i++) {
+        const currentSlice = nextState.game?.[activeGameKey] ?? {};
 
-      if (nextState.phase !== "PLAYING_TRICK") break;
-      if (currentSlice.roundFinished) break;
-      if (availableCards.length === 0) break;
+        if (nextState.phase !== "PLAYING_TRICK") break;
+        if (currentSlice.roundFinished) break;
+        if (availableCards.length === 0) break;
 
-      const currentPlayerIndex =
-        typeof currentSlice.currentPlayerIndex === "number"
-          ? currentSlice.currentPlayerIndex
-          : typeof nextState.currentPlayerIndex === "number"
-            ? nextState.currentPlayerIndex
-            : 0;
+        const currentPlayerIndex =
+          typeof currentSlice.currentPlayerIndex === "number"
+            ? currentSlice.currentPlayerIndex
+            : typeof nextState.currentPlayerIndex === "number"
+              ? nextState.currentPlayerIndex
+              : 0;
 
-      const zone = currentPlayerIndex + 1;
-      const cardCode = availableCards.shift();
-      const uid = `DEV_AUTO_${cardCode}`;
+        const zone = currentPlayerIndex + 1;
+        const cardCode = availableCards.shift();
+        const uid = `DEV_AUTO_${cardCode}`;
 
-      nextState = applyAppAction(nextState, {
-        type: "assign_uid_to_card",
-        uid,
-        cardName: cardCode,
-      });
+        nextState = applyAppAction(nextState, {
+          type: "assign_uid_to_card",
+          uid,
+          cardName: cardCode,
+        });
 
-      nextState = applyRootEvent(nextState, {
-        type: "placed",
-        zone,
-        uid,
-        raw: `DEV_AUTO|PLACED|ZONE=${zone}|CARD=${cardCode}|UID=${uid}`,
-      });
+        nextState = applyRootEvent(nextState, {
+          type: "placed",
+          zone,
+          uid,
+          raw: `DEV_AUTO|PLACED|ZONE=${zone}|CARD=${cardCode}|UID=${uid}`,
+        });
 
-      nextState = applyAppAction(nextState, {
-        type: "confirm_turn",
-      });
-    }
+        nextState = applyAppAction(nextState, {
+          type: "confirm_turn",
+        });
+      }
 
-    return nextState;
-  });
-}
-
-  async function testLaravelApi() {
-    const response = await fetch("http://127.0.0.1:8000/api/matches", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        mode: "dobbelkingen",
-        players: ["Xander", "Player 2"],
-        winner: "Xander"
-      })
+      return nextState;
     });
-
-    const data = await response.json();
-
-    console.log(data);
-    alert("Match gestuurd!");
   }
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <button type="button" onClick={testLaravelApi}>
-        Test Laravel API
-      </button>
       <style>{`
         @keyframes blePulseRed {
           0% { box-shadow: 0 0 0 0 rgba(248,113,113,0.32), 0 0 10px rgba(248,113,113,0.18); }
@@ -273,6 +270,8 @@ export default function App() {
       <AppHeader
         theme={appTheme}
         appState={appState}
+        authUser={authUser}
+        onOpenAuth={() => setShowAuthModal(true)}
         isMobile={isMobile}
         isLandscape={isLandscape}
         tab={tab}
@@ -337,6 +336,7 @@ export default function App() {
       )}
 
       {tab === "history" && <HistoryScreen />}
+
       {tab === "stats" && <StatsScreen />}
 
       {tab === "deck" && (
@@ -356,6 +356,14 @@ export default function App() {
         theme={appTheme}
         open={showDisconnectModal}
         onClose={() => setShowDisconnectModal(false)}
+      />
+
+      <AuthModal
+        open={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        user={authUser}
+        onAuthChange={setAuthUser}
+        theme={appTheme}
       />
     </div>
   );

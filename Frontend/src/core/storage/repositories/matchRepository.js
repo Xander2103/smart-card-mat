@@ -3,6 +3,7 @@ import { localStorageAdapter } from "../adapter/localStorageAdapter";
 import { createId } from "../../utils/id";
 import { nowIso } from "../../utils/time";
 import { saveMatchToApi } from "../../api/matchApi";
+import { getAuthToken } from "../../api/authStorage";
 
 function validateMatchRecord(matchData) {
   if (!matchData?.gameType) {
@@ -36,6 +37,19 @@ function updateStoredMatch(matchId, updates) {
 }
 
 function syncMatchToApi(match) {
+  const token = getAuthToken();
+
+  if (!token) {
+    updateStoredMatch(match.id, {
+      apiSyncStatus: "local_only",
+      syncError: null,
+      lastSyncAttemptAt: null,
+    });
+
+    console.info("Match saved locally only because no user is logged in.");
+    return;
+  }
+
   saveMatchToApi(match)
     .then((savedMatch) => {
       updateStoredMatch(match.id, {
