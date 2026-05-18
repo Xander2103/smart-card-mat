@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import "../styles/App.css";
 
 import { getCurrentUser } from "../core/api/authApi";
+import { getFriendsOverview } from "../core/api/friendApi";
 import { parseEvent } from "../core/protocol/parseEvent";
 import { applyAppAction } from "../core/state/applyAppAction";
 import { applyRootEvent } from "../core/state/rootEvents";
@@ -13,6 +14,7 @@ import { PlayScreen } from "../ui/screens/PlayScreen";
 import { DeckSetupScreen } from "../ui/screens/DeckSetupScreen";
 import { SettingsScreen } from "../ui/screens/SettingsScreen";
 import { PlayersScreen } from "../ui/screens/PlayersScreen";
+import { FriendsScreen } from "../ui/screens/FriendsScreen";
 import { HistoryScreen } from "../ui/screens/HistoryScreen";
 import { StatsScreen } from "../ui/screens/StatsScreen";
 import { AuthModal } from "../ui/auth/AuthModal";
@@ -46,6 +48,7 @@ export default function App() {
   const [mobileHeaderExpanded, setMobileHeaderExpanded] = useState(true);
   const [tab, setTab] = useState("play");
   const [authUser, setAuthUser] = useState(null);
+  const [friendRequestCount, setFriendRequestCount] = useState(0);
 
   const [appState, setAppState] = useState(() =>
     createInitialState({ zonesCount: ZONES })
@@ -54,6 +57,21 @@ export default function App() {
   const dispatchAction = useCallback((action) => {
     setAppState((prev) => applyAppAction(prev, action));
   }, []);
+
+  const refreshFriendRequestCount = useCallback(async () => {
+    if (!authUser) {
+      setFriendRequestCount(0);
+      return;
+    }
+
+    try {
+      const data = await getFriendsOverview();
+      setFriendRequestCount(data?.incomingRequests?.length ?? 0);
+    } catch (error) {
+      console.warn("Friend request count check failed:", error);
+      setFriendRequestCount(0);
+    }
+  }, [authUser]);
 
   useEffect(() => {
     getCurrentUser()
@@ -65,6 +83,25 @@ export default function App() {
         setAuthUser(null);
       });
   }, []);
+
+  useEffect(() => {
+    refreshFriendRequestCount();
+  }, [refreshFriendRequestCount]);
+
+  useEffect(() => {
+    function handleFriendsChanged() {
+      refreshFriendRequestCount();
+    }
+
+    window.addEventListener("smartcardmat:friends-changed", handleFriendsChanged);
+
+    return () => {
+      window.removeEventListener(
+        "smartcardmat:friends-changed",
+        handleFriendsChanged
+      );
+    };
+  }, [refreshFriendRequestCount]);
 
   const handleLine = useCallback((line) => {
     const cleaned = (line ?? "").trim();
@@ -271,6 +308,7 @@ export default function App() {
         theme={appTheme}
         appState={appState}
         authUser={authUser}
+        friendRequestCount={friendRequestCount}
         onOpenAuth={() => setShowAuthModal(true)}
         isMobile={isMobile}
         isLandscape={isLandscape}
@@ -333,6 +371,13 @@ export default function App() {
           dispatchAction={dispatchAction}
           locked={playersLocked}
           onGoPlay={() => setTab("play")}
+        />
+      )}
+
+      {tab === "friends" && (
+        <FriendsScreen
+          authUser={authUser}
+          onOpenAuth={() => setShowAuthModal(true)}
         />
       )}
 

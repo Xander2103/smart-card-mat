@@ -4,11 +4,42 @@ import { AuthButton } from "../ui/auth/AuthButton";
 import { BluetoothIcon } from "./BluetoothIcon";
 import { APP_TABS } from "./appTheme";
 
+function FriendBadge({ count }) {
+  if (!count || count <= 0) return null;
+
+  return (
+    <span
+      style={{
+        position: "absolute",
+        top: -8,
+        right: -10,
+        minWidth: 20,
+        height: 20,
+        padding: "0 6px",
+        borderRadius: 999,
+        background: "#dc2626",
+        color: "white",
+        fontSize: 11,
+        fontWeight: 1000,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        boxShadow: "0 0 0 2px rgba(39,27,21,0.95)",
+        lineHeight: 1,
+        zIndex: 2,
+      }}
+    >
+      {count > 9 ? "9+" : count}
+    </span>
+  );
+}
+
 function HeaderMenuGrid({
   isLandscape,
   isCompact,
   tab,
   playersLocked,
+  friendRequestCount = 0,
   onSelectTab,
   buttonStyle,
 }) {
@@ -31,6 +62,8 @@ function HeaderMenuGrid({
       {APP_TABS.map((item) => {
         const active = tab === item.value;
         const locked = item.value === "players" && playersLocked;
+        const showFriendBadge =
+          item.value === "friends" && friendRequestCount > 0;
 
         return (
           <button
@@ -38,6 +71,7 @@ function HeaderMenuGrid({
             onClick={() => onSelectTab(item.value)}
             style={{
               ...buttonStyle,
+              position: "relative",
               minHeight: isCompact ? 58 : 60,
               padding: "12px 10px",
               borderRadius: isCompact ? 16 : 18,
@@ -56,7 +90,32 @@ function HeaderMenuGrid({
               textDecoration: locked ? "line-through" : "none",
             }}
           >
-            {item.label}
+            <span>{item.label}</span>
+
+            {showFriendBadge ? (
+              <span
+                style={{
+                  position: "absolute",
+                  top: 7,
+                  right: 8,
+                  minWidth: 20,
+                  height: 20,
+                  padding: "0 6px",
+                  borderRadius: 999,
+                  background: "#dc2626",
+                  color: "white",
+                  fontSize: 11,
+                  fontWeight: 1000,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 0 0 2px rgba(39,27,21,0.95)",
+                  lineHeight: 1,
+                }}
+              >
+                {friendRequestCount > 9 ? "9+" : friendRequestCount}
+              </span>
+            ) : null}
           </button>
         );
       })}
@@ -68,6 +127,7 @@ export function AppHeader({
   theme,
   appState,
   authUser,
+  friendRequestCount = 0,
   onOpenAuth,
   isMobile,
   isLandscape,
@@ -101,6 +161,41 @@ export function AppHeader({
     setTab(nextTab);
     setShowMobileMenu(false);
   };
+
+  function renderDesktopTabs() {
+    return (
+      <Tabs
+        value={tab}
+        onChange={handleTabSelect}
+        items={APP_TABS.map((item) => {
+          const isFriends = item.value === "friends";
+          const showFriendBadge = isFriends && friendRequestCount > 0;
+          const isLockedPlayers = item.value === "players" && playersLocked;
+
+          return {
+            value: item.value,
+            label: (
+              <span
+                style={{
+                  position: "relative",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  paddingRight: showFriendBadge ? 12 : 0,
+                  color: isLockedPlayers ? "#f87171" : undefined,
+                  textDecoration: isLockedPlayers ? "line-through" : "none",
+                }}
+              >
+                {item.label}
+                <FriendBadge count={showFriendBadge ? friendRequestCount : 0} />
+              </span>
+            ),
+          };
+        })}
+      />
+    );
+  }
 
   if (mobileCompactHeader) {
     if (!compactHeaderVisible) {
@@ -140,7 +235,7 @@ export function AppHeader({
         >
           <button
             onClick={() => {
-              setShowMobileMenu((v) => !v);
+              setShowMobileMenu((value) => !value);
               setShowBlePanel(false);
             }}
             style={{
@@ -177,47 +272,34 @@ export function AppHeader({
             </div>
           </div>
 
-          <div
+          <button
+            onClick={() => {
+              setShowBlePanel((value) => !value);
+              setShowMobileMenu(false);
+            }}
+            aria-label={`Bluetooth ${bleStatus}`}
+            title={`Bluetooth ${bleStatus}`}
             style={{
-              display: "flex",
+              ...theme.button,
+              width: mobileTableOnlyMode ? 42 : 46,
+              height: mobileTableOnlyMode ? 42 : 46,
+              borderRadius: 999,
+              padding: 0,
+              border: `1px solid ${statusColor}66`,
+              background: `${statusColor}14`,
+              boxShadow: bleGlow,
+              animation:
+                bleStatus !== "connected" ? "blePulseRed 1.8s infinite" : undefined,
+              display: "inline-flex",
               alignItems: "center",
-              justifyContent: "flex-end",
-              gap: 8,
+              justifyContent: "center",
             }}
           >
-            <AuthButton
-              user={authUser}
-              isMobile
-              onClick={onOpenAuth}
-              theme={theme}
+            <BluetoothIcon
+              size={mobileTableOnlyMode ? 18 : 20}
+              color={statusColor}
             />
-
-            <button
-              onClick={() => {
-                setShowBlePanel((v) => !v);
-                setShowMobileMenu(false);
-              }}
-              aria-label={`Bluetooth ${bleStatus}`}
-              title={`Bluetooth ${bleStatus}`}
-              style={{
-                ...theme.button,
-                width: mobileTableOnlyMode ? 42 : 46,
-                height: mobileTableOnlyMode ? 42 : 46,
-                borderRadius: 999,
-                padding: 0,
-                border: `1px solid ${statusColor}66`,
-                background: `${statusColor}14`,
-                boxShadow: bleGlow,
-                animation:
-                  bleStatus !== "connected" ? "blePulseRed 1.8s infinite" : undefined,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <BluetoothIcon size={mobileTableOnlyMode ? 18 : 20} color={statusColor} />
-            </button>
-          </div>
+          </button>
         </div>
 
         {showBlePanel ? (
@@ -234,12 +316,13 @@ export function AppHeader({
               style={{
                 ...theme.button,
                 opacity:
-                  bleStatus === "connected" || bleStatus === "connecting..." ? 0.55 : 1,
+                  bleStatus === "connected" || bleStatus === "connecting..."
+                    ? 0.55
+                    : 1,
               }}
             >
               Connect BLE
             </button>
-
             <button
               onClick={disconnectBle}
               disabled={bleStatus !== "connected"}
@@ -259,6 +342,7 @@ export function AppHeader({
             isCompact
             tab={tab}
             playersLocked={playersLocked}
+            friendRequestCount={friendRequestCount}
             onSelectTab={handleTabSelect}
             buttonStyle={theme.button}
           />
@@ -300,7 +384,7 @@ export function AppHeader({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: isMobile ? "auto 1fr auto" : "1fr auto",
+            gridTemplateColumns: isMobile ? "auto 1fr auto auto" : "1fr auto auto",
             alignItems: "center",
             gap: 14,
           }}
@@ -308,7 +392,7 @@ export function AppHeader({
           {isMobile ? (
             <button
               onClick={() => {
-                setShowMobileMenu((v) => !v);
+                setShowMobileMenu((value) => !value);
                 setShowBlePanel(false);
               }}
               style={{
@@ -324,8 +408,7 @@ export function AppHeader({
             <div style={{ minWidth: 0 }}>
               <h1 style={{ margin: 0, fontSize: 34 }}>Smart Card Mat</h1>
               <div style={{ marginTop: 6, color: "#c8b6a1", maxWidth: "100%" }}>
-                RFID kaartdetectie, spelmodi en live scoring in een donkere tavern
-                card-table look.
+                RFID kaartdetectie, spelmodi en live scoring in een donkere tavern card-table look.
               </div>
             </div>
           )}
@@ -340,51 +423,42 @@ export function AppHeader({
             </div>
           ) : null}
 
-          <div
+          <AuthButton
+            user={authUser}
+            isMobile={isMobile}
+            onClick={onOpenAuth}
+            theme={theme}
+          />
+
+          <button
+            onClick={() => {
+              setShowBlePanel((value) => !value);
+              if (isMobile) setShowMobileMenu(false);
+            }}
+            aria-label={`Bluetooth ${bleStatus}`}
+            title={`Bluetooth ${bleStatus}`}
             style={{
-              display: "flex",
+              ...theme.button,
+              width: isMobile ? 48 : "auto",
+              minWidth: isMobile ? 48 : 150,
+              height: isMobile ? 48 : 52,
+              borderRadius: 999,
+              padding: isMobile ? 0 : "0 16px",
+              border: `1px solid ${statusColor}66`,
+              background: `${statusColor}14`,
+              boxShadow: bleGlow,
+              animation:
+                bleStatus !== "connected" ? "blePulseRed 1.8s infinite" : undefined,
+              display: "inline-flex",
               alignItems: "center",
-              justifyContent: "flex-end",
-              gap: 10,
+              justifyContent: "center",
               justifySelf: "end",
+              gap: 10,
             }}
           >
-            <AuthButton
-              user={authUser}
-              isMobile={isMobile}
-              onClick={onOpenAuth}
-              theme={theme}
-            />
-
-            <button
-              onClick={() => {
-                setShowBlePanel((v) => !v);
-                if (isMobile) setShowMobileMenu(false);
-              }}
-              aria-label={`Bluetooth ${bleStatus}`}
-              title={`Bluetooth ${bleStatus}`}
-              style={{
-                ...theme.button,
-                width: isMobile ? 48 : "auto",
-                minWidth: isMobile ? 48 : 150,
-                height: isMobile ? 48 : 52,
-                borderRadius: 999,
-                padding: isMobile ? 0 : "0 16px",
-                border: `1px solid ${statusColor}66`,
-                background: `${statusColor}14`,
-                boxShadow: bleGlow,
-                animation:
-                  bleStatus !== "connected" ? "blePulseRed 1.8s infinite" : undefined,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 10,
-              }}
-            >
-              <BluetoothIcon size={isMobile ? 20 : 22} color={statusColor} />
-              {!isMobile ? <span style={{ fontWeight: 900 }}>Bluetooth</span> : null}
-            </button>
-          </div>
+            <BluetoothIcon size={isMobile ? 20 : 22} color={statusColor} />
+            {!isMobile ? <span style={{ fontWeight: 900 }}>Bluetooth</span> : null}
+          </button>
         </div>
 
         {showBlePanel ? (
@@ -415,19 +489,19 @@ export function AppHeader({
               <BluetoothIcon size={16} color={statusColor} />
               {bleStatus}
             </div>
-
             <button
               onClick={connectBle}
               disabled={bleStatus === "connected" || bleStatus === "connecting..."}
               style={{
                 ...theme.button,
                 opacity:
-                  bleStatus === "connected" || bleStatus === "connecting..." ? 0.55 : 1,
+                  bleStatus === "connected" || bleStatus === "connecting..."
+                    ? 0.55
+                    : 1,
               }}
             >
               Connect BLE
             </button>
-
             <button
               onClick={disconnectBle}
               disabled={bleStatus !== "connected"}
@@ -447,32 +521,13 @@ export function AppHeader({
               isLandscape={isLandscape}
               tab={tab}
               playersLocked={playersLocked}
+              friendRequestCount={friendRequestCount}
               onSelectTab={handleTabSelect}
               buttonStyle={theme.button}
             />
           ) : null
         ) : (
-          <Tabs
-            value={tab}
-            onChange={handleTabSelect}
-            items={APP_TABS.map((item) => ({
-              value: item.value,
-              label:
-                item.value === "players" ? (
-                  <span
-                    style={
-                      playersLocked
-                        ? { color: "#f87171", textDecoration: "line-through" }
-                        : undefined
-                    }
-                  >
-                    {item.label}
-                  </span>
-                ) : (
-                  item.label
-                ),
-            }))}
-          />
+          renderDesktopTabs()
         )}
 
         {!hasEnoughPlayers ? (

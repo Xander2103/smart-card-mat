@@ -22,6 +22,7 @@ export const appTheme = {
 export const APP_TABS = [
   { value: "play", label: "Play" },
   { value: "players", label: "Players", locked: true },
+  { value: "friends", label: "Friends" },
   { value: "history", label: "History" },
   { value: "stats", label: "Stats" },
   { value: "deck", label: "Deck Setup" },

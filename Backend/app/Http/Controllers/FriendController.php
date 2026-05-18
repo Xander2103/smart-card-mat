@@ -24,7 +24,7 @@ class FriendController extends Controller
             ->get();
 
         $friends = $friendships
-            ->filter(fn (Friendship $friendship) => $friendship->status === Friendship::STATUS_ACCEPTED)
+            ->filter(fn(Friendship $friendship) => $friendship->status === Friendship::STATUS_ACCEPTED)
             ->map(function (Friendship $friendship) use ($userId) {
                 return $friendship->requester_id === $userId
                     ? $friendship->receiver
@@ -33,16 +33,18 @@ class FriendController extends Controller
             ->values();
 
         $incomingRequests = $friendships
-            ->filter(fn (Friendship $friendship) =>
+            ->filter(
+                fn(Friendship $friendship) =>
                 $friendship->status === Friendship::STATUS_PENDING
-                && $friendship->receiver_id === $userId
+                    && $friendship->receiver_id === $userId
             )
             ->values();
 
         $outgoingRequests = $friendships
-            ->filter(fn (Friendship $friendship) =>
+            ->filter(
+                fn(Friendship $friendship) =>
                 $friendship->status === Friendship::STATUS_PENDING
-                && $friendship->requester_id === $userId
+                    && $friendship->requester_id === $userId
             )
             ->values();
 
@@ -82,6 +84,22 @@ class FriendController extends Controller
             ->first();
 
         if ($existingFriendship) {
+            if ($existingFriendship->status === Friendship::STATUS_REJECTED) {
+                $existingFriendship->update([
+                    'requester_id' => $requesterId,
+                    'receiver_id' => $receiverId,
+                    'status' => Friendship::STATUS_PENDING,
+                ]);
+
+                return response()->json([
+                    'message' => 'Vriendschapsverzoek opnieuw verstuurd.',
+                    'friendship' => $existingFriendship->fresh()->load([
+                        'requester:id,name,username',
+                        'receiver:id,name,username',
+                    ]),
+                ], 201);
+            }
+
             return response()->json([
                 'message' => $this->getExistingFriendshipMessage($existingFriendship, $requesterId),
                 'friendship' => $existingFriendship->load([
