@@ -45,7 +45,7 @@ class AuthController extends Controller
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['Deze login-gegevens zijn niet correct.'],
+                'email' => ['These login credentials are not correct.'],
             ]);
         }
 
@@ -69,7 +69,7 @@ class AuthController extends Controller
         $request->user()?->currentAccessToken()?->delete();
 
         return response()->json([
-            'message' => 'Uitgelogd.',
+            'message' => 'Logged out.',
         ]);
     }
 }

@@ -41,40 +41,60 @@ function updateStoredMatch(matchId, updates) {
   notifyDataChanged();
 }
 
-function syncMatchToApi(match) {
+async function syncMatchToApi(match) {
   const token = getAuthToken();
 
   if (!token) {
     updateStoredMatch(match.id, {
       apiSyncStatus: "local_only",
-      syncError: null,
+      syncError: "Login eerst om deze match online te syncen.",
       lastSyncAttemptAt: null,
     });
 
     console.info("Match saved locally only because no user is logged in.");
-    return;
+
+    return {
+      status: "local_only",
+      message: "Login eerst om deze match online te syncen.",
+    };
   }
 
-  saveMatchToApi(match)
-    .then((savedMatch) => {
-      updateStoredMatch(match.id, {
-        apiSyncStatus: "synced",
-        apiId: savedMatch.id,
-        syncedAt: nowIso(),
-        syncError: null,
-      });
+  updateStoredMatch(match.id, {
+    apiSyncStatus: "pending",
+    syncError: null,
+    lastSyncAttemptAt: nowIso(),
+  });
 
-      console.log("Match synced to Laravel:", savedMatch);
-    })
-    .catch((error) => {
-      updateStoredMatch(match.id, {
-        apiSyncStatus: "failed",
-        syncError: error.message,
-        lastSyncAttemptAt: nowIso(),
-      });
+  try {
+    const savedMatch = await saveMatchToApi(match);
 
-      console.warn("Match saved locally, but Laravel sync failed:", error);
+    updateStoredMatch(match.id, {
+      apiSyncStatus: "synced",
+      apiId: savedMatch.id,
+      syncedAt: nowIso(),
+      syncError: null,
     });
+
+    console.log("Match synced to Laravel:", savedMatch);
+
+    return {
+      status: "synced",
+      match: savedMatch,
+    };
+  } catch (error) {
+    updateStoredMatch(match.id, {
+      apiSyncStatus: "failed",
+      syncError: error.message,
+      lastSyncAttemptAt: nowIso(),
+    });
+
+    console.warn("Match saved locally, but Laravel sync failed:", error);
+
+    return {
+      status: "failed",
+      message: error.message,
+    };
+  }
 }
 
 export const matchRepository = {
@@ -98,6 +118,7 @@ export const matchRepository = {
     const existingMatchKey =
       matchData?.gameData?.summary?.matchId ??
       matchData?.metadata?.matchId ??
+      matchData?.id ??
       null;
 
     if (existingMatchKey) {
@@ -105,6 +126,7 @@ export const matchRepository = {
         const storedMatchKey =
           match?.gameData?.summary?.matchId ??
           match?.metadata?.matchId ??
+          match?.id ??
           null;
 
         return storedMatchKey === existingMatchKey;
@@ -135,6 +157,23 @@ export const matchRepository = {
     syncMatchToApi(match);
 
     return match;
+  },
+
+  async retrySyncMatch(matchId) {
+    const match = this.getMatchById(matchId);
+
+    if (!match) {
+      throw new Error("Match niet gevonden.");
+    }
+
+    if (match.apiSyncStatus === "synced") {
+      return {
+        status: "synced",
+        message: "Deze match is al online opgeslagen.",
+      };
+    }
+
+    return syncMatchToApi(match);
   },
 
   deleteMatch(matchId) {

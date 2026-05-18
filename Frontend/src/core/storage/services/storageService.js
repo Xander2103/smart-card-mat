@@ -41,6 +41,12 @@ export const storageService = {
     return result;
   },
 
+  async retryMatchSync(matchId) {
+    const result = await matchRepository.retrySyncMatch(matchId);
+    emitDataChanged();
+    return result;
+  },
+
   deleteMatch(matchId) {
     const result = matchRepository.deleteMatch(matchId);
     emitDataChanged();

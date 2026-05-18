@@ -37,6 +37,14 @@ const warningButtonStyle = {
   color: "#fde68a",
 };
 
+const syncButtonStyle = {
+  ...buttonStyle,
+  background:
+    "linear-gradient(180deg, rgba(34,197,94,0.22) 0%, rgba(21,128,61,0.18) 100%)",
+  border: "1px solid rgba(34,197,94,0.35)",
+  color: "#bbf7d0",
+};
+
 function formatDate(dateString) {
   try {
     return new Date(dateString).toLocaleString();
@@ -97,6 +105,10 @@ function getSyncBadge(match) {
   };
 }
 
+function canRetrySync(match) {
+  return match?.apiSyncStatus === "local_only" || match?.apiSyncStatus === "failed";
+}
+
 function SyncBadge({ match }) {
   const badge = getSyncBadge(match);
 
@@ -125,6 +137,7 @@ function SyncBadge({ match }) {
 
 export function HistoryScreen() {
   const [matches, setMatches] = useState([]);
+  const [syncingMatchIds, setSyncingMatchIds] = useState({});
 
   function refreshMatches() {
     setMatches(storageService.getMatchHistory());
@@ -160,6 +173,23 @@ export function HistoryScreen() {
     if (!ok) return;
 
     storageService.clearSimulatedMatches();
+  }
+
+  async function handleRetrySync(matchId) {
+    setSyncingMatchIds((current) => ({
+      ...current,
+      [matchId]: true,
+    }));
+
+    try {
+      await storageService.retryMatchSync(matchId);
+    } finally {
+      setSyncingMatchIds((current) => {
+        const next = { ...current };
+        delete next[matchId];
+        return next;
+      });
+    }
   }
 
   const simulatedCount = useMemo(
@@ -213,7 +243,8 @@ export function HistoryScreen() {
         </div>
 
         <div style={{ color: "#c8b6a1", marginBottom: 14 }}>
-          Overzicht van gespeelde matches. Matches worden lokaal bewaard en, wanneer je ingelogd bent, online gesynct.
+          Overzicht van gespeelde matches. Matches worden lokaal bewaard en,
+          wanneer je ingelogd bent, online gesynct.
         </div>
 
         {matches.length > 0 && (
@@ -244,6 +275,7 @@ export function HistoryScreen() {
                 match.players?.find((player) => player.playerId === winnerId) ?? null;
 
               const isSimulated = !!match?.metadata?.simulated;
+              const isSyncing = !!syncingMatchIds[match.id];
 
               return (
                 <div
@@ -334,6 +366,19 @@ export function HistoryScreen() {
                       >
                         Winner: {winnerPlayer?.name ?? "-"}
                       </div>
+
+                      {canRetrySync(match) && (
+                        <button
+                          onClick={() => handleRetrySync(match.id)}
+                          disabled={isSyncing}
+                          style={{
+                            ...syncButtonStyle,
+                            opacity: isSyncing ? 0.6 : 1,
+                          }}
+                        >
+                          {isSyncing ? "Syncing..." : "Sync now"}
+                        </button>
+                      )}
 
                       <button
                         onClick={() => handleDeleteMatch(match.id)}

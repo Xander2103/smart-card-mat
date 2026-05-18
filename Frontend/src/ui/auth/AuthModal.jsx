@@ -140,7 +140,7 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
             "linear-gradient(180deg, rgba(39,27,21,0.98) 0%, rgba(19,13,10,0.98) 100%)",
           border: "1px solid rgba(251,191,36,0.2)",
           boxShadow: "0 24px 80px rgba(0,0,0,0.45)",
-          color: "#f5efe6",
+          color: "#a16b19",
         }}
         onClick={(event) => event.stopPropagation()}
       >
@@ -161,6 +161,7 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
                 : "Login to sync your matches and stats with your Smart Card Mat account."}
             </p>
           </div>
+
           <button
             type="button"
             onClick={onClose}
@@ -193,8 +194,8 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
               </div>
 
               <div style={{ marginTop: 8, color: "#c8b6a1", fontSize: 13 }}>
-                Your matches are automatically saved online while you are logged in.
-                Without login, everything remains stored locally.
+                Matches worden automatisch online opgeslagen zolang je ingelogd bent.
+                Zonder login blijft alles lokaal bewaard.
               </div>
             </div>
 
