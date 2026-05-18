@@ -329,6 +329,7 @@ export default function App() {
       {tab === "players" && (
         <PlayersScreen
           appState={appState}
+          authUser={authUser}
           dispatchAction={dispatchAction}
           locked={playersLocked}
           onGoPlay={() => setTab("play")}

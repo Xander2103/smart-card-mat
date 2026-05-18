@@ -37,7 +37,7 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
     }
 
     if (!cleanEmail) {
-      return "Email is required!";
+      return isLoginMode ? "Email or username is required!" : "Email is required!";
     }
 
     if (!password) {
@@ -71,7 +71,7 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
       setStatus("Logging in...");
 
       const result = await loginUser({
-        email: email.trim(),
+        login: email.trim(),
         password,
       });
 
@@ -278,14 +278,14 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
             )}
 
             <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
-              Email
+              {isLoginMode ? "Email or username" : "Email"}
               <input
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 style={inputStyle}
-                type="email"
-                autoComplete="email"
-                placeholder="yourEmail@email.be"
+                type={isLoginMode ? "text" : "email"}
+                autoComplete={isLoginMode ? "username" : "email"}
+                placeholder={isLoginMode ? "email or username" : "yourEmail@email.be"}
               />
             </label>
 

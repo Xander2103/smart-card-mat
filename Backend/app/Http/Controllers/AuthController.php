@@ -41,30 +41,33 @@ class AuthController extends Controller
         ], 201);
     }
 
-    public function login(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
+public function login(Request $request): JsonResponse
+{
+    $validated = $request->validate([
+        'login' => ['required', 'string'],
+        'password' => ['required', 'string'],
+    ]);
 
-        $user = User::query()
-            ->where('email', strtolower(trim($validated['email'])))
-            ->first();
+    $login = strtolower(trim($validated['login']));
 
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['These login credentials are not correct.'],
-            ]);
-        }
+    $user = User::query()
+        ->where('email', $login)
+        ->orWhere('username', $login)
+        ->first();
 
-        $token = $user->createToken('smart-card-mat')->plainTextToken;
-
-        return response()->json([
-            'user' => $user,
-            'token' => $token,
+    if (!$user || !Hash::check($validated['password'], $user->password)) {
+        throw ValidationException::withMessages([
+            'login' => ['These login credentials are not correct.'],
         ]);
     }
+
+    $token = $user->createToken('smart-card-mat')->plainTextToken;
+
+    return response()->json([
+        'user' => $user,
+        'token' => $token,
+    ]);
+}
 
     public function me(Request $request): JsonResponse
     {

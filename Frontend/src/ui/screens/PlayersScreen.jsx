@@ -12,6 +12,7 @@ import {
   isDevProfileName,
 } from "../players/playersHelpers";
 import { panelStyle, actionButtonStyle } from "../players/playersTheme";
+import { AccountSearchSection } from "../players/AccountSearchSection";
 
 function normalizeSelectedPlayer(player) {
   const id = player?.id ?? player?.playerId ?? `player_${Date.now()}`;
@@ -20,6 +21,7 @@ function normalizeSelectedPlayer(player) {
   return {
     id,
     name,
+    username: player?.username ?? null,
     source: player?.source ?? "guest",
     userId: player?.userId ?? null,
     isGuest: player?.isGuest ?? false,
@@ -36,6 +38,18 @@ function normalizeSelectedPlayers(players) {
     .map(normalizeSelectedPlayer)
     .filter((player) => player.id && player.name)
     .slice(0, 4);
+}
+
+function createSelectedPlayerFromAuthUser(user) {
+  return {
+    id: `user_${user.id}`,
+    name: user.name,
+    username: user.username,
+    source: "user",
+    userId: user.id,
+    isGuest: false,
+    isLocalProfile: false,
+  };
 }
 
 function createSelectedPlayerFromProfile(profile) {
@@ -64,6 +78,7 @@ function createGuestPlayer(selectedPlayers) {
 
 export function PlayersScreen({
   appState,
+  authUser,
   dispatchAction,
   locked = false,
   onGoPlay,
@@ -150,6 +165,76 @@ export function PlayersScreen({
     const nextPlayers = [
       ...selectedPlayers,
       createSelectedPlayerFromProfile(profile),
+    ];
+
+    setError("");
+    dispatchAction({ type: "set_players", players: nextPlayers });
+  }
+
+  function handleAddAccountPlayer(accountPlayer) {
+    if (failWhenLocked()) return;
+
+    const accountPlayerId = `user_${accountPlayer.userId}`;
+
+    const exists = selectedPlayers.some((player) => {
+      const sameUserId =
+        player.userId != null &&
+        accountPlayer.userId != null &&
+        Number(player.userId) === Number(accountPlayer.userId);
+
+      const samePlayerId = player.id === accountPlayer.id || player.id === accountPlayerId;
+
+      return sameUserId || samePlayerId;
+    });
+
+    if (exists) {
+      setError("Deze account is al geselecteerd.");
+      return;
+    }
+
+    if (selectedPlayers.length >= 4) {
+      setError("Je kan maximaal 4 spelers selecteren.");
+      return;
+    }
+
+    const nextPlayers = [...selectedPlayers, accountPlayer];
+
+    setError("");
+    dispatchAction({ type: "set_players", players: nextPlayers });
+  }
+
+  function handleAddCurrentUser() {
+    if (failWhenLocked()) return;
+
+    if (!authUser) {
+      setError("Login eerst om je eigen account als speler toe te voegen.");
+      return;
+    }
+
+    const currentUserPlayerId = `user_${authUser.id}`;
+
+    const exists = selectedPlayers.some((player) => {
+      const sameUserId =
+        player.userId != null && Number(player.userId) === Number(authUser.id);
+
+      const samePlayerId = player.id === currentUserPlayerId;
+
+      return sameUserId || samePlayerId;
+    });
+
+    if (exists) {
+      setError("Je eigen account is al geselecteerd.");
+      return;
+    }
+
+    if (selectedPlayers.length >= 4) {
+      setError("Je kan maximaal 4 spelers selecteren.");
+      return;
+    }
+
+    const nextPlayers = [
+      ...selectedPlayers,
+      createSelectedPlayerFromAuthUser(authUser),
     ];
 
     setError("");
@@ -284,12 +369,59 @@ export function PlayersScreen({
           onClearSelection={handleClearSelection}
         />
 
+        <div
+          style={{
+            marginBottom: 14,
+            borderRadius: 18,
+            padding: compactMobile ? 12 : 14,
+            border: "1px solid rgba(251, 191, 36, 0.18)",
+            background: "rgba(251, 191, 36, 0.07)",
+            display: "grid",
+            gap: 10,
+          }}
+        >
+          <div style={{ fontWeight: 900 }}>Eigen account</div>
+
+          <div style={{ color: "#c8b6a1", fontSize: 13, lineHeight: 1.4 }}>
+            Voeg jezelf toe als speler zodat deze match later aan jouw account gekoppeld is.
+          </div>
+
+          <button
+            type="button"
+            onClick={handleAddCurrentUser}
+            disabled={locked || !authUser}
+            style={{
+              ...actionButtonStyle,
+              width: compactMobile ? "100%" : "fit-content",
+              minHeight: 44,
+              padding: "10px 14px",
+              opacity: locked || !authUser ? 0.55 : 1,
+              cursor: locked || !authUser ? "not-allowed" : "pointer",
+              background:
+                "linear-gradient(180deg, rgba(251,191,36,0.95) 0%, rgba(217,119,6,0.92) 100%)",
+              color: "#1f1307",
+            }}
+          >
+            {authUser
+              ? `+ Add my account${authUser.username ? ` (@${authUser.username})` : ""}`
+              : "Login to add your account"}
+          </button>
+        </div>
+
+
         <CreatePlayerForm
           compactMobile={compactMobile}
           locked={locked}
           newPlayerName={newPlayerName}
           setNewPlayerName={setNewPlayerName}
           onSubmit={handleCreatePlayer}
+        />
+
+        <AccountSearchSection
+          compactMobile={compactMobile}
+          locked={locked}
+          selectedPlayers={selectedPlayers}
+          onAddAccountPlayer={handleAddAccountPlayer}
         />
 
         {error ? (

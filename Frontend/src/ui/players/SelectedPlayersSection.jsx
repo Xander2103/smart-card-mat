@@ -106,7 +106,11 @@ function SeatPlayerCard({
       <div style={{ fontWeight: 900, fontSize: 18 }}>{player.name}</div>
 
       <div style={{ fontSize: 12, color: "#c8b6a1", marginTop: 4 }}>
-        {player.isGuest ? "Tijdelijke gastspeler" : "Vaste speler"}
+        {player.source === "user"
+          ? `Smart Card Mat account${player.username ? ` · @${player.username}` : ""}`
+          : player.isGuest
+            ? "Tijdelijke gastspeler"
+            : "Lokaal spelersprofiel"}
       </div>
 
       {selectedPlayersLength === 4 ? (

@@ -27,7 +27,7 @@ export async function registerUser({ name, username, email, password }) {
   return data;
 }
 
-export async function loginUser({ email, password }) {
+export async function loginUser({ login, password }) {
   const response = await fetch(`${API_BASE_URL}/login`, {
     method: "POST",
     headers: {
@@ -35,7 +35,7 @@ export async function loginUser({ email, password }) {
       Accept: "application/json",
     },
     body: JSON.stringify({
-      email,
+      login,
       password,
     }),
   });
