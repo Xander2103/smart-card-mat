@@ -3,25 +3,66 @@ import { loginUser, logoutUser, registerUser } from "../../core/api/authApi";
 
 export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
   const [mode, setMode] = useState("login");
-  const [name, setName] = useState("Xander");
-  const [email, setEmail] = useState("xander@test.be");
-  const [password, setPassword] = useState("password123");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
 
   if (!open) return null;
 
+  const isLoginMode = mode === "login";
+  const title = user ? "Account" : isLoginMode ? "Login" : "Create account";
+
+  function validateForm() {
+    const cleanName = name.trim();
+    const cleanEmail = email.trim();
+
+    if (!isLoginMode && !cleanName) {
+      return "Name is required!";
+    }
+
+    if (!cleanEmail) {
+      return "Email is required!";
+    }
+
+    if (!password) {
+      return "Password is required!";
+    }
+
+    if (!isLoginMode && password.length < 8) {
+      return "Password must be at least 8 characters!";
+    }
+
+    return null;
+  }
+
+  function switchMode() {
+    setMode((currentMode) => (currentMode === "login" ? "register" : "login"));
+    setStatus("");
+  }
+
   async function handleLogin(event) {
     event.preventDefault();
 
+    const validationError = validateForm();
+
+    if (validationError) {
+      setStatus(validationError);
+      return;
+    }
+
     try {
       setBusy(true);
-      setStatus("Inloggen...");
+      setStatus("Logging in...");
 
-      const result = await loginUser({ email, password });
+      const result = await loginUser({
+        email: email.trim(),
+        password,
+      });
 
       onAuthChange(result.user);
-      setStatus(`Ingelogd als ${result.user.name}`);
+      setStatus("");
       onClose();
     } catch (error) {
       setStatus(error.message);
@@ -33,14 +74,25 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
   async function handleRegister(event) {
     event.preventDefault();
 
+    const validationError = validateForm();
+
+    if (validationError) {
+      setStatus(validationError);
+      return;
+    }
+
     try {
       setBusy(true);
-      setStatus("Account maken...");
+      setStatus("Creating account...");
 
-      const result = await registerUser({ name, email, password });
+      const result = await registerUser({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+      });
 
       onAuthChange(result.user);
-      setStatus(`Account gemaakt voor ${result.user.name}`);
+      setStatus("");
       onClose();
     } catch (error) {
       setStatus(error.message);
@@ -52,12 +104,12 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
   async function handleLogout() {
     try {
       setBusy(true);
-      setStatus("Uitloggen...");
+      setStatus("Logging out...");
 
       await logoutUser();
 
       onAuthChange(null);
-      setStatus("Uitgelogd");
+      setStatus("");
       onClose();
     } catch (error) {
       setStatus(error.message);
@@ -102,12 +154,13 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
           }}
         >
           <div>
-            <h2 style={{ margin: 0, fontSize: 24 }}>Account</h2>
+            <h2 style={{ margin: 0, fontSize: 24 }}>{title}</h2>
             <p style={{ margin: "6px 0 0", color: "#c8b6a1", lineHeight: 1.4 }}>
-              Sync je matches en stats met je Smart Card Mat account.
+              {user
+                ? "Your matches are automatically saved online."
+                : "Login to sync your matches and stats with your Smart Card Mat account."}
             </p>
           </div>
-
           <button
             type="button"
             onClick={onClose}
@@ -134,11 +187,14 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
               }}
             >
               <div style={{ fontWeight: 900, fontSize: 18 }}>{user.name}</div>
+
               <div style={{ marginTop: 4, color: "#bbf7d0", fontSize: 14 }}>
                 {user.email}
               </div>
+
               <div style={{ marginTop: 8, color: "#c8b6a1", fontSize: 13 }}>
-                Matches worden automatisch online opgeslagen wanneer je ingelogd bent.
+                Your matches are automatically saved online while you are logged in.
+                Without login, everything remains stored locally.
               </div>
             </div>
 
@@ -153,22 +209,23 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
                 opacity: busy ? 0.6 : 1,
               }}
             >
-              Logout
+              {busy ? "Logging out..." : "Logout"}
             </button>
           </div>
         ) : (
           <form
-            onSubmit={mode === "login" ? handleLogin : handleRegister}
+            onSubmit={isLoginMode ? handleLogin : handleRegister}
             style={{ display: "grid", gap: 12 }}
           >
-            {mode === "register" && (
+            {!isLoginMode && (
               <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
-                Naam
+                Name
                 <input
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   style={inputStyle}
                   autoComplete="name"
+                  placeholder="Your name"
                 />
               </label>
             )}
@@ -181,6 +238,7 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
                 style={inputStyle}
                 type="email"
                 autoComplete="email"
+                placeholder="yourEmail@email.be"
               />
             </label>
 
@@ -191,7 +249,8 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
                 onChange={(event) => setPassword(event.target.value)}
                 style={inputStyle}
                 type="password"
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                autoComplete={isLoginMode ? "current-password" : "new-password"}
+                placeholder={isLoginMode ? "Your password" : "At least 8 characters"}
               />
             </label>
 
@@ -209,21 +268,29 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
                 color: "#1f1307",
               }}
             >
-              {mode === "login" ? "Login" : "Create account"}
+              {busy
+                ? isLoginMode
+                  ? "Logging in..."
+                  : "Creating account..."
+                : isLoginMode
+                  ? "Login"
+                  : "Create account"}
             </button>
 
             <button
               type="button"
-              onClick={() => setMode(mode === "login" ? "register" : "login")}
+              onClick={switchMode}
+              disabled={busy}
               style={{
                 ...theme.button,
                 minHeight: 42,
                 borderRadius: 14,
+                opacity: busy ? 0.6 : 1,
               }}
             >
-              {mode === "login"
-                ? "Nog geen account? Registreer"
-                : "Al een account? Login"}
+              {isLoginMode
+                ? "Nog yet an account? Register"
+                : "Already have an account? Login"}
             </button>
           </form>
         )}
@@ -232,8 +299,13 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
           <div
             style={{
               marginTop: 14,
-              color: "#c8b6a1",
-              fontSize: 13,
+              padding: "10px 12px",
+              borderRadius: 14,
+              background: "rgba(134, 0, 0, 0.38)",
+              border: "3px solid rgb(51, 1, 1)",
+              color: "#ad9292",
+              fontSize: 16,
+              fontWeight: 1000,
               lineHeight: 1.4,
             }}
           >

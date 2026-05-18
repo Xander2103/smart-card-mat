@@ -45,6 +45,84 @@ function formatDate(dateString) {
   }
 }
 
+function getSyncBadge(match) {
+  const status = match?.apiSyncStatus;
+
+  if (status === "synced") {
+    return {
+      label: "Online saved",
+      icon: "✅",
+      color: "#bbf7d0",
+      background: "rgba(34,197,94,0.12)",
+      border: "1px solid rgba(34,197,94,0.28)",
+    };
+  }
+
+  if (status === "local_only") {
+    return {
+      label: "Local only",
+      icon: "💾",
+      color: "#fde68a",
+      background: "rgba(217,119,6,0.14)",
+      border: "1px solid rgba(251,191,36,0.26)",
+    };
+  }
+
+  if (status === "failed") {
+    return {
+      label: "Sync failed",
+      icon: "⚠️",
+      color: "#fecaca",
+      background: "rgba(127,29,29,0.28)",
+      border: "1px solid rgba(248,113,113,0.3)",
+    };
+  }
+
+  if (status === "pending") {
+    return {
+      label: "Sync pending",
+      icon: "⏳",
+      color: "#bfdbfe",
+      background: "rgba(37,99,235,0.16)",
+      border: "1px solid rgba(96,165,250,0.28)",
+    };
+  }
+
+  return {
+    label: "Legacy local",
+    icon: "📦",
+    color: "#c8b6a1",
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.1)",
+  };
+}
+
+function SyncBadge({ match }) {
+  const badge = getSyncBadge(match);
+
+  return (
+    <div
+      title={match?.syncError ? `Sync error: ${match.syncError}` : badge.label}
+      style={{
+        borderRadius: 999,
+        padding: "5px 10px",
+        background: badge.background,
+        border: badge.border,
+        color: badge.color,
+        fontWeight: 900,
+        fontSize: 12,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span>{badge.icon}</span>
+      <span>{badge.label}</span>
+    </div>
+  );
+}
+
 export function HistoryScreen() {
   const [matches, setMatches] = useState([]);
 
@@ -89,6 +167,23 @@ export function HistoryScreen() {
     [matches]
   );
 
+  const syncCounts = useMemo(() => {
+    return matches.reduce(
+      (totals, match) => {
+        const status = match?.apiSyncStatus ?? "legacy";
+        totals[status] = (totals[status] ?? 0) + 1;
+        return totals;
+      },
+      {
+        synced: 0,
+        local_only: 0,
+        failed: 0,
+        pending: 0,
+        legacy: 0,
+      }
+    );
+  }, [matches]);
+
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <div style={panelStyle}>
@@ -117,9 +212,25 @@ export function HistoryScreen() {
           </div>
         </div>
 
-        <div style={{ color: "#c8b6a1", marginBottom: 18 }}>
-          Overzicht van gespeelde matches.
+        <div style={{ color: "#c8b6a1", marginBottom: 14 }}>
+          Overzicht van gespeelde matches. Matches worden lokaal bewaard en, wanneer je ingelogd bent, online gesynct.
         </div>
+
+        {matches.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              marginBottom: 18,
+            }}
+          >
+            <div style={summaryBadgeStyle}>✅ Online: {syncCounts.synced}</div>
+            <div style={summaryBadgeStyle}>💾 Local: {syncCounts.local_only}</div>
+            <div style={summaryBadgeStyle}>⚠️ Failed: {syncCounts.failed}</div>
+            <div style={summaryBadgeStyle}>⏳ Pending: {syncCounts.pending}</div>
+          </div>
+        )}
 
         <div style={{ fontWeight: 900, marginBottom: 10 }}>Recente matches</div>
 
@@ -156,8 +267,19 @@ export function HistoryScreen() {
                     }}
                   >
                     <div style={{ display: "grid", gap: 6 }}>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                        <div style={{ fontWeight: 900, fontSize: 18 }}>{match.gameType}</div>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                        }}
+                      >
+                        <div style={{ fontWeight: 900, fontSize: 18 }}>
+                          {match.gameType}
+                        </div>
+
+                        <SyncBadge match={match} />
 
                         {isSimulated && (
                           <div
@@ -179,6 +301,18 @@ export function HistoryScreen() {
                       <div style={{ color: "#c8b6a1", fontSize: 13 }}>
                         {formatDate(match.playedAt)}
                       </div>
+
+                      {match?.syncError && (
+                        <div
+                          style={{
+                            color: "#fecaca",
+                            fontSize: 12,
+                            lineHeight: 1.35,
+                          }}
+                        >
+                          Sync error: {match.syncError}
+                        </div>
+                      )}
                     </div>
 
                     <div
@@ -268,3 +402,13 @@ export function HistoryScreen() {
     </div>
   );
 }
+
+const summaryBadgeStyle = {
+  borderRadius: 999,
+  padding: "6px 10px",
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  color: "#c8b6a1",
+  fontWeight: 800,
+  fontSize: 12,
+};

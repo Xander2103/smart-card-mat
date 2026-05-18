@@ -19,6 +19,10 @@ function validateMatchRecord(matchData) {
   }
 }
 
+function notifyDataChanged() {
+  window.dispatchEvent(new Event("smartcardmat:data-changed"));
+}
+
 function updateStoredMatch(matchId, updates) {
   const matches = localStorageAdapter.get(STORAGE_KEYS.MATCHES, []);
 
@@ -34,6 +38,7 @@ function updateStoredMatch(matchId, updates) {
   });
 
   localStorageAdapter.set(STORAGE_KEYS.MATCHES, updated);
+  notifyDataChanged();
 }
 
 function syncMatchToApi(match) {
