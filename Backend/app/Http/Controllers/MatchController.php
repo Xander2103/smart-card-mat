@@ -12,24 +12,20 @@ class MatchController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = MatchModel::query()
+        $matches = MatchModel::query()
             ->with(['user', 'players'])
+            ->where('user_id', $request->user()->id)
             ->latest('played_at')
-            ->latest();
-
-        if ($request->user()) {
-            $query->where('user_id', $request->user()->id);
-        }
-
-        $matches = $query->get();
+            ->latest()
+            ->get();
 
         return response()->json($matches);
     }
 
     public function show(Request $request, MatchModel $match): JsonResponse
     {
-        if ($request->user() && $match->user_id !== $request->user()->id) {
-            abort(403);
+        if ($match->user_id !== $request->user()->id) {
+            abort(403, 'Je hebt geen toegang tot deze match.');
         }
 
         return response()->json(
@@ -62,18 +58,29 @@ class MatchController extends Controller
         ]);
 
         $clientMatchId = $validated['id'] ?? null;
-        $userId = $request->user()?->id;
+        $userId = $request->user()->id;
 
         if ($clientMatchId) {
             $existingMatch = MatchModel::query()
                 ->where('client_match_id', $clientMatchId)
-                ->when($userId, function ($query) use ($userId) {
-                    $query->where('user_id', $userId);
-                })
                 ->with(['user', 'players'])
                 ->first();
 
             if ($existingMatch) {
+                if ($existingMatch->user_id === null) {
+                    $existingMatch->update([
+                        'user_id' => $userId,
+                    ]);
+
+                    return response()->json(
+                        $existingMatch->fresh()->load(['user', 'players'])
+                    );
+                }
+
+                if ((int) $existingMatch->user_id !== (int) $userId) {
+                    abort(403, 'Deze match bestaat al op een andere account.');
+                }
+
                 return response()->json($existingMatch);
             }
         }
@@ -81,7 +88,13 @@ class MatchController extends Controller
         $scoreRowsByPlayerId = collect($validated['scores'])->keyBy('playerId');
         $winnerIds = collect($validated['winnerIds'] ?? []);
 
-        $match = DB::transaction(function () use ($validated, $scoreRowsByPlayerId, $winnerIds, $clientMatchId, $userId) {
+        $match = DB::transaction(function () use (
+            $validated,
+            $scoreRowsByPlayerId,
+            $winnerIds,
+            $clientMatchId,
+            $userId
+        ) {
             $match = MatchModel::create([
                 'client_match_id' => $clientMatchId,
                 'user_id' => $userId,
