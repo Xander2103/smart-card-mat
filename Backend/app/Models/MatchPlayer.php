@@ -12,6 +12,8 @@ class MatchPlayer extends Model
 
     protected $fillable = [
         'match_id',
+        'user_id',
+        'source',
         'player_id',
         'name',
         'score',
@@ -22,6 +24,7 @@ class MatchPlayer extends Model
     protected function casts(): array
     {
         return [
+            'user_id' => 'integer',
             'score' => 'integer',
             'is_winner' => 'boolean',
             'stats' => 'array',
@@ -31,5 +34,10 @@ class MatchPlayer extends Model
     public function match(): BelongsTo
     {
         return $this->belongsTo(MatchModel::class, 'match_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

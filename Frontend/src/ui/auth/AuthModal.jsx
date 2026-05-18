@@ -4,6 +4,7 @@ import { loginUser, logoutUser, registerUser } from "../../core/api/authApi";
 export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
   const [mode, setMode] = useState("login");
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("");
@@ -16,10 +17,23 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
 
   function validateForm() {
     const cleanName = name.trim();
+    const cleanUsername = username.trim().toLowerCase();
     const cleanEmail = email.trim();
 
     if (!isLoginMode && !cleanName) {
       return "Name is required!";
+    }
+
+    if (!isLoginMode && !cleanUsername) {
+      return "Username is required!";
+    }
+
+    if (!isLoginMode && cleanUsername.length < 3) {
+      return "Username must be at least 3 characters!";
+    }
+
+    if (!isLoginMode && !/^[a-z0-9_-]+$/.test(cleanUsername)) {
+      return "Username can only use letters, numbers, _ and -.";
     }
 
     if (!cleanEmail) {
@@ -87,6 +101,7 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
 
       const result = await registerUser({
         name: name.trim(),
+        username: username.trim().toLowerCase(),
         email: email.trim(),
         password,
       });
@@ -189,6 +204,12 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
             >
               <div style={{ fontWeight: 900, fontSize: 18 }}>{user.name}</div>
 
+              {user.username ? (
+                <div style={{ marginTop: 4, color: "#fde68a", fontSize: 14 }}>
+                  @{user.username}
+                </div>
+              ) : null}
+
               <div style={{ marginTop: 4, color: "#bbf7d0", fontSize: 14 }}>
                 {user.email}
               </div>
@@ -228,6 +249,31 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
                   autoComplete="name"
                   placeholder="Your name"
                 />
+              </label>
+            )}
+
+            {!isLoginMode && (
+              <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>
+                Username
+                <input
+                  value={username}
+                  onChange={(event) =>
+                    setUsername(event.target.value.toLowerCase())
+                  }
+                  style={inputStyle}
+                  autoComplete="username"
+                  placeholder="xander_vm"
+                />
+                <span
+                  style={{
+                    color: "#c8b6a1",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    lineHeight: 1.3,
+                  }}
+                >
+                  Use 3-30 characters. Letters, numbers, _ and - only.
+                </span>
               </label>
             )}
 
@@ -290,7 +336,7 @@ export function AuthModal({ open, onClose, user, onAuthChange, theme }) {
               }}
             >
               {isLoginMode
-                ? "Nog yet an account? Register"
+                ? "Not yet an account? Register"
                 : "Already have an account? Login"}
             </button>
           </form>

@@ -6,10 +6,68 @@ import { CreatePlayerForm } from "../players/CreatePlayerForm";
 import { SelectedPlayersSection } from "../players/SelectedPlayersSection";
 import { ProfilesSection } from "../players/ProfilesSection";
 import { QuickOptionsSection } from "../players/QuickOptionsSection";
-import { normalizeSelection, getNextGuestNumber, moveItem, isDevProfileName } from "../players/playersHelpers";
+import {
+  getNextGuestNumber,
+  moveItem,
+  isDevProfileName,
+} from "../players/playersHelpers";
 import { panelStyle, actionButtonStyle } from "../players/playersTheme";
 
-export function PlayersScreen({ appState, dispatchAction, locked = false, onGoPlay }) {
+function normalizeSelectedPlayer(player) {
+  const id = player?.id ?? player?.playerId ?? `player_${Date.now()}`;
+  const name = String(player?.name ?? "").trim();
+
+  return {
+    id,
+    name,
+    source: player?.source ?? "guest",
+    userId: player?.userId ?? null,
+    isGuest: player?.isGuest ?? false,
+    isLocalProfile: player?.isLocalProfile ?? !player?.isGuest,
+  };
+}
+
+function normalizeSelectedPlayers(players) {
+  if (!Array.isArray(players)) {
+    return [];
+  }
+
+  return players
+    .map(normalizeSelectedPlayer)
+    .filter((player) => player.id && player.name)
+    .slice(0, 4);
+}
+
+function createSelectedPlayerFromProfile(profile) {
+  return {
+    id: profile.id,
+    name: profile.name,
+    source: profile.source ?? "guest",
+    userId: profile.userId ?? null,
+    isGuest: profile.isGuest ?? false,
+    isLocalProfile: profile.isLocalProfile ?? true,
+  };
+}
+
+function createGuestPlayer(selectedPlayers) {
+  const nextGuestNumber = getNextGuestNumber(selectedPlayers);
+
+  return {
+    id: `guest_${Date.now()}_${nextGuestNumber}`,
+    name: `Gast ${nextGuestNumber}`,
+    source: "guest",
+    userId: null,
+    isGuest: true,
+    isLocalProfile: false,
+  };
+}
+
+export function PlayersScreen({
+  appState,
+  dispatchAction,
+  locked = false,
+  onGoPlay,
+}) {
   const { isMobile, isLandscape } = useViewport();
   const compactMobile = isMobile;
   const [profiles, setProfiles] = useState([]);
@@ -18,7 +76,7 @@ export function PlayersScreen({ appState, dispatchAction, locked = false, onGoPl
   const [error, setError] = useState("");
 
   const selectedPlayers = useMemo(
-    () => normalizeSelection(appState?.players),
+    () => normalizeSelectedPlayers(appState?.players),
     [appState?.players]
   );
 
@@ -79,6 +137,7 @@ export function PlayersScreen({ appState, dispatchAction, locked = false, onGoPl
       const nextPlayers = selectedPlayers.filter(
         (player) => player.id !== profile.id
       );
+
       dispatchAction({ type: "set_players", players: nextPlayers });
       return;
     }
@@ -90,7 +149,7 @@ export function PlayersScreen({ appState, dispatchAction, locked = false, onGoPl
 
     const nextPlayers = [
       ...selectedPlayers,
-      { id: profile.id, name: profile.name },
+      createSelectedPlayerFromProfile(profile),
     ];
 
     setError("");
@@ -105,14 +164,7 @@ export function PlayersScreen({ appState, dispatchAction, locked = false, onGoPl
       return;
     }
 
-    const nextGuestNumber = getNextGuestNumber(selectedPlayers);
-    const guestPlayer = {
-      id: `guest_${Date.now()}_${nextGuestNumber}`,
-      name: `Gast ${nextGuestNumber}`,
-      isGuest: true,
-    };
-
-    const nextPlayers = [...selectedPlayers, guestPlayer];
+    const nextPlayers = [...selectedPlayers, createGuestPlayer(selectedPlayers)];
 
     setError("");
     dispatchAction({ type: "set_players", players: nextPlayers });
@@ -141,7 +193,8 @@ export function PlayersScreen({ appState, dispatchAction, locked = false, onGoPl
 
   function handleRemoveSeatPlayer(playerId) {
     if (failWhenLocked()) return;
-    const nextPlayers = selectedPlayers.filter((p) => p.id !== playerId);
+
+    const nextPlayers = selectedPlayers.filter((player) => player.id !== playerId);
     dispatchAction({ type: "set_players", players: nextPlayers });
   }
 
@@ -161,15 +214,18 @@ export function PlayersScreen({ appState, dispatchAction, locked = false, onGoPl
     const ok = window.confirm(
       `Ben je zeker dat je het profiel "${profile.name}" wilt verwijderen?`
     );
+
     if (!ok) return;
 
     if (typeof storageService.deletePlayer === "function") {
       storageService.deletePlayer(profile.id);
     }
 
-    const nextPlayers = selectedPlayers.filter((p) => p.id !== profile.id);
-    dispatchAction({ type: "set_players", players: nextPlayers });
+    const nextPlayers = selectedPlayers.filter(
+      (player) => player.id !== profile.id
+    );
 
+    dispatchAction({ type: "set_players", players: nextPlayers });
     refreshProfiles();
   }
 
@@ -179,6 +235,7 @@ export function PlayersScreen({ appState, dispatchAction, locked = false, onGoPl
     const ok = window.confirm(
       "Delete all DEV accounts and clear simulated matches? This cannot be undone."
     );
+
     if (!ok) return;
 
     const devProfiles = profiles.filter((profile) => isDevProfileName(profile.name));
@@ -203,7 +260,9 @@ export function PlayersScreen({ appState, dispatchAction, locked = false, onGoPl
   }
 
   const filteredProfiles = profiles.filter((profile) =>
-    String(profile?.name ?? "").toLowerCase().includes(profileSearch.trim().toLowerCase())
+    String(profile?.name ?? "")
+      .toLowerCase()
+      .includes(profileSearch.trim().toLowerCase())
   );
 
   const profileStats = filteredProfiles.map((profile) => ({

@@ -1,7 +1,7 @@
 import { API_BASE_URL } from "./apiConfig";
 import { clearAuthSession, getAuthToken, saveAuthSession } from "./authStorage";
 
-export async function registerUser({ name, email, password }) {
+export async function registerUser({ name, username, email, password }) {
   const response = await fetch(`${API_BASE_URL}/register`, {
     method: "POST",
     headers: {
@@ -10,6 +10,7 @@ export async function registerUser({ name, email, password }) {
     },
     body: JSON.stringify({
       name,
+      username,
       email,
       password,
     }),
