@@ -6,13 +6,13 @@ import {
 } from "../../core/matches/matchApiNormalizer";
 import { storageService } from "../../core/storage/services/storageService";
 import { useViewport } from "../play/useViewport";
+import { PlayerIdentity } from "../components/PlayerIdentity";
 import {
   getPlayerStats,
   getPlayerStatsByGameMode,
   getDobbelkingenContractInsights,
   getKleurenwiezenInsights,
 } from "../../core/stats/statsService";
-import { UserAvatar } from "../components/UserAvatar";
 
 const panelStyle = {
   border: "1px solid rgba(251, 191, 36, 0.18)",
@@ -348,25 +348,40 @@ function PlayerStatsCard({
           alignItems: "center",
         }}
       >
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <UserAvatar
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              minWidth: 44,
+              height: 44,
+              borderRadius: 999,
+              display: "grid",
+              placeItems: "center",
+              fontWeight: 900,
+              ...medalStyle,
+            }}
+          >
+            {isOwnAccount ? "👤" : getPlaceLabel(rank)}
+          </div>
+
+          <PlayerIdentity
+            player={player}
             name={player.name}
             username={player.username}
             imageUrl={player.avatar_url ?? null}
-            size={44}
-            fontSize={13}
+            avatarSize={44}
+            avatarFontSize={13}
+            nameFontSize={18}
+            subtitle={`Leaderboard rank #${rank ?? "-"}${
+              player.username ? ` · @${player.username}` : ""
+            }`}
           />
-
-          <div>
-            <div style={{ fontWeight: 900, fontSize: 18 }}>
-              {player.name}
-              {isOwnAccount ? " · mijn account" : " · account"}
-            </div>
-            <div style={{ color: "#c8b6a1", fontSize: 13 }}>
-              Leaderboard rank #{rank ?? "-"}
-              {player.username ? ` · @${player.username}` : ""}
-            </div>
-          </div>
         </div>
 
         <div
@@ -382,9 +397,7 @@ function PlayerStatsCard({
         </div>
       </div>
 
-      {activeSection === "general" && (
-        <GeneralSection generalStats={generalStats} />
-      )}
+      {activeSection === "general" && <GeneralSection generalStats={generalStats} />}
 
       {activeSection === "dobbelkingen" && (
         <GameModeSection
@@ -454,9 +467,7 @@ function PlayerStatsCard({
         />
       )}
 
-      {activeSection === "wiezen" && (
-        <GameModeSection title="Wiezen" stats={wiezenStats} />
-      )}
+      {activeSection === "wiezen" && <GameModeSection title="Wiezen" stats={wiezenStats} />}
     </div>
   );
 }
@@ -581,16 +592,11 @@ export function StatsScreen({ authUser = null }) {
 
     const mappedFriends = friends
       .map(buildRow)
-      .filter(({ player, generalStats, gameModeStats }) => {
-        const statsForSection = getStatsForSection(
-          {
-            generalStats,
-            gameModeStats,
-          },
-          activeSection
-        );
-
+      .filter((row) => {
+        const statsForSection = getStatsForSection(row, activeSection);
         const matchesSection = statsForSection.matchesPlayed;
+
+        const player = row.player;
 
         const matchesSearch =
           normalizedFriendSearch.length === 0 ||
@@ -614,30 +620,30 @@ export function StatsScreen({ authUser = null }) {
   const sortOptions =
     activeSection === "general"
       ? [
-        { value: "wins", label: "Wins" },
-        { value: "matchesPlayed", label: "Matches" },
-        { value: "winRate", label: "Win%" },
-      ]
+          { value: "wins", label: "Wins" },
+          { value: "matchesPlayed", label: "Matches" },
+          { value: "winRate", label: "Win%" },
+        ]
       : activeSection === "dobbelkingen"
         ? [
-          { value: "wins", label: "Wins" },
-          { value: "matchesPlayed", label: "Matches" },
-          { value: "winRate", label: "Winrate" },
-          { value: "totalScore", label: "Total score" },
-          { value: "averageScore", label: "Average score" },
-          { value: "podiums", label: "Podiums" },
-          { value: "bestScore", label: "Best score" },
-          { value: "worstScore", label: "Worst score" },
-        ]
+            { value: "wins", label: "Wins" },
+            { value: "matchesPlayed", label: "Matches" },
+            { value: "winRate", label: "Winrate" },
+            { value: "totalScore", label: "Total score" },
+            { value: "averageScore", label: "Average score" },
+            { value: "podiums", label: "Podiums" },
+            { value: "bestScore", label: "Best score" },
+            { value: "worstScore", label: "Worst score" },
+          ]
         : [
-          { value: "wins", label: "Wins" },
-          { value: "matchesPlayed", label: "Matches" },
-          { value: "winRate", label: "Winrate" },
-          { value: "totalScore", label: "Total score" },
-          { value: "averageScore", label: "Average score" },
-          { value: "bestScore", label: "Best score" },
-          { value: "worstScore", label: "Worst score" },
-        ];
+            { value: "wins", label: "Wins" },
+            { value: "matchesPlayed", label: "Matches" },
+            { value: "winRate", label: "Winrate" },
+            { value: "totalScore", label: "Total score" },
+            { value: "averageScore", label: "Average score" },
+            { value: "bestScore", label: "Best score" },
+            { value: "worstScore", label: "Worst score" },
+          ];
 
   const sectionTabs = [
     { value: "general", label: "Algemeen" },
@@ -693,13 +699,13 @@ export function StatsScreen({ authUser = null }) {
               style={
                 isMobile
                   ? {
-                    display: "grid",
-                    gridTemplateColumns:
-                      width >= 700
-                        ? "repeat(3, minmax(0, 1fr))"
-                        : "repeat(2, minmax(0, 1fr))",
-                    gap: 8,
-                  }
+                      display: "grid",
+                      gridTemplateColumns:
+                        width >= 700
+                          ? "repeat(3, minmax(0, 1fr))"
+                          : "repeat(2, minmax(0, 1fr))",
+                      gap: 8,
+                    }
                   : { display: "flex", gap: 8, flexWrap: "wrap" }
               }
             >
@@ -736,13 +742,13 @@ export function StatsScreen({ authUser = null }) {
               style={
                 isMobile
                   ? {
-                    display: "grid",
-                    gridTemplateColumns:
-                      width >= 700
-                        ? "repeat(3, minmax(0, 1fr))"
-                        : "repeat(2, minmax(0, 1fr))",
-                    gap: 8,
-                  }
+                      display: "grid",
+                      gridTemplateColumns:
+                        width >= 700
+                          ? "repeat(3, minmax(0, 1fr))"
+                          : "repeat(2, minmax(0, 1fr))",
+                      gap: 8,
+                    }
                   : { display: "flex", gap: 8, flexWrap: "wrap" }
               }
             >
@@ -815,9 +821,7 @@ export function StatsScreen({ authUser = null }) {
           {friendsOpen && (
             <div style={{ display: "grid", gap: 14 }}>
               <div style={{ display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 13, color: "#c8b6a1" }}>
-                  Search friends
-                </div>
+                <div style={{ fontSize: 13, color: "#c8b6a1" }}>Search friends</div>
                 <input
                   type="text"
                   value={friendSearchTerm}

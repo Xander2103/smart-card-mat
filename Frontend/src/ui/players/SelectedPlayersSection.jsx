@@ -1,4 +1,4 @@
-import { UserAvatar } from "../components/UserAvatar";
+import { PlayerIdentity } from "../components/PlayerIdentity";
 import { seatMoveButtonStyle } from "./playersTheme";
 
 function SeatPlayerCard({
@@ -110,47 +110,28 @@ function SeatPlayerCard({
           minWidth: 0,
         }}
       >
-        <UserAvatar
-          name={player.name}
-          username={player.username ?? player.id}
-          imageUrl={player.avatar_url ?? null}
-          size={compactMobile ? 38 : 44}
-          fontSize={compactMobile ? 12 : 13}
-        />
-
-        <div style={{ minWidth: 0 }}>
+        <div style={{ display: "grid", gap: 3, minWidth: 0 }}>
           <div style={{ fontSize: 12, color: "#d6c4b1" }}>
             Seat {index + 1}
           </div>
 
-          <div
-            style={{
-              fontWeight: 900,
-              fontSize: compactMobile ? 15 : 18,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {player.name}
-          </div>
-
-          <div
-            style={{
-              fontSize: 12,
-              color: "#c8b6a1",
-              marginTop: 4,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {player.source === "user"
-              ? `Account${player.username ? ` · @${player.username}` : ""}`
-              : player.isGuest
-                ? "Guest"
-                : "Local profile"}
-          </div>
+          <PlayerIdentity
+            player={player}
+            name={player.name}
+            username={player.username ?? player.id}
+            imageUrl={player.avatar_url ?? null}
+            avatarSize={compactMobile ? 38 : 44}
+            avatarFontSize={compactMobile ? 12 : 13}
+            nameFontSize={compactMobile ? 15 : 18}
+            compact
+            subtitle={
+              player.source === "user"
+                ? `Account${player.username ? ` · @${player.username}` : ""}`
+                : player.isGuest
+                  ? "Guest"
+                  : "Local profile"
+            }
+          />
         </div>
       </div>
 

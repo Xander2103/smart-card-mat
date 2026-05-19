@@ -7,7 +7,7 @@ import {
   rejectFriendRequest,
   sendFriendRequest,
 } from "../../core/api/friendApi";
-import { UserAvatar } from "../components/UserAvatar";
+import { PlayerIdentity } from "../components/PlayerIdentity";
 
 const panelStyle = {
   border: "1px solid rgba(251, 191, 36, 0.18)",
@@ -89,50 +89,16 @@ function UserIdentity({ user }) {
   if (!user) return null;
 
   return (
-    <div
-      style={{
-        minWidth: 0,
-        display: "flex",
-        gap: 10,
-        alignItems: "center",
-      }}
-    >
-      <UserAvatar
-        name={user.name}
-        username={user.username}
-        imageUrl={user.avatar_url ?? null}
-        size={42}
-        fontSize={13}
-      />
-
-      <div style={{ minWidth: 0 }}>
-        <div
-          style={{
-            fontWeight: 900,
-            fontSize: 17,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {user.name}
-        </div>
-
-        <div
-          style={{
-            marginTop: 4,
-            color: "#fde68a",
-            fontSize: 13,
-            fontWeight: 800,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          @{user.username}
-        </div>
-      </div>
-    </div>
+    <PlayerIdentity
+      player={user}
+      name={user.name}
+      username={user.username}
+      imageUrl={user.avatar_url ?? null}
+      avatarSize={42}
+      avatarFontSize={13}
+      nameFontSize={17}
+      subtitle={user.username ? `@${user.username}` : null}
+    />
   );
 }
 
