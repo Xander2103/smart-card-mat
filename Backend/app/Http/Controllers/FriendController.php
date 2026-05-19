@@ -26,9 +26,16 @@ class FriendController extends Controller
         $friends = $friendships
             ->filter(fn(Friendship $friendship) => $friendship->status === Friendship::STATUS_ACCEPTED)
             ->map(function (Friendship $friendship) use ($userId) {
-                return $friendship->requester_id === $userId
+                $friend = $friendship->requester_id === $userId
                     ? $friendship->receiver
                     : $friendship->requester;
+
+                return [
+                    'id' => $friend->id,
+                    'name' => $friend->name,
+                    'username' => $friend->username,
+                    'friendship_id' => $friendship->id,
+                ];
             })
             ->values();
 

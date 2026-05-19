@@ -1053,6 +1053,7 @@ export function PlayersScreen({
               : "minmax(0, 1fr) minmax(0, 1fr)",
             gap: 12,
             marginBottom: 16,
+            alignItems: "start",
           }}
         >
           <AccountSection

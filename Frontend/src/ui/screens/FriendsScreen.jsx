@@ -64,6 +64,16 @@ const dangerButtonStyle = {
   color: "#fee2e2",
 };
 
+const successBadgeStyle = {
+  borderRadius: 999,
+  padding: "7px 11px",
+  background: "rgba(34,197,94,0.12)",
+  border: "1px solid rgba(34,197,94,0.28)",
+  color: "#bbf7d0",
+  fontWeight: 900,
+  fontSize: 13,
+};
+
 function getOtherUserFromRequest(request, currentUserId) {
   if (!request) return null;
 
@@ -239,8 +249,11 @@ export function FriendsScreen({ authUser, onOpenAuth }) {
     }
   }
 
-  async function handleDelete(friendshipId) {
-    const ok = window.confirm("Ben je zeker dat je deze friendship wilt verwijderen?");
+  async function handleDelete(friendshipId, label = "deze friendship") {
+    const ok = window.confirm(
+      `Ben je zeker dat je ${label} wilt verwijderen?`
+    );
+
     if (!ok) return;
 
     try {
@@ -453,10 +466,15 @@ export function FriendsScreen({ authUser, onOpenAuth }) {
                       <button
                         type="button"
                         disabled={busy}
-                        onClick={() => handleDelete(request.id)}
+                        onClick={() =>
+                          handleDelete(
+                            request.id,
+                            `het verzoek naar ${otherUser?.name ?? "deze user"}`
+                          )
+                        }
                         style={dangerButtonStyle}
                       >
-                        Cancel
+                        Cancel request
                       </button>
                     </div>
                   );
@@ -478,16 +496,32 @@ export function FriendsScreen({ authUser, onOpenAuth }) {
                     style={{
                       ...cardStyle,
                       display: "grid",
-                      gridTemplateColumns: "minmax(0, 1fr) auto",
+                      gridTemplateColumns: "minmax(0, 1fr) auto auto",
                       gap: 10,
                       alignItems: "center",
                     }}
                   >
                     <UserIdentity user={friend} />
 
-                    <div style={{ color: "#bbf7d0", fontWeight: 900 }}>
-                      Friend
-                    </div>
+                    <div style={successBadgeStyle}>Friend</div>
+
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        handleDelete(
+                          friend.friendship_id,
+                          `${friend.name} als vriend`
+                        )
+                      }
+                      style={{
+                        ...dangerButtonStyle,
+                        opacity: busy ? 0.6 : 1,
+                        cursor: busy ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      Remove
+                    </button>
                   </div>
                 ))}
               </div>
