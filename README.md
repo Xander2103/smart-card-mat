@@ -347,6 +347,7 @@ Implemented:
 - reusable avatar/player identity UI
 - hardware/BLE-ready architecture
 - Password reset flow with email support
+- QR friends sharing
 
 ---
 
@@ -357,7 +358,6 @@ Possible next steps:
 - profile picture upload
 - email verification for new accounts
 - change password while logged in
-- QR-based friend sharing
 - backend-generated official statistics endpoints
 - public leaderboards
 - more card games

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { searchUsers } from "../../core/api/userApi";
 import {
   acceptFriendRequest,
@@ -8,6 +8,7 @@ import {
   sendFriendRequest,
 } from "../../core/api/friendApi";
 import { PlayerIdentity } from "../components/PlayerIdentity";
+import { ConfirmModal } from "../components/ConfirmModal";
 import { FriendQrModal } from "../friends/FriendQrModal";
 import { FriendQrScannerModal } from "../friends/FriendQrScannerModal";
 
@@ -112,8 +113,10 @@ export function FriendsScreen({ authUser, onOpenAuth }) {
   const [outgoingRequests, setOutgoingRequests] = useState([]);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+
   const [showQrModal, setShowQrModal] = useState(false);
   const [showScannerModal, setShowScannerModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const currentUserId = authUser?.id ?? null;
 
@@ -171,6 +174,22 @@ export function FriendsScreen({ authUser, onOpenAuth }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authUser?.id]);
 
+  function openConfirm(config) {
+    setConfirmAction(config);
+  }
+
+  function closeConfirm() {
+    if (busy) return;
+    setConfirmAction(null);
+  }
+
+  async function runConfirmAction() {
+    if (!confirmAction?.onConfirm) return;
+
+    await confirmAction.onConfirm();
+    setConfirmAction(null);
+  }
+
   async function handleSearch(event) {
     event.preventDefault();
 
@@ -203,65 +222,77 @@ export function FriendsScreen({ authUser, onOpenAuth }) {
     }
   }
 
-async function searchByUsername(scannedUsername) {
-  const cleanUsername = String(scannedUsername ?? "").trim();
+  const searchByUsername = useCallback(
+    async (scannedUsername) => {
+      const cleanUsername = String(scannedUsername ?? "").trim();
 
-  if (!cleanUsername) return;
+      if (!cleanUsername) return;
 
-  setQuery(cleanUsername);
-  setShowScannerModal(false);
+      setQuery(cleanUsername);
+      setShowScannerModal(false);
 
-  try {
-    setBusy(true);
-    setStatus(`User @${cleanUsername} zoeken...`);
+      try {
+        setBusy(true);
+        setStatus(`User @${cleanUsername} zoeken...`);
 
-    const users = await searchUsers(cleanUsername);
+        const users = await searchUsers(cleanUsername);
 
-    setSearchResults(users);
+        setSearchResults(users);
 
-    const exactUser = users.find(
-      (user) =>
-        String(user?.username ?? "").toLowerCase() ===
-        cleanUsername.toLowerCase()
-    );
+        const exactUser = users.find(
+          (user) =>
+            String(user?.username ?? "").toLowerCase() ===
+            cleanUsername.toLowerCase()
+        );
 
-    if (!exactUser) {
-      setStatus(`Geen exacte user gevonden voor @${cleanUsername}.`);
-      return;
-    }
+        if (!exactUser) {
+          setStatus(`Geen exacte user gevonden voor @${cleanUsername}.`);
+          return;
+        }
 
-    if (Number(exactUser.id) === Number(currentUserId)) {
-      setStatus("Je kan jezelf niet toevoegen als vriend.");
-      return;
-    }
+        if (Number(exactUser.id) === Number(currentUserId)) {
+          setStatus("Je kan jezelf niet toevoegen als vriend.");
+          return;
+        }
 
-    if (knownUserIds.has(Number(exactUser.id))) {
-      setStatus(`@${cleanUsername} is al vriend of er bestaat al een request.`);
-      return;
-    }
+        if (knownUserIds.has(Number(exactUser.id))) {
+          setStatus(`@${cleanUsername} is al vriend of er bestaat al een request.`);
+          return;
+        }
 
-    const ok = window.confirm(
-      `Friend request sturen naar ${exactUser.name} (@${exactUser.username})?`
-    );
+        openConfirm({
+          title: "Friend request sturen?",
+          message: `Wil je een friend request sturen naar ${exactUser.name} (@${exactUser.username})?`,
+          confirmLabel: "Send request",
+          cancelLabel: "Cancel",
+          danger: false,
+          onConfirm: async () => {
+            try {
+              setBusy(true);
+              setStatus(`Friend request sturen naar @${exactUser.username}...`);
 
-    if (!ok) {
-      setStatus(`@${cleanUsername} gevonden. Je kan manueel Add friend klikken.`);
-      return;
-    }
+              const result = await sendFriendRequest(exactUser.id);
 
-    setStatus(`Friend request sturen naar @${exactUser.username}...`);
+              setStatus(result?.message ?? "Vriendschapsverzoek verstuurd.");
+              await refreshFriends();
+            } catch (error) {
+              setStatus(error?.message ?? "Kon vriendschapsverzoek niet versturen.");
+            } finally {
+              setBusy(false);
+            }
+          },
+        });
 
-    const result = await sendFriendRequest(exactUser.id);
-
-    setStatus(result?.message ?? "Vriendschapsverzoek verstuurd.");
-    await refreshFriends();
-  } catch (error) {
-    setSearchResults([]);
-    setStatus(error?.message ?? "Kon QR user niet verwerken.");
-  } finally {
-    setBusy(false);
-  }
-}
+        setStatus(`@${cleanUsername} gevonden.`);
+      } catch (error) {
+        setSearchResults([]);
+        setStatus(error?.message ?? "Kon QR user niet verwerken.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [currentUserId, knownUserIds]
+  );
 
   async function handleSendRequest(userId) {
     try {
@@ -311,24 +342,29 @@ async function searchByUsername(scannedUsername) {
     }
   }
 
-  async function handleDelete(friendshipId, label = "deze friendship") {
-    const ok = window.confirm(`Ben je zeker dat je ${label} wilt verwijderen?`);
+  function handleDelete(friendshipId, label = "deze friendship") {
+    openConfirm({
+      title: "Friend verwijderen?",
+      message: `Ben je zeker dat je ${label} wilt verwijderen?`,
+      confirmLabel: "Remove",
+      cancelLabel: "Cancel",
+      danger: true,
+      onConfirm: async () => {
+        try {
+          setBusy(true);
+          setStatus("Friendship verwijderen...");
 
-    if (!ok) return;
+          const result = await deleteFriendship(friendshipId);
 
-    try {
-      setBusy(true);
-      setStatus("Friendship verwijderen...");
-
-      const result = await deleteFriendship(friendshipId);
-
-      setStatus(result?.message ?? "Friendship verwijderd.");
-      await refreshFriends();
-    } catch (error) {
-      setStatus(error?.message ?? "Kon friendship niet verwijderen.");
-    } finally {
-      setBusy(false);
-    }
+          setStatus(result?.message ?? "Friendship verwijderd.");
+          await refreshFriends();
+        } catch (error) {
+          setStatus(error?.message ?? "Kon friendship niet verwijderen.");
+        } finally {
+          setBusy(false);
+        }
+      },
+    });
   }
 
   if (!authUser) {
@@ -622,10 +658,23 @@ async function searchByUsername(scannedUsername) {
           user={authUser}
           onClose={() => setShowQrModal(false)}
         />
+
         <FriendQrScannerModal
           open={showScannerModal}
           onClose={() => setShowScannerModal(false)}
           onUsernameScanned={searchByUsername}
+        />
+
+        <ConfirmModal
+          open={!!confirmAction}
+          title={confirmAction?.title}
+          message={confirmAction?.message}
+          confirmLabel={confirmAction?.confirmLabel}
+          cancelLabel={confirmAction?.cancelLabel}
+          danger={confirmAction?.danger}
+          busy={busy}
+          onCancel={closeConfirm}
+          onConfirm={runConfirmAction}
         />
       </div>
     </div>
