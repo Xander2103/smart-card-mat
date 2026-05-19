@@ -11,6 +11,7 @@ import {
 } from "../players/playersHelpers";
 import { panelStyle, actionButtonStyle } from "../players/playersTheme";
 import { PlayerIdentity } from "../components/PlayerIdentity";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 function normalizeSelectedPlayer(player) {
   const id = player?.id ?? player?.playerId ?? `player_${Date.now()}`;
@@ -726,6 +727,7 @@ export function PlayersScreen({
   const [error, setError] = useState("");
   const [friendsOpen, setFriendsOpen] = useState(true);
   const [localProfilesOpen, setLocalProfilesOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const selectedPlayers = useMemo(
     () => normalizeSelectedPlayers(appState?.players),
@@ -795,6 +797,17 @@ export function PlayersScreen({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authUser?.id]);
+
+  function closeConfirm() {
+    setConfirmAction(null);
+  }
+
+  async function runConfirmAction() {
+    if (!confirmAction?.onConfirm) return;
+
+    await confirmAction.onConfirm();
+    setConfirmAction(null);
+  }
 
   function failWhenLocked() {
     if (!locked) return false;
@@ -958,52 +971,62 @@ export function PlayersScreen({
   function handleDeleteProfile(profile) {
     if (failWhenLocked()) return;
 
-    const ok = window.confirm(
-      `Ben je zeker dat je het profiel "${profile.name}" wilt verwijderen?`
-    );
+    setConfirmAction({
+      title: "Local profile verwijderen?",
+      message: `Ben je zeker dat je het profiel "${profile.name}" wilt verwijderen? Dit profiel verdwijnt alleen van dit toestel.`,
+      confirmLabel: "Delete profile",
+      cancelLabel: "Annuleren",
+      danger: true,
+      onConfirm: async () => {
+        if (typeof storageService.deletePlayer === "function") {
+          storageService.deletePlayer(profile.id);
+        }
 
-    if (!ok) return;
+        const nextPlayers = selectedPlayers.filter(
+          (player) => player.id !== profile.id
+        );
 
-    if (typeof storageService.deletePlayer === "function") {
-      storageService.deletePlayer(profile.id);
-    }
-
-    const nextPlayers = selectedPlayers.filter(
-      (player) => player.id !== profile.id
-    );
-
-    dispatchAction({ type: "set_players", players: nextPlayers });
-    refreshProfiles();
+        dispatchAction({ type: "set_players", players: nextPlayers });
+        refreshProfiles();
+      },
+    });
   }
 
   function handleDeleteDevData() {
     if (failWhenLocked()) return;
 
-    const ok = window.confirm(
-      "Delete all DEV accounts and clear simulated matches? This cannot be undone."
-    );
+    setConfirmAction({
+      title: "DEV data verwijderen?",
+      message:
+        "Delete all DEV accounts and clear simulated matches? This cannot be undone.",
+      confirmLabel: "Delete DEV data",
+      cancelLabel: "Annuleren",
+      danger: true,
+      onConfirm: async () => {
+        const devProfiles = profiles.filter((profile) =>
+          isDevProfileName(profile.name)
+        );
+        const devProfileIds = new Set(devProfiles.map((profile) => profile.id));
 
-    if (!ok) return;
+        const nextPlayers = selectedPlayers.filter(
+          (player) =>
+            !devProfileIds.has(player.id) && !isDevProfileName(player.name)
+        );
 
-    const devProfiles = profiles.filter((profile) => isDevProfileName(profile.name));
-    const devProfileIds = new Set(devProfiles.map((profile) => profile.id));
+        dispatchAction({ type: "set_players", players: nextPlayers });
 
-    const nextPlayers = selectedPlayers.filter(
-      (player) => !devProfileIds.has(player.id) && !isDevProfileName(player.name)
-    );
+        storageService.clearSimulatedMatches();
 
-    dispatchAction({ type: "set_players", players: nextPlayers });
+        for (const profile of devProfiles) {
+          if (typeof storageService.deletePlayer === "function") {
+            storageService.deletePlayer(profile.id);
+          }
+        }
 
-    storageService.clearSimulatedMatches();
-
-    for (const profile of devProfiles) {
-      if (typeof storageService.deletePlayer === "function") {
-        storageService.deletePlayer(profile.id);
-      }
-    }
-
-    setError("");
-    refreshProfiles();
+        setError("");
+        refreshProfiles();
+      },
+    });
   }
 
   const filteredProfiles = profiles.filter((profile) =>
@@ -1128,6 +1151,17 @@ export function PlayersScreen({
           />
         </div>
       </div>
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.title}
+        message={confirmAction?.message}
+        confirmLabel={confirmAction?.confirmLabel}
+        cancelLabel={confirmAction?.cancelLabel}
+        danger={confirmAction?.danger}
+        onCancel={closeConfirm}
+        onConfirm={runConfirmAction}
+      />
     </div>
   );
 }
