@@ -5,6 +5,7 @@ import { storageService } from "../../core/storage/services/storageService";
 import { simulateDobbelkingenMatches } from "../../core/dev/simulateDobbelkingenMatches";
 import { simulateKleurenwiezenMatch } from "../../core/dev/simulateKleurenwiezenMatches";
 import { leds } from "../../transport/ledClient";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 function ToggleRow({ checked, onChange, title, description }) {
   return (
@@ -38,6 +39,7 @@ export function SettingsScreen({ appState, dispatchAction }) {
   const { isMobile } = useViewport();
   const [devCodeInput, setDevCodeInput] = useState("");
   const [devCodeError, setDevCodeError] = useState("");
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const autoConfirm = !!appState.autoConfirm;
   const devMode = !!appState.devMode;
@@ -54,6 +56,17 @@ export function SettingsScreen({ appState, dispatchAction }) {
 
   const [ledBrightness, setLedBrightness] = useState(initialLedBrightness);
 
+  function closeConfirm() {
+    setConfirmAction(null);
+  }
+
+  async function runConfirmAction() {
+    if (!confirmAction?.onConfirm) return;
+
+    await confirmAction.onConfirm();
+    setConfirmAction(null);
+  }
+
   function applyLedBrightness(value) {
     const safeValue = Math.max(0, Math.min(255, Number(value) || 0));
     setLedBrightness(safeValue);
@@ -66,8 +79,16 @@ export function SettingsScreen({ appState, dispatchAction }) {
 
   function simulateKleurenwiezenMatches(count) {
     const players = (appState?.players ?? []).slice(0, 4);
+
     if (players.length < 4) {
-      window.alert("Minstens 4 spelers nodig om Kleurenwiezen te simuleren.");
+      setConfirmAction({
+        title: "Niet genoeg spelers",
+        message: "Je hebt minstens 4 spelers nodig om Kleurenwiezen te simuleren.",
+        confirmLabel: "Oké",
+        cancelLabel: "Sluiten",
+        danger: false,
+        onConfirm: async () => {},
+      });
       return;
     }
 
@@ -80,6 +101,25 @@ export function SettingsScreen({ appState, dispatchAction }) {
         detail: { source: "kleurenwiezen-dev-tools" },
       })
     );
+  }
+
+  function handleClearSimulatedMatches() {
+    setConfirmAction({
+      title: "Simulated matches verwijderen?",
+      message: "Ben je zeker dat je alle gesimuleerde matches wilt verwijderen?",
+      confirmLabel: "Clear simulated",
+      cancelLabel: "Annuleren",
+      danger: true,
+      onConfirm: async () => {
+        storageService.clearSimulatedMatches();
+
+        window.dispatchEvent(
+          new CustomEvent("smartcardmat:matches-updated", {
+            detail: { source: "settings-clear-simulated" },
+          })
+        );
+      },
+    });
   }
 
   return (
@@ -161,6 +201,7 @@ export function SettingsScreen({ appState, dispatchAction }) {
               >
                 20
               </button>
+
               <button
                 type="button"
                 onClick={() => applyLedBrightness(40)}
@@ -168,6 +209,7 @@ export function SettingsScreen({ appState, dispatchAction }) {
               >
                 40
               </button>
+
               <button
                 type="button"
                 onClick={() => applyLedBrightness(60)}
@@ -175,6 +217,7 @@ export function SettingsScreen({ appState, dispatchAction }) {
               >
                 60
               </button>
+
               <button
                 type="button"
                 onClick={() => applyLedBrightness(100)}
@@ -194,6 +237,7 @@ export function SettingsScreen({ appState, dispatchAction }) {
           <b> auto-confirm</b> aan. Gebruik <b>Undo</b> alleen wanneer een kaart fout werd
           gescand of verkeerd geplaatst.
         </div>
+
         <div>
           <button
             onClick={() => {
@@ -238,6 +282,7 @@ export function SettingsScreen({ appState, dispatchAction }) {
                 maxWidth: 240,
               }}
             />
+
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
                 onClick={() => {
@@ -245,6 +290,7 @@ export function SettingsScreen({ appState, dispatchAction }) {
                     setDevCodeError("Foute code voor dev mode.");
                     return;
                   }
+
                   dispatchAction?.({ type: "set_dev_mode", value: true });
                   setDevCodeInput("");
                   setDevCodeError("");
@@ -254,13 +300,17 @@ export function SettingsScreen({ appState, dispatchAction }) {
                 Dev mode activeren
               </button>
             </div>
+
             {devCodeError ? (
-              <div style={{ color: "#fca5a5", fontWeight: 700 }}>{devCodeError}</div>
+              <div style={{ color: "#fca5a5", fontWeight: 700 }}>
+                {devCodeError}
+              </div>
             ) : null}
           </>
         ) : (
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <div style={{ color: "#86efac", fontWeight: 800 }}>Dev mode is actief.</div>
+
             <button
               onClick={() => dispatchAction?.({ type: "set_dev_mode", value: false })}
               style={buttonStyle("danger")}
@@ -309,14 +359,7 @@ export function SettingsScreen({ appState, dispatchAction }) {
 
                 <button
                   style={buttonStyle("secondary")}
-                  onClick={() => {
-                    const ok = window.confirm(
-                      "Ben je zeker dat je alle gesimuleerde matches wilt verwijderen?"
-                    );
-                    if (!ok) return;
-
-                    storageService.clearSimulatedMatches();
-                  }}
+                  onClick={handleClearSimulatedMatches}
                 >
                   Clear simulated matches
                 </button>
@@ -343,12 +386,14 @@ export function SettingsScreen({ appState, dispatchAction }) {
                 >
                   Simulate 1 match
                 </button>
+
                 <button
                   style={buttonStyle("secondary")}
                   onClick={() => simulateKleurenwiezenMatches(20)}
                 >
                   Simulate 20 matches
                 </button>
+
                 <button
                   style={buttonStyle("secondary")}
                   onClick={() => simulateKleurenwiezenMatches(100)}
@@ -360,6 +405,17 @@ export function SettingsScreen({ appState, dispatchAction }) {
           </>
         )}
       </div>
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.title}
+        message={confirmAction?.message}
+        confirmLabel={confirmAction?.confirmLabel}
+        cancelLabel={confirmAction?.cancelLabel}
+        danger={confirmAction?.danger}
+        onCancel={closeConfirm}
+        onConfirm={runConfirmAction}
+      />
     </div>
   );
 }
