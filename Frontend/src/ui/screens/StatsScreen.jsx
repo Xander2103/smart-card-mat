@@ -429,7 +429,7 @@ function PlayerStatsCard({
     kleurenwiezenInsights,
   } = row;
 
-  const medalStyle = getMedalStyle(place);
+  const medalStyle = getMedalStyle(leaderboardRank ?? place);
 
   const dobbelkingenStats = gameModeStats?.dobbelkingen ?? getEmptyStats();
   const kleurenwiezenStats = gameModeStats?.kleurenwiezen ?? getEmptyStats();
@@ -442,12 +442,12 @@ function PlayerStatsCard({
         padding: 14,
         border: isOwnAccount
           ? "1px solid rgba(34,197,94,0.38)"
-          : place === 1
+          : (leaderboardRank ?? place) === 1
             ? "1px solid rgba(251, 191, 36, 0.34)"
             : "1px solid rgba(255,255,255,0.08)",
         background: isOwnAccount
           ? "rgba(34,197,94,0.10)"
-          : place === 1
+          : (leaderboardRank ?? place) === 1
             ? "rgba(217, 119, 6, 0.14)"
             : "rgba(255,255,255,0.03)",
         display: "grid",
@@ -475,7 +475,7 @@ function PlayerStatsCard({
               ...medalStyle,
             }}
           >
-            {isOwnAccount ? "👤" : getPlaceLabel(place)}
+            {isOwnAccount ? "👤" : getPlaceLabel(leaderboardRank ?? place)}
           </div>
 
           <div>
@@ -484,9 +484,7 @@ function PlayerStatsCard({
               {isOwnAccount ? " · mijn account" : " · account"}
             </div>
             <div style={{ color: "#c8b6a1", fontSize: 13 }}>
-              {isOwnAccount
-                ? `Leaderboard rank #${leaderboardRank ?? "-"}`
-                : `Rank #${place}`}
+              {`Leaderboard rank #${leaderboardRank ?? place ?? "-"}`}
               {player.username ? ` · @${player.username}` : ""}
             </div>
           </div>
@@ -688,10 +686,16 @@ export function StatsScreen({ authUser = null }) {
     const allRows = accountPlayers.map(buildRow);
     const sortedAllRows = sortPlayers(allRows, sortBy, activeSection);
 
+    const rankByPlayerId = new Map();
+
+    sortedAllRows.forEach((row, index) => {
+      rankByPlayerId.set(row.player.id, index + 1);
+    });
+
     const currentRow = currentAccountPlayer ? buildRow(currentAccountPlayer) : null;
 
     const currentRank = currentRow
-      ? sortedAllRows.findIndex((row) => row.player.id === currentRow.player.id) + 1
+      ? rankByPlayerId.get(currentRow.player.id) ?? null
       : null;
 
     const normalizedFriendSearch = friendSearchTerm.trim().toLowerCase();
@@ -716,11 +720,15 @@ export function StatsScreen({ authUser = null }) {
           String(player.username ?? "").toLowerCase().includes(normalizedFriendSearch);
 
         return matchesSection > 0 && matchesSearch;
-      });
+      })
+      .map((row) => ({
+        ...row,
+        leaderboardRank: rankByPlayerId.get(row.player.id) ?? null,
+      }));
 
     return {
       myRow: currentRow,
-      myRank: currentRank || null,
+      myRank: currentRank,
       friendRows: sortPlayers(mappedFriends, sortBy, activeSection),
     };
   }, [authUser, matches, sortBy, friendSearchTerm, activeSection]);
@@ -953,11 +961,12 @@ export function StatsScreen({ authUser = null }) {
                     : "Nog geen friends met gespeelde online matches."}
                 </div>
               ) : (
-                friendRows.map((row, index) => (
+                friendRows.map((row) => (
                   <PlayerStatsCard
                     key={row.player.id}
                     row={row}
-                    place={index + 1}
+                    place={row.leaderboardRank ?? 1}
+                    leaderboardRank={row.leaderboardRank}
                     activeSection={activeSection}
                   />
                 ))
