@@ -25,6 +25,7 @@ import { getTrumpLabel, getTrickWinsByPlayer, toPrettyCard } from "./playscreen/
 import { KleurenwiezenPanel } from "../kleurenwiezen/KleurenwiezenPanel";
 import { KleurenwiezenRoundPanel } from "../kleurenwiezen/KleurenwiezenRoundPanel";
 import { DevCardSimulator } from "./playscreen/DevCardSimulator";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 export function PlayScreen({
   appState,
@@ -48,8 +49,9 @@ export function PlayScreen({
   dispatchAction,
   onSimulateDevCard,
   onSimulateRandomContract,
-
 }) {
+  const [confirmAction, setConfirmAction] = useState(null);
+
   const modeId = appState.modeId ?? null;
   const isDobbelkingen = modeId === "dobbelkingen";
   const isKleurenwiezen = modeId === "kleurenwiezen";
@@ -166,6 +168,31 @@ export function PlayScreen({
     onZoneClick?.(realZone);
   }
 
+  function closeConfirm() {
+    setConfirmAction(null);
+  }
+
+  async function runConfirmAction() {
+    if (!confirmAction?.onConfirm) return;
+
+    await confirmAction.onConfirm();
+    setConfirmAction(null);
+  }
+
+  function requestBackFromContract() {
+    setConfirmAction({
+      title: "Contract verlaten?",
+      message:
+        "Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen.",
+      confirmLabel: "Teruggaan",
+      cancelLabel: "Annuleren",
+      danger: true,
+      onConfirm: async () => {
+        onBackFromContract?.();
+      },
+    });
+  }
+
   const chooserIndex =
     appState.phase === "CHOOSING_TROEF"
       ? typeof d?.troefChooserIndex === "number"
@@ -193,14 +220,13 @@ export function PlayScreen({
             ? d.leaderIndex
             : (chooserIndex + 1) % playersCount;
 
-
   const dealerPlayerIndex = isKleurenwiezen
     ? typeof activeSlice?.dealerSeat === "number"
       ? activeSlice.dealerSeat
-      : ((leaderPlayerIndex + playersCount - 1) % playersCount)
+      : (leaderPlayerIndex + playersCount - 1) % playersCount
     : typeof d?.dealerSeat === "number"
       ? d.dealerSeat
-      : ((leaderPlayerIndex + playersCount - 1) % playersCount);
+      : (leaderPlayerIndex + playersCount - 1) % playersCount;
 
   const seatCards = useMemo(() => {
     return Array.from({ length: playersCount }, (_, index) => {
@@ -255,11 +281,20 @@ export function PlayScreen({
       window.clearTimeout(t1);
       window.clearTimeout(t2);
     };
-  }, [activeSlice?.lastTrick, activeSlice?.lastTrickWinnerIndex, activeSlice?.trickHistory, players]);
+  }, [
+    activeSlice?.lastTrick,
+    activeSlice?.lastTrickWinnerIndex,
+    activeSlice?.trickHistory,
+    players,
+  ]);
 
   useEffect(() => {
-    const currentTrick = Array.isArray(activeSlice?.currentTrick) ? activeSlice.currentTrick : [];
-    const prevTrick = Array.isArray(prevTrickRef.current) ? prevTrickRef.current : [];
+    const currentTrick = Array.isArray(activeSlice?.currentTrick)
+      ? activeSlice.currentTrick
+      : [];
+    const prevTrick = Array.isArray(prevTrickRef.current)
+      ? prevTrickRef.current
+      : [];
 
     if (currentTrick.length < prevTrick.length) {
       prevTrickRef.current = currentTrick;
@@ -309,11 +344,17 @@ export function PlayScreen({
       : "—";
 
   const centerAnimationSeed = `${trickCount}-${JSON.stringify(activeSlice?.currentTrick ?? [])}`;
-  const mobileTableHeight = Math.max(isMobileLandscape ? 300 : 540, height - (isMobileLandscape ? 26 : 32));
+  const mobileTableHeight = Math.max(
+    isMobileLandscape ? 300 : 540,
+    height - (isMobileLandscape ? 26 : 32)
+  );
 
   const mobileTopOverlayOffset = 6;
   const mobileControlsHeight = isMobileLandscape ? 40 : 42;
-  const mobileLobbyHeight = Math.max(appState.phase === "CHOOSING_TROEF" ? 520 : 420, height - 112);
+  const mobileLobbyHeight = Math.max(
+    appState.phase === "CHOOSING_TROEF" ? 520 : 420,
+    height - 112
+  );
   const mobileTopButtonStyle = {
     minHeight: mobileControlsHeight,
     padding: isMobileLandscape ? "6px 8px" : "7px 9px",
@@ -327,7 +368,14 @@ export function PlayScreen({
   };
 
   const mobileGameTable = (
-    <div style={{ position: "relative", minHeight: mobileTableHeight, height: mobileTableHeight, overflow: "hidden" }}>
+    <div
+      style={{
+        position: "relative",
+        minHeight: mobileTableHeight,
+        height: mobileTableHeight,
+        overflow: "hidden",
+      }}
+    >
       <TableDirection
         players={players}
         currentPlayerIndex={currentIndex}
@@ -348,7 +396,6 @@ export function PlayScreen({
         mobileTopInset={mobileControlsHeight + 8}
       />
 
-
       <div
         style={{
           position: "absolute",
@@ -362,20 +409,29 @@ export function PlayScreen({
           zIndex: 12,
         }}
       >
-        <button onClick={onToggleMobileHeader} style={{ ...buttonStyle(), ...mobileTopButtonStyle }}>
+        <button
+          onClick={onToggleMobileHeader}
+          style={{ ...buttonStyle(), ...mobileTopButtonStyle }}
+        >
           Header
         </button>
-        <button onClick={onUndo} style={{ ...buttonStyle("primary"), ...mobileTopButtonStyle }}>
+
+        <button
+          onClick={onUndo}
+          style={{ ...buttonStyle("primary"), ...mobileTopButtonStyle }}
+        >
           ↻ Undo
         </button>
-        <button onClick={() => setShowMobileScore(true)} style={{ ...buttonStyle(), ...mobileTopButtonStyle }}>
+
+        <button
+          onClick={() => setShowMobileScore(true)}
+          style={{ ...buttonStyle(), ...mobileTopButtonStyle }}
+        >
           Score
         </button>
+
         <button
-          onClick={() => {
-            const ok = window.confirm("Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen.");
-            if (ok) onBackFromContract?.();
-          }}
+          onClick={requestBackFromContract}
           style={{ ...buttonStyle("danger"), ...mobileTopButtonStyle }}
         >
           ← Terug
@@ -396,7 +452,13 @@ export function PlayScreen({
   );
 
   return (
-    <div style={{ display: "grid", gap: showGameUi && isMobile ? 0 : 14, overflow: showGameUi && isMobile ? "hidden" : undefined }}>
+    <div
+      style={{
+        display: "grid",
+        gap: showGameUi && isMobile ? 0 : 14,
+        overflow: showGameUi && isMobile ? "hidden" : undefined,
+      }}
+    >
       <ContractEndOverlay
         open={showContractOverlay}
         title={overlayTitle}
@@ -431,13 +493,14 @@ export function PlayScreen({
             style={
               isMobile
                 ? {
-                  minHeight: mobileLobbyHeight,
-                  height: mobileLobbyHeight,
-                  minWidth: 0,
-                  overflowY: appState.phase === "CHOOSING_TROEF" ? "hidden" : "auto",
-                  overflowX: "hidden",
-                  WebkitOverflowScrolling: "touch",
-                }
+                    minHeight: mobileLobbyHeight,
+                    height: mobileLobbyHeight,
+                    minWidth: 0,
+                    overflowY:
+                      appState.phase === "CHOOSING_TROEF" ? "hidden" : "auto",
+                    overflowX: "hidden",
+                    WebkitOverflowScrolling: "touch",
+                  }
                 : undefined
             }
           >
@@ -453,17 +516,26 @@ export function PlayScreen({
       )}
 
       {showLobby && appState.activeMode === "KLEURENWIEZEN" && (
-        <KleurenwiezenPanel appState={appState} onClose={onCloseMode} dispatchAction={dispatchAction} />
+        <KleurenwiezenPanel
+          appState={appState}
+          onClose={onCloseMode}
+          dispatchAction={dispatchAction}
+        />
       )}
 
       {showDoneUi && (
-        <EndScreen summary={d?.matchSummary} onNewGame={onStartDobbelkingen} onBackHome={onCloseMode} />
+        <EndScreen
+          summary={d?.matchSummary}
+          onNewGame={onStartDobbelkingen}
+          onBackHome={onCloseMode}
+        />
       )}
 
       {showGameUi &&
         (isMobile ? (
           <>
             <ErrorBanner message={appState.lastError} />
+
             {trickToast ? (
               <AnimatedBanner
                 key={trickToast.key}
@@ -473,19 +545,21 @@ export function PlayScreen({
                 compact
               />
             ) : null}
+
             {mobileGameTable}
-            {isKleurenwiezen ? <KleurenwiezenRoundPanel appState={appState} dispatchAction={dispatchAction} /> : null}
+
+            {isKleurenwiezen ? (
+              <KleurenwiezenRoundPanel
+                appState={appState}
+                dispatchAction={dispatchAction}
+              />
+            ) : null}
           </>
         ) : (
           <>
             <GameToolbar
               onUndo={onUndo}
-              onBack={() => {
-                const ok = window.confirm(
-                  "Zeker dat je terug wil? Dit stopt het huidige contract en reset de huidige slagen."
-                );
-                if (ok) onBackFromContract?.();
-              }}
+              onBack={requestBackFromContract}
             />
 
             <ErrorBanner message={appState.lastError} />
@@ -538,10 +612,22 @@ export function PlayScreen({
               }
             />
 
-            {isDobbelkingen && contractLabel === "TROEF" ? <TrickWinsPanel players={players} trickWins={trickWins} /> : null}
-            {isKleurenwiezen ? <KleurenwiezenRoundPanel appState={appState} dispatchAction={dispatchAction} /> : null}
+            {isDobbelkingen && contractLabel === "TROEF" ? (
+              <TrickWinsPanel players={players} trickWins={trickWins} />
+            ) : null}
 
-            {showRecentCards && <PlayedCardsPanel cardCodes={activeSlice?.usedCardCodes ?? appState.usedCardCodes ?? []} />}
+            {isKleurenwiezen ? (
+              <KleurenwiezenRoundPanel
+                appState={appState}
+                dispatchAction={dispatchAction}
+              />
+            ) : null}
+
+            {showRecentCards && (
+              <PlayedCardsPanel
+                cardCodes={activeSlice?.usedCardCodes ?? appState.usedCardCodes ?? []}
+              />
+            )}
 
             {showDebug && appState.devMode && (
               <DevPanel
@@ -560,6 +646,17 @@ export function PlayScreen({
             )}
           </>
         ))}
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.title}
+        message={confirmAction?.message}
+        confirmLabel={confirmAction?.confirmLabel}
+        cancelLabel={confirmAction?.cancelLabel}
+        danger={confirmAction?.danger}
+        onCancel={closeConfirm}
+        onConfirm={runConfirmAction}
+      />
     </div>
   );
 }
