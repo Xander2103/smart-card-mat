@@ -8,6 +8,8 @@ import {
   sendFriendRequest,
 } from "../../core/api/friendApi";
 import { PlayerIdentity } from "../components/PlayerIdentity";
+import { FriendQrModal } from "../friends/FriendQrModal";
+import { FriendQrScannerModal } from "../friends/FriendQrScannerModal";
 
 const panelStyle = {
   border: "1px solid rgba(251, 191, 36, 0.18)",
@@ -110,6 +112,8 @@ export function FriendsScreen({ authUser, onOpenAuth }) {
   const [outgoingRequests, setOutgoingRequests] = useState([]);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [showScannerModal, setShowScannerModal] = useState(false);
 
   const currentUserId = authUser?.id ?? null;
 
@@ -199,6 +203,66 @@ export function FriendsScreen({ authUser, onOpenAuth }) {
     }
   }
 
+async function searchByUsername(scannedUsername) {
+  const cleanUsername = String(scannedUsername ?? "").trim();
+
+  if (!cleanUsername) return;
+
+  setQuery(cleanUsername);
+  setShowScannerModal(false);
+
+  try {
+    setBusy(true);
+    setStatus(`User @${cleanUsername} zoeken...`);
+
+    const users = await searchUsers(cleanUsername);
+
+    setSearchResults(users);
+
+    const exactUser = users.find(
+      (user) =>
+        String(user?.username ?? "").toLowerCase() ===
+        cleanUsername.toLowerCase()
+    );
+
+    if (!exactUser) {
+      setStatus(`Geen exacte user gevonden voor @${cleanUsername}.`);
+      return;
+    }
+
+    if (Number(exactUser.id) === Number(currentUserId)) {
+      setStatus("Je kan jezelf niet toevoegen als vriend.");
+      return;
+    }
+
+    if (knownUserIds.has(Number(exactUser.id))) {
+      setStatus(`@${cleanUsername} is al vriend of er bestaat al een request.`);
+      return;
+    }
+
+    const ok = window.confirm(
+      `Friend request sturen naar ${exactUser.name} (@${exactUser.username})?`
+    );
+
+    if (!ok) {
+      setStatus(`@${cleanUsername} gevonden. Je kan manueel Add friend klikken.`);
+      return;
+    }
+
+    setStatus(`Friend request sturen naar @${exactUser.username}...`);
+
+    const result = await sendFriendRequest(exactUser.id);
+
+    setStatus(result?.message ?? "Vriendschapsverzoek verstuurd.");
+    await refreshFriends();
+  } catch (error) {
+    setSearchResults([]);
+    setStatus(error?.message ?? "Kon QR user niet verwerken.");
+  } finally {
+    setBusy(false);
+  }
+}
+
   async function handleSendRequest(userId) {
     try {
       setBusy(true);
@@ -248,9 +312,7 @@ export function FriendsScreen({ authUser, onOpenAuth }) {
   }
 
   async function handleDelete(friendshipId, label = "deze friendship") {
-    const ok = window.confirm(
-      `Ben je zeker dat je ${label} wilt verwijderen?`
-    );
+    const ok = window.confirm(`Ben je zeker dat je ${label} wilt verwijderen?`);
 
     if (!ok) return;
 
@@ -305,18 +367,46 @@ export function FriendsScreen({ authUser, onOpenAuth }) {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={refreshFriends}
-            disabled={busy}
-            style={{
-              ...buttonStyle,
-              opacity: busy ? 0.6 : 1,
-              cursor: busy ? "not-allowed" : "pointer",
-            }}
-          >
-            {busy ? "Refreshing..." : "Refresh"}
-          </button>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => setShowQrModal(true)}
+              disabled={busy}
+              style={{
+                ...primaryButtonStyle,
+                opacity: busy ? 0.6 : 1,
+                cursor: busy ? "not-allowed" : "pointer",
+              }}
+            >
+              Show my QR
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowScannerModal(true)}
+              disabled={busy}
+              style={{
+                ...buttonStyle,
+                opacity: busy ? 0.6 : 1,
+                cursor: busy ? "not-allowed" : "pointer",
+              }}
+            >
+              Scan QR
+            </button>
+
+            <button
+              type="button"
+              onClick={refreshFriends}
+              disabled={busy}
+              style={{
+                ...buttonStyle,
+                opacity: busy ? 0.6 : 1,
+                cursor: busy ? "not-allowed" : "pointer",
+              }}
+            >
+              {busy ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
         </div>
 
         <form
@@ -526,6 +616,17 @@ export function FriendsScreen({ authUser, onOpenAuth }) {
             )}
           </section>
         </div>
+
+        <FriendQrModal
+          open={showQrModal}
+          user={authUser}
+          onClose={() => setShowQrModal(false)}
+        />
+        <FriendQrScannerModal
+          open={showScannerModal}
+          onClose={() => setShowScannerModal(false)}
+          onUsernameScanned={searchByUsername}
+        />
       </div>
     </div>
   );

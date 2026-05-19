@@ -28,6 +28,8 @@ The system supports local play, online accounts, friends, match history and play
 - Reusable avatar and player identity components
 - Local storage fallback for offline/local matches
 - Bluetooth-ready architecture for hardware events
+- QR-based friend sharing
+- QR friend scanner with confirmation before sending a friend request
 
 ### Backend
 
@@ -43,6 +45,8 @@ The system supports local play, online accounts, friends, match history and play
 - Online match saving
 - Online match history
 - Account-based statistics
+- Password reset by email using Resend
+- Password reset rate limiting: max 2 reset emails per user per day
 
 ### Hardware
 
@@ -126,6 +130,18 @@ Registered users that are linked to online match history and statistics.
 ### Friends
 
 Users can add each other as friends and select friends directly as players in a match.
+
+The friend system supports:
+
+- searching users by name or username
+- sending friend requests
+- accepting incoming requests
+- rejecting incoming requests
+- cancelling outgoing requests
+- removing existing friends
+- showing a personal friend QR code
+- scanning another player's QR code
+- confirming before sending a QR-based friend request
 
 ### Guests
 
@@ -266,6 +282,8 @@ POST /api/register
 POST /api/login
 POST /api/logout
 GET  /api/me
+POST /api/forgot-password
+POST /api/reset-password
 ```
 
 ### Users
@@ -304,7 +322,7 @@ The application can be tested in two ways:
 2. **Without hardware**  
    Game flow and match saving can be tested using simulation/dev tools inside the frontend.
 
-API endpoints can be tested with Thunder Client, Postman or curl.
+API endpoints can be tested with Thunder Client, Postman.
 
 ---
 
@@ -328,6 +346,7 @@ Implemented:
 - Kleurenwiezen game mode
 - reusable avatar/player identity UI
 - hardware/BLE-ready architecture
+- Password reset flow with email support
 
 ---
 
@@ -336,15 +355,22 @@ Implemented:
 Possible next steps:
 
 - profile picture upload
+- email verification for new accounts
+- change password while logged in
 - QR-based friend sharing
 - backend-generated official statistics endpoints
 - public leaderboards
 - more card games
 - improved match filtering
 - replay/timeline view for matches
+- match export/share summary
+- better hardware diagnostics screen
+- BLE reconnect and connection recovery improvements
 - improved physical enclosure
 - PCB design for cleaner hardware
 - improved antenna layout and detection reliability
+- automated tests for API endpoints and game scoring logic
+- production deployment
 
 ---
 
