@@ -30,6 +30,8 @@ The system supports local play, online accounts, friends, match history and play
 - Bluetooth-ready architecture for hardware events
 - QR-based friend sharing
 - QR friend scanner with confirmation before sending a friend request
+- Reusable in-app confirmation modals instead of browser alerts/confirms
+- Searchable and filterable match history
 
 ### Backend
 
@@ -159,11 +161,13 @@ Finished matches are saved locally and, when logged in, synced to the Laravel ba
 
 The History screen supports:
 
-- local matches
-- online matches
-- synced matches
-- failed sync states
-- match detail view
+- viewing local and online matches
+- searching by player, winner, game or date
+- filtering by game mode
+- filtering by match source/status
+- opening detailed match summaries
+- retrying failed syncs
+- clearing local or simulated matches with in-app confirmation dialogs
 
 The Stats screen shows account-based statistics such as:
 
@@ -348,6 +352,8 @@ Implemented:
 - hardware/BLE-ready architecture
 - Password reset flow with email support
 - QR friends sharing
+- searchable and filterable match history
+- reusable in-app confirmation modal
 
 ---
 
@@ -361,7 +367,6 @@ Possible next steps:
 - backend-generated official statistics endpoints
 - public leaderboards
 - more card games
-- improved match filtering
 - replay/timeline view for matches
 - match export/share summary
 - better hardware diagnostics screen

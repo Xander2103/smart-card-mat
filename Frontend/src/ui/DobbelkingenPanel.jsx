@@ -8,6 +8,7 @@ import { MobileRoundStatusOverlay } from "./dobbelkingen/MobileRoundStatusOverla
 import { ContractSelectionSection } from "./dobbelkingen/ContractSelectionSection";
 import { TroefSelectionSection } from "./dobbelkingen/TroefSelectionSection";
 import { getCurrentRoundTrickCounts, getTrumpLabel } from "./dobbelkingen/helpers";
+import { ConfirmModal } from "./components/ConfirmModal";
 
 export function DobbelkingenPanel({
   appState,
@@ -20,6 +21,8 @@ export function DobbelkingenPanel({
   const [hoveredTroef, setHoveredTroef] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
   const [showMobileScore, setShowMobileScore] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+
   const { isMobile, isMobileLandscape, width } = useViewport();
 
   const compact = isMobile || isMobileLandscape;
@@ -64,7 +67,9 @@ export function DobbelkingenPanel({
         ? d.leaderIndex
         : (chooserIndex + 1) % playersCount;
 
-  const currentIndex = typeof d?.currentPlayerIndex === "number" ? d.currentPlayerIndex : 0;
+  const currentIndex =
+    typeof d?.currentPlayerIndex === "number" ? d.currentPlayerIndex : 0;
+
   const chooserName = players?.[chooserIndex]?.name ?? `Player ${chooserIndex + 1}`;
   const leaderName = players?.[leaderIndex]?.name ?? `Player ${leaderIndex + 1}`;
 
@@ -76,7 +81,25 @@ export function DobbelkingenPanel({
   const trickHistory = d?.trickHistory ?? [];
   const totalScores = d?.totalScores ?? Array(playersCount).fill(0);
   const roundDeltas = d?.lastResult?.contractScores ?? Array(playersCount).fill(0);
-  const currentRoundTrickCounts = getCurrentRoundTrickCounts(trickHistory, playersCount);
+  const currentRoundTrickCounts = getCurrentRoundTrickCounts(
+    trickHistory,
+    playersCount
+  );
+
+  function openConfirm(config) {
+    setConfirmAction(config);
+  }
+
+  function closeConfirm() {
+    setConfirmAction(null);
+  }
+
+  async function runConfirmAction() {
+    if (!confirmAction?.onConfirm) return;
+
+    await confirmAction.onConfirm();
+    setConfirmAction(null);
+  }
 
   function getContractDisabledReason(contractId) {
     if (lastContract === contractId) return "Niet 2× na elkaar";
@@ -99,20 +122,32 @@ export function DobbelkingenPanel({
 
   function handleBackClick() {
     if (isChoosingTroef || (isPlaying && d?.roundPhase === 2)) {
-      const ok = window.confirm(
-        "Ben je zeker dat je terug naar fase 1 wilt gaan? De huidige fase 2 voortgang gaat verloren."
-      );
-      if (!ok) return;
-      dispatchAction?.({ type: "go_back_to_phase1" });
+      openConfirm({
+        title: "Terug naar fase 1?",
+        message:
+          "Ben je zeker dat je terug naar fase 1 wilt gaan? De huidige fase 2 voortgang gaat verloren.",
+        confirmLabel: "Terug naar fase 1",
+        cancelLabel: "Annuleren",
+        danger: true,
+        onConfirm: async () => {
+          dispatchAction?.({ type: "go_back_to_phase1" });
+        },
+      });
       return;
     }
 
     if (isChoosingContract || (isPlaying && d?.roundPhase === 1)) {
-      const ok = window.confirm(
-        "Ben je zeker dat je Dobbelkingen wilt verlaten? De huidige voortgang gaat verloren."
-      );
-      if (!ok) return;
-      onClose?.();
+      openConfirm({
+        title: "Dobbelkingen verlaten?",
+        message:
+          "Ben je zeker dat je Dobbelkingen wilt verlaten? De huidige voortgang gaat verloren.",
+        confirmLabel: "Verlaten",
+        cancelLabel: "Annuleren",
+        danger: true,
+        onConfirm: async () => {
+          onClose?.();
+        },
+      });
       return;
     }
 
@@ -120,9 +155,16 @@ export function DobbelkingenPanel({
   }
 
   function handleFinishMatch() {
-    const ok = window.confirm("Ben je zeker dat je deze match direct wilt afronden?");
-    if (!ok) return;
-    dispatchAction?.({ type: "finish_dobbelkingen_match" });
+    openConfirm({
+      title: "Match direct afronden?",
+      message: "Ben je zeker dat je deze match direct wilt afronden?",
+      confirmLabel: "Match afronden",
+      cancelLabel: "Annuleren",
+      danger: true,
+      onConfirm: async () => {
+        dispatchAction?.({ type: "finish_dobbelkingen_match" });
+      },
+    });
   }
 
   const phase1PickCounts = players.map((_, index) =>
@@ -135,9 +177,16 @@ export function DobbelkingenPanel({
   );
 
   function handleContinueToPhase2() {
-    const ok = window.confirm("Ben je zeker dat je wil doorgaan naar fase 2?");
-    if (!ok) return;
-    dispatchAction?.({ type: "debug_go_to_phase2" });
+    openConfirm({
+      title: "Doorgaan naar fase 2?",
+      message: "Ben je zeker dat je wil doorgaan naar fase 2?",
+      confirmLabel: "Doorgaan",
+      cancelLabel: "Annuleren",
+      danger: false,
+      onConfirm: async () => {
+        dispatchAction?.({ type: "debug_go_to_phase2" });
+      },
+    });
   }
 
   return (
@@ -185,8 +234,16 @@ export function DobbelkingenPanel({
               justifyItems: isMobile ? "start" : "center",
             }}
           >
-            <div style={{ fontWeight: 800, fontSize: isMobile ? 15 : 28 }}>Dobbelkingen</div>
-            <div style={{ color: colors.muted, marginTop: 1, fontSize: isMobile ? 11 : 15 }}>
+            <div style={{ fontWeight: 800, fontSize: isMobile ? 15 : 28 }}>
+              Dobbelkingen
+            </div>
+            <div
+              style={{
+                color: colors.muted,
+                marginTop: 1,
+                fontSize: isMobile ? 11 : 15,
+              }}
+            >
               {isReady
                 ? "Nieuwe match"
                 : isChoosingContract
@@ -197,7 +254,14 @@ export function DobbelkingenPanel({
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: compact ? 6 : 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: compact ? 6 : 8,
+              justifyContent: "flex-end",
+              flexWrap: "wrap",
+            }}
+          >
             <button
               onClick={() => setShowInfo(true)}
               style={{
@@ -230,15 +294,29 @@ export function DobbelkingenPanel({
               padding: isMobile ? "16px 14px" : "22px 22px",
               display: "grid",
               gap: isMobile ? 14 : 16,
-              background: "linear-gradient(180deg, rgba(120,53,15,0.24), rgba(255,255,255,0.03))",
+              background:
+                "linear-gradient(180deg, rgba(120,53,15,0.24), rgba(255,255,255,0.03))",
               border: "1px solid rgba(251,191,36,0.16)",
             })}
           >
             <div style={{ display: "grid", gap: 8 }}>
-              <div style={{ fontWeight: 900, fontSize: isMobile ? 24 : 26, lineHeight: 1.08 }}>
+              <div
+                style={{
+                  fontWeight: 900,
+                  fontSize: isMobile ? 24 : 26,
+                  lineHeight: 1.08,
+                }}
+              >
                 Start een nieuwe match
               </div>
-              <div style={{ color: colors.muted, lineHeight: 1.6, maxWidth: 620, fontSize: isMobile ? 16 : 16 }}>
+              <div
+                style={{
+                  color: colors.muted,
+                  lineHeight: 1.6,
+                  maxWidth: 620,
+                  fontSize: isMobile ? 16 : 16,
+                }}
+              >
                 {isMobile ? (
                   "Iedere speler kiest 2 contracten. Daarna volgt troef."
                 ) : (
@@ -253,7 +331,14 @@ export function DobbelkingenPanel({
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
+            >
               <button
                 onClick={onStart}
                 style={{
@@ -263,13 +348,17 @@ export function DobbelkingenPanel({
                   padding: isMobile ? "15px 24px" : "16px 26px",
                   fontSize: isMobile ? 19 : 18,
                   fontWeight: 900,
-                  boxShadow: "0 0 28px rgba(251, 191, 36, 0.34), 0 14px 32px rgba(245, 158, 11, 0.24)",
+                  boxShadow:
+                    "0 0 28px rgba(251, 191, 36, 0.34), 0 14px 32px rgba(245, 158, 11, 0.24)",
                 }}
               >
                 Start Dobbelkingen
               </button>
 
-              <button onClick={() => setShowInfo(true)} style={{ ...buttonStyle(), minHeight: 48, padding: "11px 16px" }}>
+              <button
+                onClick={() => setShowInfo(true)}
+                style={{ ...buttonStyle(), minHeight: 48, padding: "11px 16px" }}
+              >
                 Lees regels
               </button>
             </div>
@@ -337,12 +426,15 @@ export function DobbelkingenPanel({
                 .slice()
                 .reverse()
                 .map((entry, index) => (
-                  <HistoryItem key={`${entry.contract}-${entry.timestamp ?? index}-${index}`}>
+                  <HistoryItem
+                    key={`${entry.contract}-${entry.timestamp ?? index}-${index}`}
+                  >
                     <b>{entry.label ?? entry.contract}</b>{" "}
                     {entry.trumpSuit ? `(${getTrumpLabel(entry.trumpSuit)}) ` : ""}
                     — gespeeld door{" "}
                     <b>
-                      {players?.[entry.chooserIndex]?.name ?? `Player ${(entry.chooserIndex ?? 0) + 1}`}
+                      {players?.[entry.chooserIndex]?.name ??
+                        `Player ${(entry.chooserIndex ?? 0) + 1}`}
                     </b>
                   </HistoryItem>
                 ))}
@@ -350,6 +442,17 @@ export function DobbelkingenPanel({
           </div>
         ) : null}
       </div>
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.title}
+        message={confirmAction?.message}
+        confirmLabel={confirmAction?.confirmLabel}
+        cancelLabel={confirmAction?.cancelLabel}
+        danger={confirmAction?.danger}
+        onCancel={closeConfirm}
+        onConfirm={runConfirmAction}
+      />
     </>
   );
 }
