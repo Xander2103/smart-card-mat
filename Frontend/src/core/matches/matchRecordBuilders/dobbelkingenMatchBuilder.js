@@ -1,3 +1,5 @@
+import { buildMatchPlayers } from "./playerRecordBuilder";
+
 export function buildDobbelkingenMatchRecord(state) {
   const dobbel = state?.game?.dobbelkingen ?? {};
   const players = state?.players ?? [];
@@ -46,10 +48,7 @@ export function buildDobbelkingenMatchRecord(state) {
     gameType: "dobbelkingen",
     playedAt: new Date(finishedAt).toISOString(),
 
-    players: players.map((player, index) => ({
-      playerId: player?.id ?? `player_${index}`,
-      name: player?.name ?? `Player ${index + 1}`,
-    })),
+    players: buildMatchPlayers(players),
 
     winnerIds: winnerPlayer?.id ? [winnerPlayer.id] : [],
 

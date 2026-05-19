@@ -12,9 +12,10 @@ class MatchPlayer extends Model
 
     protected $fillable = [
         'match_id',
+        'player_id',
         'user_id',
         'source',
-        'player_id',
+        'username',
         'name',
         'score',
         'is_winner',
@@ -38,6 +39,6 @@ class MatchPlayer extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 }

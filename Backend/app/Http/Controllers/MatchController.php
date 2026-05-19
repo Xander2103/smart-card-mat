@@ -12,9 +12,17 @@ class MatchController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $userId = $request->user()->id;
+
         $matches = MatchModel::query()
             ->with(['user', 'players'])
-            ->where('user_id', $request->user()->id)
+            ->where(function ($query) use ($userId) {
+                $query
+                    ->where('user_id', $userId)
+                    ->orWhereHas('players', function ($playerQuery) use ($userId) {
+                        $playerQuery->where('user_id', $userId);
+                    });
+            })
             ->latest('played_at')
             ->latest()
             ->get();
@@ -24,7 +32,15 @@ class MatchController extends Controller
 
     public function show(Request $request, MatchModel $match): JsonResponse
     {
-        if ($match->user_id !== $request->user()->id) {
+        $userId = $request->user()->id;
+
+        $hasAccess =
+            (int) $match->user_id === (int) $userId ||
+            $match->players()
+                ->where('user_id', $userId)
+                ->exists();
+
+        if (!$hasAccess) {
             abort(403, 'Je hebt geen toegang tot deze match.');
         }
 
@@ -44,6 +60,9 @@ class MatchController extends Controller
             'players' => ['required', 'array', 'min:1', 'max:8'],
             'players.*.playerId' => ['required', 'string', 'max:100'],
             'players.*.name' => ['required', 'string', 'max:100'],
+            'players.*.userId' => ['nullable', 'integer', 'exists:users,id'],
+            'players.*.source' => ['nullable', 'string', 'max:30'],
+            'players.*.username' => ['nullable', 'string', 'max:30'],
 
             'winnerIds' => ['nullable', 'array'],
             'winnerIds.*' => ['string', 'max:100'],
@@ -77,11 +96,19 @@ class MatchController extends Controller
                     );
                 }
 
-                if ((int) $existingMatch->user_id !== (int) $userId) {
+                $currentUserHasAccess =
+                    (int) $existingMatch->user_id === (int) $userId ||
+                    $existingMatch->players()
+                        ->where('user_id', $userId)
+                        ->exists();
+
+                if (!$currentUserHasAccess) {
                     abort(403, 'Deze match bestaat al op een andere account.');
                 }
 
-                return response()->json($existingMatch);
+                return response()->json(
+                    $existingMatch->load(['user', 'players'])
+                );
             }
         }
 
@@ -106,13 +133,25 @@ class MatchController extends Controller
             ]);
 
             foreach ($validated['players'] as $player) {
-                $scoreRow = $scoreRowsByPlayerId->get($player['playerId']);
+                $playerId = Arr::get($player, 'playerId');
+                $scoreRow = $scoreRowsByPlayerId->get($playerId);
+
+                $playerUserId = Arr::get($player, 'userId');
+                $playerSource = Arr::get($player, 'source');
+                $playerUsername = Arr::get($player, 'username');
+
+                if (!$playerSource) {
+                    $playerSource = $playerUserId ? 'user' : 'guest';
+                }
 
                 $match->players()->create([
-                    'player_id' => $player['playerId'],
+                    'player_id' => $playerId,
+                    'user_id' => $playerUserId,
+                    'source' => $playerSource,
+                    'username' => $playerUsername,
                     'name' => $player['name'],
                     'score' => (int) Arr::get($scoreRow, 'score', 0),
-                    'is_winner' => $winnerIds->contains($player['playerId']),
+                    'is_winner' => $winnerIds->contains($playerId),
                     'stats' => [
                         'rank' => Arr::get($scoreRow, 'rank'),
                         'scoreRow' => $scoreRow,

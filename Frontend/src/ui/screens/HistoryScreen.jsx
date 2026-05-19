@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { getMatchesFromApi } from "../../core/api/matchApi";
 import { storageService } from "../../core/storage/services/storageService";
 
 const panelStyle = {
@@ -45,6 +46,16 @@ const syncButtonStyle = {
   color: "#bbf7d0",
 };
 
+const summaryBadgeStyle = {
+  borderRadius: 999,
+  padding: "6px 10px",
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  color: "#c8b6a1",
+  fontWeight: 800,
+  fontSize: 12,
+};
+
 function formatDate(dateString) {
   try {
     return new Date(dateString).toLocaleString();
@@ -53,12 +64,105 @@ function formatDate(dateString) {
   }
 }
 
+function normalizeApiPlayers(apiMatch, rawState) {
+  if (Array.isArray(rawState?.players) && rawState.players.length > 0) {
+    return rawState.players;
+  }
+
+  return (apiMatch?.players ?? []).map((player) => ({
+    playerId: player.player_id,
+    name: player.name,
+    userId: player.user_id ?? null,
+    source: player.source ?? "guest",
+    username: player.username ?? null,
+  }));
+}
+
+function normalizeApiScores(apiMatch, rawState) {
+  if (Array.isArray(rawState?.scores) && rawState.scores.length > 0) {
+    return rawState.scores;
+  }
+
+  return (apiMatch?.players ?? []).map((player) => ({
+    playerId: player.player_id,
+    score: Number(player.score ?? 0),
+    rank: player?.stats?.rank ?? null,
+  }));
+}
+
+function normalizeApiWinnerIds(apiMatch, rawState) {
+  if (Array.isArray(rawState?.winnerIds)) {
+    return rawState.winnerIds;
+  }
+
+  const winners = (apiMatch?.players ?? [])
+    .filter((player) => player.is_winner)
+    .map((player) => player.player_id);
+
+  return winners.length > 0 ? winners : apiMatch?.winner_player_id ? [apiMatch.winner_player_id] : [];
+}
+
+function normalizeApiMatch(apiMatch) {
+  const rawState = apiMatch?.raw_state ?? {};
+  const clientMatchId = apiMatch?.client_match_id ?? rawState?.id ?? `api_${apiMatch.id}`;
+
+  return {
+    ...rawState,
+    id: clientMatchId,
+    apiId: apiMatch.id,
+    apiSyncStatus: "synced",
+    syncedAt: apiMatch.updated_at ?? null,
+    syncError: null,
+    isOnlineMatch: true,
+    isOnlineOnly: true,
+
+    gameType: rawState?.gameType ?? apiMatch?.mode ?? "-",
+    playedAt: rawState?.playedAt ?? apiMatch?.played_at ?? apiMatch?.created_at ?? null,
+    winnerIds: normalizeApiWinnerIds(apiMatch, rawState),
+    players: normalizeApiPlayers(apiMatch, rawState),
+    scores: normalizeApiScores(apiMatch, rawState),
+    metadata: rawState?.metadata ?? {},
+    gameData: rawState?.gameData ?? {},
+  };
+}
+
+function getMatchMergeKey(match) {
+  return match?.id ?? match?.client_match_id ?? `api_${match?.apiId}`;
+}
+
+function mergeMatches(localMatches, apiMatches) {
+  const merged = new Map();
+
+  for (const localMatch of localMatches) {
+    merged.set(getMatchMergeKey(localMatch), {
+      ...localMatch,
+      isOnlineOnly: false,
+    });
+  }
+
+  for (const apiMatch of apiMatches) {
+    const normalized = normalizeApiMatch(apiMatch);
+    const key = getMatchMergeKey(normalized);
+    const existing = merged.get(key);
+
+    merged.set(key, {
+      ...existing,
+      ...normalized,
+      isOnlineOnly: !existing,
+    });
+  }
+
+  return [...merged.values()].sort(
+    (a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime()
+  );
+}
+
 function getSyncBadge(match) {
   const status = match?.apiSyncStatus;
 
   if (status === "synced") {
     return {
-      label: "Online saved",
+      label: match?.isOnlineOnly ? "Online" : "Online saved",
       icon: "✅",
       color: "#bbf7d0",
       background: "rgba(34,197,94,0.12)",
@@ -106,7 +210,7 @@ function getSyncBadge(match) {
 }
 
 function canRetrySync(match) {
-  return match?.apiSyncStatus === "local_only" || match?.apiSyncStatus === "failed";
+  return !match?.isOnlineOnly && (match?.apiSyncStatus === "local_only" || match?.apiSyncStatus === "failed");
 }
 
 function SyncBadge({ match }) {
@@ -138,9 +242,24 @@ function SyncBadge({ match }) {
 export function HistoryScreen() {
   const [matches, setMatches] = useState([]);
   const [syncingMatchIds, setSyncingMatchIds] = useState({});
+  const [loadingOnline, setLoadingOnline] = useState(false);
+  const [onlineError, setOnlineError] = useState("");
 
-  function refreshMatches() {
-    setMatches(storageService.getMatchHistory());
+  async function refreshMatches() {
+    const localMatches = storageService.getMatchHistory();
+
+    setLoadingOnline(true);
+    setOnlineError("");
+
+    try {
+      const apiMatches = await getMatchesFromApi();
+      setMatches(mergeMatches(localMatches, apiMatches));
+    } catch (error) {
+      setMatches(localMatches);
+      setOnlineError(error?.message ?? "Online matches konden niet geladen worden.");
+    } finally {
+      setLoadingOnline(false);
+    }
   }
 
   useEffect(() => {
@@ -151,18 +270,28 @@ export function HistoryScreen() {
     }
 
     window.addEventListener("smartcardmat:data-changed", handleDataChanged);
+    window.addEventListener("smartcardmat:friends-changed", handleDataChanged);
 
     return () => {
       window.removeEventListener("smartcardmat:data-changed", handleDataChanged);
+      window.removeEventListener("smartcardmat:friends-changed", handleDataChanged);
     };
   }, []);
 
-  function handleDeleteMatch(matchId) {
-    storageService.deleteMatch(matchId);
+  function handleDeleteMatch(match) {
+    if (match?.isOnlineOnly) {
+      window.alert("Deze match staat alleen online. Online verwijderen bouwen we later apart.");
+      return;
+    }
+
+    storageService.deleteMatch(match.id);
   }
 
   function handleClearAll() {
-    const ok = window.confirm("Ben je zeker dat je alle match history wilt wissen?");
+    const ok = window.confirm(
+      "Ben je zeker dat je alle lokale match history wilt wissen? Online matches blijven bestaan."
+    );
+
     if (!ok) return;
 
     storageService.clearMatchHistory();
@@ -183,6 +312,7 @@ export function HistoryScreen() {
 
     try {
       await storageService.retryMatchSync(matchId);
+      await refreshMatches();
     } finally {
       setSyncingMatchIds((current) => {
         const next = { ...current };
@@ -230,6 +360,10 @@ export function HistoryScreen() {
           <h2 style={{ margin: 0 }}>Match history</h2>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={refreshMatches} style={syncButtonStyle}>
+              {loadingOnline ? "Refreshing..." : "Refresh online"}
+            </button>
+
             {simulatedCount > 0 && (
               <button onClick={handleClearSimulated} style={warningButtonStyle}>
                 Clear simulated matches ({simulatedCount})
@@ -237,15 +371,31 @@ export function HistoryScreen() {
             )}
 
             <button onClick={handleClearAll} style={dangerButtonStyle}>
-              Clear all
+              Clear local
             </button>
           </div>
         </div>
 
         <div style={{ color: "#c8b6a1", marginBottom: 14 }}>
-          Overzicht van gespeelde matches. Matches worden lokaal bewaard en,
-          wanneer je ingelogd bent, online gesynct.
+          Overzicht van gespeelde matches. Lokale matches komen van dit toestel.
+          Online matches komen van je account en friends/matches waar je als speler in zit.
         </div>
+
+        {onlineError ? (
+          <div
+            style={{
+              marginBottom: 14,
+              borderRadius: 14,
+              padding: "10px 12px",
+              background: "rgba(127, 29, 29, 0.55)",
+              border: "1px solid rgba(248, 113, 113, 0.35)",
+              color: "#fee2e2",
+              fontWeight: 700,
+            }}
+          >
+            Online error: {onlineError}
+          </div>
+        ) : null}
 
         {matches.length > 0 && (
           <div
@@ -266,7 +416,9 @@ export function HistoryScreen() {
         <div style={{ fontWeight: 900, marginBottom: 10 }}>Recente matches</div>
 
         {matches.length === 0 ? (
-          <div style={{ color: "#c8b6a1" }}>Nog geen gespeelde matches.</div>
+          <div style={{ color: "#c8b6a1" }}>
+            {loadingOnline ? "Matches laden..." : "Nog geen gespeelde matches."}
+          </div>
         ) : (
           <div style={{ display: "grid", gap: 12 }}>
             {matches.map((match) => {
@@ -312,6 +464,22 @@ export function HistoryScreen() {
                         </div>
 
                         <SyncBadge match={match} />
+
+                        {match?.isOnlineOnly ? (
+                          <div
+                            style={{
+                              borderRadius: 999,
+                              padding: "4px 10px",
+                              background: "rgba(34,197,94,0.10)",
+                              border: "1px solid rgba(34,197,94,0.24)",
+                              fontWeight: 800,
+                              fontSize: 12,
+                              color: "#bbf7d0",
+                            }}
+                          >
+                            Online only
+                          </div>
+                        ) : null}
 
                         {isSimulated && (
                           <div
@@ -380,12 +548,14 @@ export function HistoryScreen() {
                         </button>
                       )}
 
-                      <button
-                        onClick={() => handleDeleteMatch(match.id)}
-                        style={dangerButtonStyle}
-                      >
-                        Delete
-                      </button>
+                      {!match?.isOnlineOnly ? (
+                        <button
+                          onClick={() => handleDeleteMatch(match)}
+                          style={dangerButtonStyle}
+                        >
+                          Delete local
+                        </button>
+                      ) : null}
                     </div>
                   </div>
 
@@ -398,10 +568,18 @@ export function HistoryScreen() {
                           style={{
                             borderRadius: 12,
                             padding: "6px 10px",
-                            background: "rgba(255,255,255,0.04)",
+                            background:
+                              player.source === "user"
+                                ? "rgba(34,197,94,0.10)"
+                                : "rgba(255,255,255,0.04)",
+                            border:
+                              player.source === "user"
+                                ? "1px solid rgba(34,197,94,0.20)"
+                                : "1px solid rgba(255,255,255,0.06)",
                           }}
                         >
                           {player.name}
+                          {player.source === "user" ? " · account" : ""}
                         </div>
                       ))}
                     </div>
@@ -431,7 +609,7 @@ export function HistoryScreen() {
                           >
                             <span>{player?.name ?? row.playerId}</span>
                             <span>
-                              Score: {row.score} · Rank: {row.rank}
+                              Score: {row.score} · Rank: {row.rank ?? "-"}
                             </span>
                           </div>
                         );
@@ -447,13 +625,3 @@ export function HistoryScreen() {
     </div>
   );
 }
-
-const summaryBadgeStyle = {
-  borderRadius: 999,
-  padding: "6px 10px",
-  background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  color: "#c8b6a1",
-  fontWeight: 800,
-  fontSize: 12,
-};

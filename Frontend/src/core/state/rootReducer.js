@@ -20,11 +20,26 @@ function normalizePlayers(players) {
 
   return players
     .slice(0, 4)
-    .map((player, index) => ({
-      id: player?.id ?? `player_${index}`,
-      name: player?.name ?? `Player ${index + 1}`,
-      isGuest: !!player?.isGuest,
-    }));
+    .map((player, index) => {
+      const id = player?.id ?? `player_${index}`;
+      const userId = player?.userId ?? null;
+
+      return {
+        id,
+        name: player?.name ?? `Player ${index + 1}`,
+
+        // Belangrijk voor online account/friend match sync
+        userId,
+        source:
+          player?.source ??
+          (userId ? "user" : player?.isGuest ? "guest" : "local"),
+        username: player?.username ?? null,
+
+        // Belangrijk voor UI/guest/local gedrag
+        isGuest: !!player?.isGuest,
+        isLocalProfile: !!player?.isLocalProfile,
+      };
+    });
 }
 
 export function applyRootAction(state, action) {
@@ -79,13 +94,14 @@ export function applyRootAction(state, action) {
   if (action.type === "set_players") {
     const players = normalizePlayers(action.players);
     const fallbackDealer = 0;
+
     const previousDealerSeat =
-      typeof state.tableDealerSeat === "number" ? state.tableDealerSeat : fallbackDealer;
+      typeof state.tableDealerSeat === "number"
+        ? state.tableDealerSeat
+        : fallbackDealer;
 
     const nextDealerSeat =
-      players.length > 0
-        ? normalizeSeat(previousDealerSeat, players.length)
-        : 0;
+      players.length > 0 ? normalizeSeat(previousDealerSeat, players.length) : 0;
 
     return {
       ...state,
@@ -117,6 +133,7 @@ export function applyRootAction(state, action) {
   ) {
     const uid = action.uid ?? state.selectedUid;
     const cardName = action.cardName;
+
     if (!uid || !cardName) return state;
 
     const nextMapping = setUniqueMappingOverwrite(state.mapping, uid, cardName);
@@ -156,7 +173,11 @@ export function applyRootAction(state, action) {
   if (action.type === "set_deck_index") {
     const max = action.maxIndex ?? 51;
     const i = Math.max(0, Math.min(max, action.index ?? 0));
-    return { ...state, deckIndex: i };
+
+    return {
+      ...state,
+      deckIndex: i,
+    };
   }
 
   return state;
@@ -166,8 +187,12 @@ export function rootReducer(state, action) {
   let next = applyRootAction(state, action);
 
   const engine = next.modeId ? getEngine(next.modeId) : null;
-  if (!engine?.reduce) return next;
+
+  if (!engine?.reduce) {
+    return next;
+  }
 
   next = engine.reduce(next, action);
+
   return next;
 }

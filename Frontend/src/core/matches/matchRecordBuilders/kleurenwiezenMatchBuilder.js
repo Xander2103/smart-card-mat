@@ -1,4 +1,10 @@
-import { getKleurenwiezenContract, evaluateRound, getFriendlyTeamLabel, getTrumpLabel } from "../../games/kleurenwiezen";
+import {
+  getKleurenwiezenContract,
+  evaluateRound,
+  getFriendlyTeamLabel,
+  getTrumpLabel,
+} from "../../games/kleurenwiezen";
+import { buildMatchPlayers } from "./playerRecordBuilder";
 
 function buildScores(players, totalScores = []) {
   const scored = (players ?? []).map((player, index) => ({
@@ -28,24 +34,30 @@ export function buildKleurenwiezenMatchRecord(state) {
   const evaluation = evaluateRound(slice, players);
   const totalScores = slice?.totalScores ?? [];
   const scores = buildScores(players, totalScores);
-  const winnerScore = Math.max(...scores.map((row) => row.score));
-  const winnerIds = scores.filter((row) => row.score === winnerScore).map((row) => row.playerId);
+
+  const winnerScore =
+    scores.length > 0 ? Math.max(...scores.map((row) => row.score)) : 0;
+
+  const winnerIds = scores
+    .filter((row) => row.score === winnerScore)
+    .map((row) => row.playerId);
 
   return {
     gameType: "kleurenwiezen",
     playedAt: new Date(slice?.lastResult?.timestamp ?? Date.now()).toISOString(),
-    players: players.map((player, index) => ({
-      playerId: player?.id ?? `player_${index}`,
-      name: player?.name ?? `Player ${index + 1}`,
-    })),
+
+    players: buildMatchPlayers(players),
+
     winnerIds,
     scores,
+
     metadata: {
       startedAt: slice?.matchStartedAt ?? null,
       finishedAt: slice?.lastResult?.timestamp ?? Date.now(),
       contractId: slice?.contractId ?? null,
       simulated: false,
     },
+
     gameData: {
       contractId: slice?.contractId ?? null,
       contractLabel: contract?.label ?? slice?.contractId ?? "-",
