@@ -10,6 +10,7 @@ import {
   isDevProfileName,
 } from "../players/playersHelpers";
 import { panelStyle, actionButtonStyle } from "../players/playersTheme";
+import { UserAvatar } from "../components/UserAvatar";
 
 function normalizeSelectedPlayer(player) {
   const id = player?.id ?? player?.playerId ?? `player_${Date.now()}`;
@@ -176,10 +177,22 @@ function AccountSection({
           alignItems: "center",
         }}
       >
-        <div>
-          <div style={{ fontWeight: 900 }}>Eigen account</div>
-          <div style={{ color: "#c8b6a1", fontSize: 13, lineHeight: 1.4 }}>
-            Telt mee voor online history en online stats.
+        <div style={{ display: "flex", gap: 10, alignItems: "center", minWidth: 0 }}>
+          {authUser ? (
+            <UserAvatar
+              name={authUser.name}
+              username={authUser.username}
+              imageUrl={authUser.avatar_url ?? null}
+              size={42}
+              fontSize={13}
+            />
+          ) : null}
+
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 900 }}>Eigen account</div>
+            <div style={{ color: "#c8b6a1", fontSize: 13, lineHeight: 1.4 }}>
+              Telt mee voor online history en online stats.
+            </div>
           </div>
         </div>
 
@@ -405,34 +418,50 @@ function FriendsSection({
                       gap: 10,
                     }}
                   >
-                    <div>
-                      <div
-                        style={{
-                          fontWeight: 900,
-                          fontSize: compactMobile ? 14 : 16,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {friend.name}
-                      </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        alignItems: "center",
+                        minWidth: 0,
+                      }}
+                    >
+                      <UserAvatar
+                        name={friend.name}
+                        username={friend.username}
+                        imageUrl={friend.avatar_url ?? null}
+                        size={compactMobile ? 34 : 38}
+                        fontSize={compactMobile ? 11 : 12}
+                      />
 
-                      <div
-                        style={{
-                          marginTop: 4,
-                          color: "#fde68a",
-                          fontSize: compactMobile ? 12 : 13,
-                          fontWeight: 800,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        @{friend.username}
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontWeight: 900,
+                            fontSize: compactMobile ? 14 : 16,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {friend.name}
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: 4,
+                            color: "#fde68a",
+                            fontSize: compactMobile ? 12 : 13,
+                            fontWeight: 800,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          @{friend.username}
+                        </div>
                       </div>
                     </div>
-
                     <button
                       type="button"
                       disabled={disabled}
@@ -635,14 +664,32 @@ function LocalProfilesSection({
                     <div>
                       <div
                         style={{
-                          fontWeight: 900,
-                          fontSize: compactMobile ? 14 : 16,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
+                          display: "flex",
+                          gap: 8,
+                          alignItems: "center",
+                          minWidth: 0,
                         }}
                       >
-                        {profile.name}
+                        <UserAvatar
+                          name={profile.name}
+                          username={profile.id}
+                          size={compactMobile ? 34 : 38}
+                          fontSize={compactMobile ? 11 : 12}
+                        />
+
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontWeight: 900,
+                              fontSize: compactMobile ? 14 : 16,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {profile.name}
+                          </div>
+                        </div>
                       </div>
 
                       <div

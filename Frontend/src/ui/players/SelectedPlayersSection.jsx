@@ -1,3 +1,4 @@
+import { UserAvatar } from "../components/UserAvatar";
 import { seatMoveButtonStyle } from "./playersTheme";
 
 function SeatPlayerCard({
@@ -25,7 +26,7 @@ function SeatPlayerCard({
         background: isDealer
           ? "radial-gradient(circle at top, rgba(251,191,36,0.18), transparent 45%), rgba(217, 119, 6, 0.15)"
           : "rgba(217, 119, 6, 0.12)",
-        minWidth: compactMobile ? 0 : 170,
+        minWidth: compactMobile ? 0 : 190,
         position: "relative",
         boxShadow: isDealer ? "0 0 22px rgba(251, 191, 36, 0.10)" : undefined,
       }}
@@ -99,18 +100,58 @@ function SeatPlayerCard({
         </span>
       </button>
 
-      <div style={{ fontSize: 12, color: "#d6c4b1", marginTop: isDealer ? 28 : 0 }}>
-        Seat {index + 1}
-      </div>
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+          paddingTop: isDealer ? 28 : 0,
+          paddingRight: 28,
+          minWidth: 0,
+        }}
+      >
+        <UserAvatar
+          name={player.name}
+          username={player.username ?? player.id}
+          imageUrl={player.avatar_url ?? null}
+          size={compactMobile ? 38 : 44}
+          fontSize={compactMobile ? 12 : 13}
+        />
 
-      <div style={{ fontWeight: 900, fontSize: 18 }}>{player.name}</div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 12, color: "#d6c4b1" }}>
+            Seat {index + 1}
+          </div>
 
-      <div style={{ fontSize: 12, color: "#c8b6a1", marginTop: 4 }}>
-        {player.source === "user"
-          ? `Smart Card Mat account${player.username ? ` · @${player.username}` : ""}`
-          : player.isGuest
-            ? "Tijdelijke gastspeler"
-            : "Lokaal spelersprofiel"}
+          <div
+            style={{
+              fontWeight: 900,
+              fontSize: compactMobile ? 15 : 18,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {player.name}
+          </div>
+
+          <div
+            style={{
+              fontSize: 12,
+              color: "#c8b6a1",
+              marginTop: 4,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {player.source === "user"
+              ? `Account${player.username ? ` · @${player.username}` : ""}`
+              : player.isGuest
+                ? "Guest"
+                : "Local profile"}
+          </div>
+        </div>
       </div>
 
       {selectedPlayersLength === 4 ? (
@@ -278,7 +319,8 @@ export function SelectedPlayersSection({
               lineHeight: 1.45,
             }}
           >
-            Kies wie als eerste deelt. Daarna schuift de dealer automatisch door na elke ronde.
+            Kies wie als eerste deelt. Daarna schuift de dealer automatisch door na
+            elke ronde.
           </div>
 
           <button

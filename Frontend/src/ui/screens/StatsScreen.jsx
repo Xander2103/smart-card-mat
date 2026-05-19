@@ -12,6 +12,7 @@ import {
   getDobbelkingenContractInsights,
   getKleurenwiezenInsights,
 } from "../../core/stats/statsService";
+import { UserAvatar } from "../components/UserAvatar";
 
 const panelStyle = {
   border: "1px solid rgba(251, 191, 36, 0.18)",
@@ -348,19 +349,13 @@ function PlayerStatsCard({
         }}
       >
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <div
-            style={{
-              minWidth: 44,
-              height: 44,
-              borderRadius: 999,
-              display: "grid",
-              placeItems: "center",
-              fontWeight: 900,
-              ...medalStyle,
-            }}
-          >
-            {isOwnAccount ? "👤" : getPlaceLabel(rank)}
-          </div>
+          <UserAvatar
+            name={player.name}
+            username={player.username}
+            imageUrl={player.avatar_url ?? null}
+            size={44}
+            fontSize={13}
+          />
 
           <div>
             <div style={{ fontWeight: 900, fontSize: 18 }}>
@@ -619,30 +614,30 @@ export function StatsScreen({ authUser = null }) {
   const sortOptions =
     activeSection === "general"
       ? [
-          { value: "wins", label: "Wins" },
-          { value: "matchesPlayed", label: "Matches" },
-          { value: "winRate", label: "Win%" },
-        ]
+        { value: "wins", label: "Wins" },
+        { value: "matchesPlayed", label: "Matches" },
+        { value: "winRate", label: "Win%" },
+      ]
       : activeSection === "dobbelkingen"
         ? [
-            { value: "wins", label: "Wins" },
-            { value: "matchesPlayed", label: "Matches" },
-            { value: "winRate", label: "Winrate" },
-            { value: "totalScore", label: "Total score" },
-            { value: "averageScore", label: "Average score" },
-            { value: "podiums", label: "Podiums" },
-            { value: "bestScore", label: "Best score" },
-            { value: "worstScore", label: "Worst score" },
-          ]
+          { value: "wins", label: "Wins" },
+          { value: "matchesPlayed", label: "Matches" },
+          { value: "winRate", label: "Winrate" },
+          { value: "totalScore", label: "Total score" },
+          { value: "averageScore", label: "Average score" },
+          { value: "podiums", label: "Podiums" },
+          { value: "bestScore", label: "Best score" },
+          { value: "worstScore", label: "Worst score" },
+        ]
         : [
-            { value: "wins", label: "Wins" },
-            { value: "matchesPlayed", label: "Matches" },
-            { value: "winRate", label: "Winrate" },
-            { value: "totalScore", label: "Total score" },
-            { value: "averageScore", label: "Average score" },
-            { value: "bestScore", label: "Best score" },
-            { value: "worstScore", label: "Worst score" },
-          ];
+          { value: "wins", label: "Wins" },
+          { value: "matchesPlayed", label: "Matches" },
+          { value: "winRate", label: "Winrate" },
+          { value: "totalScore", label: "Total score" },
+          { value: "averageScore", label: "Average score" },
+          { value: "bestScore", label: "Best score" },
+          { value: "worstScore", label: "Worst score" },
+        ];
 
   const sectionTabs = [
     { value: "general", label: "Algemeen" },
@@ -698,13 +693,13 @@ export function StatsScreen({ authUser = null }) {
               style={
                 isMobile
                   ? {
-                      display: "grid",
-                      gridTemplateColumns:
-                        width >= 700
-                          ? "repeat(3, minmax(0, 1fr))"
-                          : "repeat(2, minmax(0, 1fr))",
-                      gap: 8,
-                    }
+                    display: "grid",
+                    gridTemplateColumns:
+                      width >= 700
+                        ? "repeat(3, minmax(0, 1fr))"
+                        : "repeat(2, minmax(0, 1fr))",
+                    gap: 8,
+                  }
                   : { display: "flex", gap: 8, flexWrap: "wrap" }
               }
             >
@@ -741,13 +736,13 @@ export function StatsScreen({ authUser = null }) {
               style={
                 isMobile
                   ? {
-                      display: "grid",
-                      gridTemplateColumns:
-                        width >= 700
-                          ? "repeat(3, minmax(0, 1fr))"
-                          : "repeat(2, minmax(0, 1fr))",
-                      gap: 8,
-                    }
+                    display: "grid",
+                    gridTemplateColumns:
+                      width >= 700
+                        ? "repeat(3, minmax(0, 1fr))"
+                        : "repeat(2, minmax(0, 1fr))",
+                    gap: 8,
+                  }
                   : { display: "flex", gap: 8, flexWrap: "wrap" }
               }
             >
