@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getMatchesFromApi } from "../../core/api/matchApi";
 import { mergeMatches } from "../../core/matches/matchApiNormalizer";
 import { storageService } from "../../core/storage/services/storageService";
+import { ConfirmModal } from "../components/ConfirmModal";
 import { MatchDetailModal } from "../history/MatchDetailModal";
 
 const panelStyle = {
@@ -66,12 +67,41 @@ const summaryBadgeStyle = {
   fontSize: 12,
 };
 
+const inputStyle = {
+  width: "100%",
+  minHeight: 42,
+  borderRadius: 12,
+  border: "1px solid rgba(255,255,255,0.10)",
+  background: "rgba(255,255,255,0.05)",
+  color: "#f5efe6",
+  padding: "0 12px",
+  fontSize: 15,
+  outline: "none",
+  boxSizing: "border-box",
+};
+
 function formatDate(dateString) {
   try {
     return new Date(dateString).toLocaleString();
   } catch {
     return dateString ?? "-";
   }
+}
+
+function formatGameType(gameType) {
+  if (gameType === "dobbelkingen") return "Dobbelkingen";
+  if (gameType === "kleurenwiezen") return "Kleurenwiezen";
+  return gameType ?? "-";
+}
+
+function getMatchSource(match) {
+  if (match?.metadata?.simulated) return "simulated";
+  if (match?.apiSyncStatus === "failed") return "failed";
+  if (match?.apiSyncStatus === "pending") return "pending";
+  if (match?.apiSyncStatus === "synced") return "online";
+  if (match?.apiSyncStatus === "local_only") return "local";
+  if (match?.isOnlineOnly) return "online";
+  return "legacy";
 }
 
 function getSyncBadge(match) {
@@ -159,12 +189,38 @@ function SyncBadge({ match }) {
   );
 }
 
+function FilterButton({ active, children, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        ...buttonStyle,
+        background: active
+          ? "rgba(217, 119, 6, 0.18)"
+          : "rgba(255,255,255,0.04)",
+        border: active
+          ? "1px solid rgba(251, 191, 36, 0.34)"
+          : "1px solid rgba(255,255,255,0.08)",
+        color: active ? "#fde68a" : "#f5efe6",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function HistoryScreen() {
   const [matches, setMatches] = useState([]);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [syncingMatchIds, setSyncingMatchIds] = useState({});
   const [loadingOnline, setLoadingOnline] = useState(false);
   const [onlineError, setOnlineError] = useState("");
+  const [confirmAction, setConfirmAction] = useState(null);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [gameFilter, setGameFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
 
   async function refreshMatches() {
     const localMatches = storageService.getMatchHistory();
@@ -199,38 +255,89 @@ export function HistoryScreen() {
     };
   }, []);
 
+  function closeConfirm() {
+    if (confirmAction?.busy) return;
+    setConfirmAction(null);
+  }
+
+  async function runConfirmAction() {
+    if (!confirmAction?.onConfirm) return;
+
+    setConfirmAction((current) => ({
+      ...current,
+      busy: true,
+    }));
+
+    try {
+      await confirmAction.onConfirm();
+      setConfirmAction(null);
+    } catch (error) {
+      setOnlineError(error?.message ?? "Actie kon niet uitgevoerd worden.");
+      setConfirmAction(null);
+    }
+  }
+
   function handleDeleteMatch(match) {
     if (match?.isOnlineOnly) {
-      window.alert(
-        "Deze match staat alleen online. Online verwijderen bouwen we later niet standaard, zodat stats niet makkelijk gemanipuleerd kunnen worden."
-      );
+      setConfirmAction({
+        title: "Online match niet verwijderd",
+        message:
+          "Deze match staat alleen online. Online verwijderen bouwen we bewust niet standaard, zodat stats niet makkelijk gemanipuleerd kunnen worden.",
+        confirmLabel: "Oké",
+        cancelLabel: "Sluiten",
+        danger: false,
+        onConfirm: async () => {},
+      });
       return;
     }
 
-    storageService.deleteMatch(match.id);
+    setConfirmAction({
+      title: "Lokale match verwijderen?",
+      message: `Ben je zeker dat je deze ${formatGameType(match.gameType)} match lokaal wilt verwijderen? Online matches blijven bestaan.`,
+      confirmLabel: "Delete local",
+      cancelLabel: "Cancel",
+      danger: true,
+      onConfirm: async () => {
+        storageService.deleteMatch(match.id);
 
-    if (selectedMatch?.id === match.id) {
-      setSelectedMatch(null);
-    }
+        if (selectedMatch?.id === match.id) {
+          setSelectedMatch(null);
+        }
+
+        await refreshMatches();
+      },
+    });
   }
 
   function handleClearAll() {
-    const ok = window.confirm(
-      "Ben je zeker dat je alle lokale match history wilt wissen? Online matches blijven bestaan."
-    );
-
-    if (!ok) return;
-
-    storageService.clearMatchHistory();
-    setSelectedMatch(null);
+    setConfirmAction({
+      title: "Alle lokale history wissen?",
+      message:
+        "Ben je zeker dat je alle lokale match history wilt wissen? Online matches blijven bestaan.",
+      confirmLabel: "Clear local",
+      cancelLabel: "Cancel",
+      danger: true,
+      onConfirm: async () => {
+        storageService.clearMatchHistory();
+        setSelectedMatch(null);
+        await refreshMatches();
+      },
+    });
   }
 
   function handleClearSimulated() {
-    const ok = window.confirm("Ben je zeker dat je alle simulated matches wilt wissen?");
-    if (!ok) return;
-
-    storageService.clearSimulatedMatches();
-    setSelectedMatch(null);
+    setConfirmAction({
+      title: "Simulated matches wissen?",
+      message: "Ben je zeker dat je alle simulated/dev matches wilt wissen?",
+      confirmLabel: "Clear simulated",
+      cancelLabel: "Cancel",
+      danger: true,
+      onConfirm: async () => {
+        storageService.clearSimulatedMatches();
+        setSelectedMatch(null);
+        await refreshMatches();
+      },
+    });
   }
 
   async function handleRetrySync(matchId) {
@@ -272,6 +379,42 @@ export function HistoryScreen() {
       }
     );
   }, [matches]);
+
+  const filteredMatches = useMemo(() => {
+    const cleanSearch = searchTerm.trim().toLowerCase();
+
+    return matches.filter((match) => {
+      if (gameFilter !== "all" && match.gameType !== gameFilter) {
+        return false;
+      }
+
+      if (sourceFilter !== "all" && getMatchSource(match) !== sourceFilter) {
+        return false;
+      }
+
+      if (!cleanSearch) {
+        return true;
+      }
+
+      const winnerId = match.winnerIds?.[0] ?? null;
+      const winnerPlayer =
+        match.players?.find((player) => player.playerId === winnerId) ?? null;
+
+      const searchableText = [
+        match.gameType,
+        formatGameType(match.gameType),
+        formatDate(match.playedAt),
+        winnerPlayer?.name,
+        ...(match.players ?? []).map((player) => player.name),
+        ...(match.players ?? []).map((player) => player.username),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return searchableText.includes(cleanSearch);
+    });
+  }, [matches, searchTerm, gameFilter, sourceFilter]);
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -342,15 +485,121 @@ export function HistoryScreen() {
           </div>
         )}
 
+        {matches.length > 0 ? (
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              marginBottom: 18,
+              padding: 14,
+              borderRadius: 18,
+              border: "1px solid rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.025)",
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) auto",
+                gap: 10,
+                alignItems: "center",
+              }}
+            >
+              <input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search by player, winner, game or date..."
+                style={inputStyle}
+              />
+
+              {(searchTerm || gameFilter !== "all" || sourceFilter !== "all") ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setGameFilter("all");
+                    setSourceFilter("all");
+                  }}
+                  style={buttonStyle}
+                >
+                  Reset filters
+                </button>
+              ) : null}
+            </div>
+
+            <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ color: "#c8b6a1", fontSize: 13, fontWeight: 800 }}>
+                Game
+              </div>
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <FilterButton active={gameFilter === "all"} onClick={() => setGameFilter("all")}>
+                  All
+                </FilterButton>
+                <FilterButton
+                  active={gameFilter === "dobbelkingen"}
+                  onClick={() => setGameFilter("dobbelkingen")}
+                >
+                  Dobbelkingen
+                </FilterButton>
+                <FilterButton
+                  active={gameFilter === "kleurenwiezen"}
+                  onClick={() => setGameFilter("kleurenwiezen")}
+                >
+                  Kleurenwiezen
+                </FilterButton>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ color: "#c8b6a1", fontSize: 13, fontWeight: 800 }}>
+                Source
+              </div>
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <FilterButton active={sourceFilter === "all"} onClick={() => setSourceFilter("all")}>
+                  All
+                </FilterButton>
+                <FilterButton active={sourceFilter === "online"} onClick={() => setSourceFilter("online")}>
+                  Online
+                </FilterButton>
+                <FilterButton active={sourceFilter === "local"} onClick={() => setSourceFilter("local")}>
+                  Local
+                </FilterButton>
+                <FilterButton active={sourceFilter === "failed"} onClick={() => setSourceFilter("failed")}>
+                  Failed
+                </FilterButton>
+                <FilterButton active={sourceFilter === "pending"} onClick={() => setSourceFilter("pending")}>
+                  Pending
+                </FilterButton>
+                <FilterButton
+                  active={sourceFilter === "simulated"}
+                  onClick={() => setSourceFilter("simulated")}
+                >
+                  Simulated
+                </FilterButton>
+              </div>
+            </div>
+
+            <div style={{ color: "#c8b6a1", fontSize: 13 }}>
+              Showing {filteredMatches.length} of {matches.length} matches.
+            </div>
+          </div>
+        ) : null}
+
         <div style={{ fontWeight: 900, marginBottom: 10 }}>Recente matches</div>
 
         {matches.length === 0 ? (
           <div style={{ color: "#c8b6a1" }}>
             {loadingOnline ? "Matches laden..." : "Nog geen gespeelde matches."}
           </div>
+        ) : filteredMatches.length === 0 ? (
+          <div style={{ color: "#c8b6a1" }}>
+            Geen matches gevonden met deze filters.
+          </div>
         ) : (
           <div style={{ display: "grid", gap: 12 }}>
-            {matches.map((match) => {
+            {filteredMatches.map((match) => {
               const winnerId = match.winnerIds?.[0] ?? null;
               const winnerPlayer =
                 match.players?.find((player) => player.playerId === winnerId) ?? null;
@@ -389,7 +638,7 @@ export function HistoryScreen() {
                         }}
                       >
                         <div style={{ fontWeight: 900, fontSize: 18 }}>
-                          {match.gameType}
+                          {formatGameType(match.gameType)}
                         </div>
 
                         <SyncBadge match={match} />
@@ -563,6 +812,18 @@ export function HistoryScreen() {
       <MatchDetailModal
         match={selectedMatch}
         onClose={() => setSelectedMatch(null)}
+      />
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.title}
+        message={confirmAction?.message}
+        confirmLabel={confirmAction?.confirmLabel}
+        cancelLabel={confirmAction?.cancelLabel}
+        danger={confirmAction?.danger}
+        busy={!!confirmAction?.busy}
+        onCancel={closeConfirm}
+        onConfirm={runConfirmAction}
       />
     </div>
   );
