@@ -6,6 +6,7 @@ import { buttonStyle, colors, panelStyle, softCardStyle } from "../play/theme";
 import { useViewport } from "../play/useViewport";
 import { SetupSummaryCard } from "./SetupSummaryCard";
 import { getSeatName } from "./helpers";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 const TRUMPS = [
   { suit: "H", label: "Harten", symbol: "♥" },
@@ -713,6 +714,7 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
   const scoreboardScores = slice?.totalScores ?? Array(playersCount).fill(0);
   const [showContractPicker, setShowContractPicker] = useState(!slice?.contractId);
   const [showSetupScoreboard, setShowSetupScoreboard] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
   const scoreboardOpen = isMobile ? showSetupScoreboard : true;
 
   const declarantSeats = Array.isArray(slice?.declarantSeats)
@@ -775,16 +777,43 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
     },
   ];
 
-  function handleBack() {
-    if (showContractPicker) {
-      const ok = window.confirm("Kleurenwiezen verlaten en terugkeren naar Play?");
-      if (ok) onClose?.();
-      return;
-    }
-
-    const ok = window.confirm("Terug naar contractkeuze? Huidige setup gaat verloren.");
-    if (ok) setShowContractPicker(true);
+function handleBack() {
+  if (showContractPicker) {
+    setConfirmAction({
+      title: "Kleurenwiezen verlaten?",
+      message: "Ben je zeker dat je Kleurenwiezen wilt verlaten en terugkeren naar Play?",
+      confirmLabel: "Verlaten",
+      cancelLabel: "Annuleren",
+      danger: true,
+      onConfirm: async () => {
+        onClose?.();
+      },
+    });
+    return;
   }
+
+  setConfirmAction({
+    title: "Terug naar contractkeuze?",
+    message: "Ben je zeker dat je terug wilt naar de contractkeuze? De huidige setup gaat verloren.",
+    confirmLabel: "Teruggaan",
+    cancelLabel: "Annuleren",
+    danger: true,
+    onConfirm: async () => {
+      setShowContractPicker(true);
+    },
+  });
+}
+
+  function closeConfirm() {
+  setConfirmAction(null);
+}
+
+async function runConfirmAction() {
+  if (!confirmAction?.onConfirm) return;
+
+  await confirmAction.onConfirm();
+  setConfirmAction(null);
+}
 
   function toggleDeclarantSeat(seat) {
     const currentSeats = Array.isArray(slice?.declarantSeats) ? slice.declarantSeats : [];
@@ -1055,6 +1084,16 @@ export function KleurenwiezenPanel({ appState, onClose, dispatchAction }) {
           ) : null}
         </div>
       )}
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.title}
+        message={confirmAction?.message}
+        confirmLabel={confirmAction?.confirmLabel}
+        cancelLabel={confirmAction?.cancelLabel}
+        danger={confirmAction?.danger}
+        onCancel={closeConfirm}
+        onConfirm={runConfirmAction}
+      />
     </div>
   );
 }

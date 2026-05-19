@@ -1,7 +1,9 @@
+import { createPortal } from "react-dom";
+
 const overlayStyle = {
   position: "fixed",
   inset: 0,
-  zIndex: 11000,
+  zIndex: 999999,
   background: "rgba(0,0,0,0.70)",
   display: "grid",
   placeItems: "center",
@@ -9,7 +11,9 @@ const overlayStyle = {
 };
 
 const modalStyle = {
-  width: "min(440px, 100%)",
+  width: "min(440px, calc(100vw - 32px))",
+  maxHeight: "calc(100vh - 32px)",
+  overflow: "auto",
   borderRadius: 24,
   padding: 20,
   background:
@@ -62,7 +66,7 @@ export function ConfirmModal({
 }) {
   if (!open) return null;
 
-  return (
+  const modal = (
     <div style={overlayStyle} onClick={busy ? undefined : onCancel}>
       <div style={modalStyle} onClick={(event) => event.stopPropagation()}>
         <div
@@ -80,6 +84,7 @@ export function ConfirmModal({
                 margin: 0,
                 color: danger ? "#fecaca" : "#d97706",
                 fontSize: 24,
+                lineHeight: 1.25,
               }}
             >
               {title}
@@ -111,6 +116,7 @@ export function ConfirmModal({
               padding: 0,
               opacity: busy ? 0.6 : 1,
               cursor: busy ? "not-allowed" : "pointer",
+              flexShrink: 0,
             }}
           >
             ×
@@ -154,4 +160,6 @@ export function ConfirmModal({
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 }
