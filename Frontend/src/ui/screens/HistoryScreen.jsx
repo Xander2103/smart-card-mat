@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { getMatchesFromApi } from "../../core/api/matchApi";
+import { mergeMatches } from "../../core/matches/matchApiNormalizer";
 import { storageService } from "../../core/storage/services/storageService";
+import { MatchDetailModal } from "../history/MatchDetailModal";
 
 const panelStyle = {
   border: "1px solid rgba(251, 191, 36, 0.18)",
@@ -46,6 +48,14 @@ const syncButtonStyle = {
   color: "#bbf7d0",
 };
 
+const detailButtonStyle = {
+  ...buttonStyle,
+  background:
+    "linear-gradient(180deg, rgba(59,130,246,0.22) 0%, rgba(30,64,175,0.18) 100%)",
+  border: "1px solid rgba(96,165,250,0.35)",
+  color: "#bfdbfe",
+};
+
 const summaryBadgeStyle = {
   borderRadius: 999,
   padding: "6px 10px",
@@ -62,99 +72,6 @@ function formatDate(dateString) {
   } catch {
     return dateString ?? "-";
   }
-}
-
-function normalizeApiPlayers(apiMatch, rawState) {
-  if (Array.isArray(rawState?.players) && rawState.players.length > 0) {
-    return rawState.players;
-  }
-
-  return (apiMatch?.players ?? []).map((player) => ({
-    playerId: player.player_id,
-    name: player.name,
-    userId: player.user_id ?? null,
-    source: player.source ?? "guest",
-    username: player.username ?? null,
-  }));
-}
-
-function normalizeApiScores(apiMatch, rawState) {
-  if (Array.isArray(rawState?.scores) && rawState.scores.length > 0) {
-    return rawState.scores;
-  }
-
-  return (apiMatch?.players ?? []).map((player) => ({
-    playerId: player.player_id,
-    score: Number(player.score ?? 0),
-    rank: player?.stats?.rank ?? null,
-  }));
-}
-
-function normalizeApiWinnerIds(apiMatch, rawState) {
-  if (Array.isArray(rawState?.winnerIds)) {
-    return rawState.winnerIds;
-  }
-
-  const winners = (apiMatch?.players ?? [])
-    .filter((player) => player.is_winner)
-    .map((player) => player.player_id);
-
-  return winners.length > 0 ? winners : apiMatch?.winner_player_id ? [apiMatch.winner_player_id] : [];
-}
-
-function normalizeApiMatch(apiMatch) {
-  const rawState = apiMatch?.raw_state ?? {};
-  const clientMatchId = apiMatch?.client_match_id ?? rawState?.id ?? `api_${apiMatch.id}`;
-
-  return {
-    ...rawState,
-    id: clientMatchId,
-    apiId: apiMatch.id,
-    apiSyncStatus: "synced",
-    syncedAt: apiMatch.updated_at ?? null,
-    syncError: null,
-    isOnlineMatch: true,
-    isOnlineOnly: true,
-
-    gameType: rawState?.gameType ?? apiMatch?.mode ?? "-",
-    playedAt: rawState?.playedAt ?? apiMatch?.played_at ?? apiMatch?.created_at ?? null,
-    winnerIds: normalizeApiWinnerIds(apiMatch, rawState),
-    players: normalizeApiPlayers(apiMatch, rawState),
-    scores: normalizeApiScores(apiMatch, rawState),
-    metadata: rawState?.metadata ?? {},
-    gameData: rawState?.gameData ?? {},
-  };
-}
-
-function getMatchMergeKey(match) {
-  return match?.id ?? match?.client_match_id ?? `api_${match?.apiId}`;
-}
-
-function mergeMatches(localMatches, apiMatches) {
-  const merged = new Map();
-
-  for (const localMatch of localMatches) {
-    merged.set(getMatchMergeKey(localMatch), {
-      ...localMatch,
-      isOnlineOnly: false,
-    });
-  }
-
-  for (const apiMatch of apiMatches) {
-    const normalized = normalizeApiMatch(apiMatch);
-    const key = getMatchMergeKey(normalized);
-    const existing = merged.get(key);
-
-    merged.set(key, {
-      ...existing,
-      ...normalized,
-      isOnlineOnly: !existing,
-    });
-  }
-
-  return [...merged.values()].sort(
-    (a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime()
-  );
 }
 
 function getSyncBadge(match) {
@@ -210,7 +127,10 @@ function getSyncBadge(match) {
 }
 
 function canRetrySync(match) {
-  return !match?.isOnlineOnly && (match?.apiSyncStatus === "local_only" || match?.apiSyncStatus === "failed");
+  return (
+    !match?.isOnlineOnly &&
+    (match?.apiSyncStatus === "local_only" || match?.apiSyncStatus === "failed")
+  );
 }
 
 function SyncBadge({ match }) {
@@ -241,6 +161,7 @@ function SyncBadge({ match }) {
 
 export function HistoryScreen() {
   const [matches, setMatches] = useState([]);
+  const [selectedMatch, setSelectedMatch] = useState(null);
   const [syncingMatchIds, setSyncingMatchIds] = useState({});
   const [loadingOnline, setLoadingOnline] = useState(false);
   const [onlineError, setOnlineError] = useState("");
@@ -280,11 +201,17 @@ export function HistoryScreen() {
 
   function handleDeleteMatch(match) {
     if (match?.isOnlineOnly) {
-      window.alert("Deze match staat alleen online. Online verwijderen bouwen we later apart.");
+      window.alert(
+        "Deze match staat alleen online. Online verwijderen bouwen we later niet standaard, zodat stats niet makkelijk gemanipuleerd kunnen worden."
+      );
       return;
     }
 
     storageService.deleteMatch(match.id);
+
+    if (selectedMatch?.id === match.id) {
+      setSelectedMatch(null);
+    }
   }
 
   function handleClearAll() {
@@ -295,6 +222,7 @@ export function HistoryScreen() {
     if (!ok) return;
 
     storageService.clearMatchHistory();
+    setSelectedMatch(null);
   }
 
   function handleClearSimulated() {
@@ -302,6 +230,7 @@ export function HistoryScreen() {
     if (!ok) return;
 
     storageService.clearSimulatedMatches();
+    setSelectedMatch(null);
   }
 
   async function handleRetrySync(matchId) {
@@ -378,7 +307,7 @@ export function HistoryScreen() {
 
         <div style={{ color: "#c8b6a1", marginBottom: 14 }}>
           Overzicht van gespeelde matches. Lokale matches komen van dit toestel.
-          Online matches komen van je account en friends/matches waar je als speler in zit.
+          Online matches komen van je account en matches waar je als speler in zit.
         </div>
 
         {onlineError ? (
@@ -535,6 +464,14 @@ export function HistoryScreen() {
                         Winner: {winnerPlayer?.name ?? "-"}
                       </div>
 
+                      <button
+                        type="button"
+                        onClick={() => setSelectedMatch(match)}
+                        style={detailButtonStyle}
+                      >
+                        View details
+                      </button>
+
                       {canRetrySync(match) && (
                         <button
                           onClick={() => handleRetrySync(match.id)}
@@ -622,6 +559,11 @@ export function HistoryScreen() {
           </div>
         )}
       </div>
+
+      <MatchDetailModal
+        match={selectedMatch}
+        onClose={() => setSelectedMatch(null)}
+      />
     </div>
   );
 }

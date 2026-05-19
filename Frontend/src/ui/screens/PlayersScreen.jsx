@@ -65,7 +65,7 @@ function createSelectedPlayerFromProfile(profile) {
   return {
     id: profile.id,
     name: profile.name,
-    source: profile.source ?? "guest",
+    source: profile.source ?? "local",
     userId: profile.userId ?? null,
     isGuest: profile.isGuest ?? false,
     isLocalProfile: profile.isLocalProfile ?? true,
@@ -143,171 +143,135 @@ function SectionToggle({ title, subtitle, open, onToggle, rightContent }) {
   );
 }
 
-function QuickPlayerActions({
+function AccountSection({
   compactMobile,
   authUser,
   locked,
   selectedPlayers,
-  newPlayerName,
-  setNewPlayerName,
   onAddCurrentUser,
-  onAddGuest,
-  onCreatePlayer,
 }) {
   const selectedFull = selectedPlayers.length >= 4;
 
-  const smallCardStyle = {
-    borderRadius: 18,
-    padding: compactMobile ? 12 : 14,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.035)",
-    display: "grid",
-    gap: 10,
-    alignContent: "start",
-  };
-
-  const inputStyle = {
-    width: "100%",
-    minWidth: 0,
-    minHeight: 46,
-    borderRadius: 14,
-    padding: "0 12px",
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.05)",
-    color: "#f5efe6",
-    fontSize: 15,
-    fontWeight: 700,
-    outline: "none",
-    boxSizing: "border-box",
-  };
+  const ownAccountSelected = authUser
+    ? selectedPlayers.some((player) => isSameAccountPlayer(player, authUser.id))
+    : false;
 
   return (
     <div
       style={{
+        borderRadius: 18,
+        padding: compactMobile ? 12 : 14,
+        border: "1px solid rgba(251, 191, 36, 0.18)",
+        background: "rgba(251, 191, 36, 0.07)",
         display: "grid",
-        gridTemplateColumns: compactMobile
-          ? "repeat(2, minmax(0, 1fr))"
-          : "minmax(0, 1fr) minmax(0, 1fr)",
-        gap: 12,
-        marginBottom: 16,
+        gap: 10,
       }}
     >
       <div
         style={{
-          ...smallCardStyle,
-          border: "1px solid rgba(251, 191, 36, 0.18)",
-          background: "rgba(251, 191, 36, 0.07)",
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 10,
+          flexWrap: "wrap",
+          alignItems: "center",
         }}
       >
-        <div style={{ fontWeight: 900 }}>Eigen account</div>
-
-        <div style={{ color: "#c8b6a1", fontSize: 13, lineHeight: 1.4 }}>
-          {compactMobile
-            ? "Koppel match aan jou."
-            : "Voeg jezelf toe zodat deze match aan jouw account gekoppeld is."}
+        <div>
+          <div style={{ fontWeight: 900 }}>Eigen account</div>
+          <div style={{ color: "#c8b6a1", fontSize: 13, lineHeight: 1.4 }}>
+            Telt mee voor online history en online stats.
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={onAddCurrentUser}
-          disabled={locked || !authUser || selectedFull}
-          style={{
-            ...actionButtonStyle,
-            width: "100%",
-            minHeight: 44,
-            padding: "10px 12px",
-            opacity: locked || !authUser || selectedFull ? 0.55 : 1,
-            cursor: locked || !authUser || selectedFull ? "not-allowed" : "pointer",
-            background:
-              "linear-gradient(180deg, rgba(251,191,36,0.95) 0%, rgba(217,119,6,0.92) 100%)",
-            color: "#1f1307",
-          }}
-        >
-          {authUser
-            ? compactMobile
-              ? "+ Me"
-              : `+ Add my account${authUser.username ? ` (@${authUser.username})` : ""}`
-            : compactMobile
-              ? "Login"
-              : "Login to add your account"}
-        </button>
-      </div>
-
-      <div style={smallCardStyle}>
-        <div style={{ fontWeight: 900 }}>Guest</div>
-
-        <div style={{ color: "#c8b6a1", fontSize: 13, lineHeight: 1.4 }}>
-          {compactMobile
-            ? "Tijdelijke speler."
-            : "Tijdelijke speler voor deze match. Niet gekoppeld aan een account."}
-        </div>
-
-        <button
-          type="button"
-          onClick={onAddGuest}
-          disabled={locked || selectedFull}
-          style={{
-            ...actionButtonStyle,
-            width: "100%",
-            minHeight: 44,
-            padding: "10px 12px",
-            opacity: locked || selectedFull ? 0.55 : 1,
-            cursor: locked || selectedFull ? "not-allowed" : "pointer",
-          }}
-        >
-          {compactMobile ? "+ Guest" : "+ Add guest"}
-        </button>
-      </div>
-
-      <div
-        style={{
-          ...smallCardStyle,
-          gridColumn: "1 / -1",
-          background: "rgba(255,255,255,0.03)",
-        }}
-      >
-        <div style={{ fontWeight: 900 }}>Local profile</div>
-
-        <div style={{ color: "#c8b6a1", fontSize: 13, lineHeight: 1.4 }}>
-          Vaste naam op dit toestel. Geen online account en geen sync tussen apparaten.
-        </div>
-
-        <form
-          onSubmit={onCreatePlayer}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1fr) auto",
-            gap: 10,
-            alignItems: "center",
-          }}
-        >
-          <input
-            value={newPlayerName}
-            onChange={(event) => setNewPlayerName(event.target.value)}
-            disabled={locked}
-            placeholder="Nieuwe spelernaam"
+        {ownAccountSelected ? (
+          <div
             style={{
-              ...inputStyle,
-              opacity: locked ? 0.55 : 1,
-            }}
-          />
-
-          <button
-            type="submit"
-            disabled={locked}
-            style={{
-              ...actionButtonStyle,
-              minHeight: 46,
-              padding: compactMobile ? "10px 12px" : "10px 16px",
-              whiteSpace: "nowrap",
-              opacity: locked ? 0.55 : 1,
-              cursor: locked ? "not-allowed" : "pointer",
+              borderRadius: 999,
+              padding: "6px 10px",
+              background: "rgba(34,197,94,0.14)",
+              border: "1px solid rgba(34,197,94,0.28)",
+              color: "#bbf7d0",
+              fontWeight: 900,
+              fontSize: 12,
             }}
           >
-            {compactMobile ? "Create" : "Create player"}
-          </button>
-        </form>
+            Selected
+          </div>
+        ) : null}
       </div>
+
+      <button
+        type="button"
+        onClick={onAddCurrentUser}
+        disabled={locked || !authUser || selectedFull || ownAccountSelected}
+        style={{
+          ...actionButtonStyle,
+          width: "100%",
+          minHeight: 44,
+          padding: "10px 12px",
+          opacity:
+            locked || !authUser || selectedFull || ownAccountSelected ? 0.55 : 1,
+          cursor:
+            locked || !authUser || selectedFull || ownAccountSelected
+              ? "not-allowed"
+              : "pointer",
+          background:
+            "linear-gradient(180deg, rgba(251,191,36,0.95) 0%, rgba(217,119,6,0.92) 100%)",
+          color: "#1f1307",
+        }}
+      >
+        {authUser
+          ? ownAccountSelected
+            ? compactMobile
+              ? "✓ Me"
+              : "Je account is geselecteerd"
+            : compactMobile
+              ? "+ Me"
+              : `+ Add my account${authUser.username ? ` (@${authUser.username})` : ""}`
+          : compactMobile
+            ? "Login"
+            : "Login to add your account"}
+      </button>
+    </div>
+  );
+}
+
+function GuestSection({ compactMobile, locked, selectedPlayers, onAddGuest }) {
+  const selectedFull = selectedPlayers.length >= 4;
+
+  return (
+    <div
+      style={{
+        borderRadius: 18,
+        padding: compactMobile ? 12 : 14,
+        border: "1px solid rgba(255,255,255,0.08)",
+        background: "rgba(255,255,255,0.035)",
+        display: "grid",
+        gap: 10,
+      }}
+    >
+      <div style={{ fontWeight: 900 }}>Guest</div>
+
+      <div style={{ color: "#c8b6a1", fontSize: 13, lineHeight: 1.4 }}>
+        Tijdelijke speler voor deze match. Komt wel in history, maar niet in online
+        stats.
+      </div>
+
+      <button
+        type="button"
+        onClick={onAddGuest}
+        disabled={locked || selectedFull}
+        style={{
+          ...actionButtonStyle,
+          width: "100%",
+          minHeight: 44,
+          padding: "10px 12px",
+          opacity: locked || selectedFull ? 0.55 : 1,
+          cursor: locked || selectedFull ? "not-allowed" : "pointer",
+        }}
+      >
+        {selectedFull ? "Max 4 spelers" : compactMobile ? "+ Guest" : "+ Add guest"}
+      </button>
     </div>
   );
 }
@@ -336,10 +300,10 @@ function FriendsSection({
   });
 
   return (
-    <div style={{ display: "grid", gap: 10, marginBottom: 16 }}>
+    <div style={{ display: "grid", gap: 10 }}>
       <SectionToggle
         title={`Friends (${friends.length})`}
-        subtitle="Kies een echte Smart Card Mat account-user als speler."
+        subtitle="Kies echte Smart Card Mat account-users. Deze tellen mee voor online history en stats."
         open={open}
         onToggle={onToggle}
         rightContent={
@@ -489,9 +453,9 @@ function FriendsSection({
                       {selected
                         ? compactMobile
                           ? "✓"
-                          : "Geselecteerd"
+                          : "Selected"
                         : selectedPlayers.length >= 4
-                          ? "Vol"
+                          ? "Full"
                           : compactMobile
                             ? "Add"
                             : "Add player"}
@@ -517,6 +481,9 @@ function LocalProfilesSection({
   setProfileSearch,
   selectedPlayers,
   locked,
+  newPlayerName,
+  setNewPlayerName,
+  onCreatePlayer,
   onTogglePlayer,
   onDeleteProfile,
 }) {
@@ -524,7 +491,7 @@ function LocalProfilesSection({
     <div style={{ display: "grid", gap: 10 }}>
       <SectionToggle
         title={`Local profiles (${profiles.length})`}
-        subtitle="Alleen opgeslagen op dit toestel. Niet gekoppeld aan een online account."
+        subtitle="Alleen opgeslagen op dit toestel. Niet gekoppeld aan online stats."
         open={open}
         onToggle={onToggle}
         rightContent={
@@ -545,6 +512,71 @@ function LocalProfilesSection({
             gap: 12,
           }}
         >
+          <div
+            style={{
+              borderRadius: 16,
+              padding: compactMobile ? 12 : 14,
+              border: "1px solid rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.03)",
+              display: "grid",
+              gap: 10,
+            }}
+          >
+            <div style={{ fontWeight: 900 }}>Create local profile</div>
+
+            <div style={{ color: "#c8b6a1", fontSize: 13, lineHeight: 1.4 }}>
+              Vaste naam op dit toestel. Geen online account en geen sync tussen
+              apparaten.
+            </div>
+
+            <form
+              onSubmit={onCreatePlayer}
+              style={{
+                display: "grid",
+                gridTemplateColumns: compactMobile ? "1fr" : "minmax(0, 1fr) auto",
+                gap: 10,
+                alignItems: "center",
+              }}
+            >
+              <input
+                value={newPlayerName}
+                onChange={(event) => setNewPlayerName(event.target.value)}
+                disabled={locked}
+                placeholder="Nieuwe spelernaam"
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  minHeight: 46,
+                  borderRadius: 14,
+                  padding: "0 12px",
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  background: "rgba(255,255,255,0.05)",
+                  color: "#f5efe6",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  outline: "none",
+                  boxSizing: "border-box",
+                  opacity: locked ? 0.55 : 1,
+                }}
+              />
+
+              <button
+                type="submit"
+                disabled={locked}
+                style={{
+                  ...actionButtonStyle,
+                  minHeight: 46,
+                  padding: compactMobile ? "10px 12px" : "10px 16px",
+                  whiteSpace: "nowrap",
+                  opacity: locked ? 0.55 : 1,
+                  cursor: locked ? "not-allowed" : "pointer",
+                }}
+              >
+                {compactMobile ? "Create" : "Create player"}
+              </button>
+            </form>
+          </div>
+
           <input
             value={profileSearch}
             onChange={(event) => setProfileSearch(event.target.value)}
@@ -581,7 +613,8 @@ function LocalProfilesSection({
                   (player) => player.id === profile.id
                 );
 
-                const disabled = locked || selectedPlayers.length >= 4;
+                const selectedFull = selectedPlayers.length >= 4;
+                const disabled = locked || (!selected && selectedFull);
 
                 return (
                   <div
@@ -620,7 +653,7 @@ function LocalProfilesSection({
                           lineHeight: 1.3,
                         }}
                       >
-                        Local profile
+                        Local device only
                       </div>
 
                       {stats ? (
@@ -632,31 +665,28 @@ function LocalProfilesSection({
                             fontWeight: 800,
                           }}
                         >
-                          {stats.matchesPlayed ?? stats.matches ?? 0} matches
+                          {stats.matchesPlayed ?? stats.matches ?? 0} local matches
                         </div>
                       ) : null}
                     </div>
 
                     <button
                       type="button"
-                      disabled={locked || (!selected && disabled)}
+                      disabled={disabled}
                       onClick={() => onTogglePlayer(profile)}
                       style={{
                         ...actionButtonStyle,
                         minHeight: 38,
                         padding: "8px 10px",
-                        opacity: locked || (!selected && disabled) ? 0.55 : 1,
-                        cursor:
-                          locked || (!selected && disabled)
-                            ? "not-allowed"
-                            : "pointer",
+                        opacity: disabled ? 0.55 : 1,
+                        cursor: disabled ? "not-allowed" : "pointer",
                       }}
                     >
                       {selected
                         ? compactMobile
                           ? "✓"
                           : "Selected"
-                        : selectedPlayers.length >= 4
+                        : selectedFull
                           ? "Full"
                           : compactMobile
                             ? "Add"
@@ -1015,17 +1045,37 @@ export function PlayersScreen({
           onClearSelection={handleClearSelection}
         />
 
-        <QuickPlayerActions
-          compactMobile={compactMobile}
-          authUser={authUser}
-          locked={locked}
-          selectedPlayers={selectedPlayers}
-          newPlayerName={newPlayerName}
-          setNewPlayerName={setNewPlayerName}
-          onAddCurrentUser={handleAddCurrentUser}
-          onAddGuest={handleAddGuest}
-          onCreatePlayer={handleCreatePlayer}
-        />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: compactMobile
+              ? "1fr"
+              : "minmax(0, 1fr) minmax(0, 1fr)",
+            gap: 12,
+            marginBottom: 16,
+          }}
+        >
+          <AccountSection
+            compactMobile={compactMobile}
+            authUser={authUser}
+            locked={locked}
+            selectedPlayers={selectedPlayers}
+            onAddCurrentUser={handleAddCurrentUser}
+          />
+
+          <FriendsSection
+            compactMobile={compactMobile}
+            open={friendsOpen}
+            onToggle={() => setFriendsOpen((value) => !value)}
+            friends={friends}
+            selectedPlayers={selectedPlayers}
+            locked={locked}
+            friendSearch={friendSearch}
+            setFriendSearch={setFriendSearch}
+            onAddFriendPlayer={handleAddFriendPlayer}
+            onRefreshFriends={refreshFriends}
+          />
+        </div>
 
         {error ? (
           <div
@@ -1057,32 +1107,39 @@ export function PlayersScreen({
           actionButtonStyle={actionButtonStyle}
         />
 
-        <FriendsSection
-          compactMobile={compactMobile}
-          open={friendsOpen}
-          onToggle={() => setFriendsOpen((value) => !value)}
-          friends={friends}
-          selectedPlayers={selectedPlayers}
-          locked={locked}
-          friendSearch={friendSearch}
-          setFriendSearch={setFriendSearch}
-          onAddFriendPlayer={handleAddFriendPlayer}
-          onRefreshFriends={refreshFriends}
-        />
+        <div
+          style={{
+            display: "grid",
+            gap: 12,
+            marginTop: 16,
+          }}
+        >
+          <div style={{ fontWeight: 1000, fontSize: 18 }}>Temporary players</div>
 
-        <LocalProfilesSection
-          compactMobile={compactMobile}
-          open={localProfilesOpen}
-          onToggle={() => setLocalProfilesOpen((value) => !value)}
-          profiles={profiles}
-          profileStats={profileStats}
-          profileSearch={profileSearch}
-          setProfileSearch={setProfileSearch}
-          selectedPlayers={selectedPlayers}
-          locked={locked}
-          onTogglePlayer={handleTogglePlayer}
-          onDeleteProfile={handleDeleteProfile}
-        />
+          <GuestSection
+            compactMobile={compactMobile}
+            locked={locked}
+            selectedPlayers={selectedPlayers}
+            onAddGuest={handleAddGuest}
+          />
+
+          <LocalProfilesSection
+            compactMobile={compactMobile}
+            open={localProfilesOpen}
+            onToggle={() => setLocalProfilesOpen((value) => !value)}
+            profiles={profiles}
+            profileStats={profileStats}
+            profileSearch={profileSearch}
+            setProfileSearch={setProfileSearch}
+            selectedPlayers={selectedPlayers}
+            locked={locked}
+            newPlayerName={newPlayerName}
+            setNewPlayerName={setNewPlayerName}
+            onCreatePlayer={handleCreatePlayer}
+            onTogglePlayer={handleTogglePlayer}
+            onDeleteProfile={handleDeleteProfile}
+          />
+        </div>
       </div>
     </div>
   );
