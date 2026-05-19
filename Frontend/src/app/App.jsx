@@ -383,7 +383,7 @@ export default function App() {
 
       {tab === "history" && <HistoryScreen />}
 
-      {tab === "stats" && <StatsScreen />}
+      {tab === "stats" && <StatsScreen authUser={authUser} />}
 
       {tab === "deck" && (
         <DeckSetupScreen

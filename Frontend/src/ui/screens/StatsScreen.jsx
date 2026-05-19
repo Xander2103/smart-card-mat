@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { getMatchesFromApi } from "../../core/api/matchApi";
 import { storageService } from "../../core/storage/services/storageService";
 import { useViewport } from "../play/useViewport";
 import {
   getPlayerStats,
   getPlayerStatsByGameMode,
-  getPlayerGeneralInsights,
   getDobbelkingenContractInsights,
   getKleurenwiezenInsights,
 } from "../../core/stats/statsService";
@@ -51,6 +51,17 @@ const inputStyle = {
   minWidth: 260,
 };
 
+const refreshButtonStyle = {
+  borderRadius: 12,
+  padding: "9px 13px",
+  fontWeight: 900,
+  cursor: "pointer",
+  border: "1px solid rgba(34,197,94,0.35)",
+  background:
+    "linear-gradient(180deg, rgba(34,197,94,0.22) 0%, rgba(21,128,61,0.18) 100%)",
+  color: "#bbf7d0",
+};
+
 function getEmptyStats() {
   return {
     matchesPlayed: 0,
@@ -64,6 +75,165 @@ function getEmptyStats() {
     bestScore: 0,
     worstScore: 0,
   };
+}
+
+function normalizeApiPlayers(apiMatch, rawState) {
+  if (Array.isArray(rawState?.players) && rawState.players.length > 0) {
+    return rawState.players;
+  }
+
+  return (apiMatch?.players ?? []).map((player) => ({
+    playerId: player.player_id,
+    name: player.name,
+    userId: player.user_id ?? null,
+    source: player.source ?? "guest",
+    username: player.username ?? null,
+  }));
+}
+
+function normalizeApiScores(apiMatch, rawState) {
+  if (Array.isArray(rawState?.scores) && rawState.scores.length > 0) {
+    return rawState.scores;
+  }
+
+  return (apiMatch?.players ?? []).map((player) => ({
+    playerId: player.player_id,
+    score: Number(player.score ?? 0),
+    rank: player?.stats?.rank ?? null,
+  }));
+}
+
+function normalizeApiWinnerIds(apiMatch, rawState) {
+  if (Array.isArray(rawState?.winnerIds)) {
+    return rawState.winnerIds;
+  }
+
+  const winners = (apiMatch?.players ?? [])
+    .filter((player) => player.is_winner)
+    .map((player) => player.player_id);
+
+  if (winners.length > 0) return winners;
+
+  return apiMatch?.winner_player_id ? [apiMatch.winner_player_id] : [];
+}
+
+function normalizeApiMatch(apiMatch) {
+  const rawState = apiMatch?.raw_state ?? {};
+  const clientMatchId =
+    apiMatch?.client_match_id ?? rawState?.id ?? `api_${apiMatch.id}`;
+
+  return {
+    ...rawState,
+    id: clientMatchId,
+    apiId: apiMatch.id,
+    apiSyncStatus: "synced",
+    isOnlineMatch: true,
+    isOnlineOnly: true,
+
+    gameType: rawState?.gameType ?? apiMatch?.mode ?? "-",
+    playedAt:
+      rawState?.playedAt ?? apiMatch?.played_at ?? apiMatch?.created_at ?? null,
+    winnerIds: normalizeApiWinnerIds(apiMatch, rawState),
+    players: normalizeApiPlayers(apiMatch, rawState),
+    scores: normalizeApiScores(apiMatch, rawState),
+    metadata: rawState?.metadata ?? {},
+    gameData: rawState?.gameData ?? {},
+  };
+}
+
+function getMatchMergeKey(match) {
+  return match?.id ?? match?.client_match_id ?? `api_${match?.apiId}`;
+}
+
+function mergeMatches(localMatches, apiMatches) {
+  const merged = new Map();
+
+  for (const localMatch of localMatches) {
+    merged.set(getMatchMergeKey(localMatch), {
+      ...localMatch,
+      isOnlineOnly: false,
+    });
+  }
+
+  for (const apiMatch of apiMatches) {
+    const normalized = normalizeApiMatch(apiMatch);
+    const key = getMatchMergeKey(normalized);
+    const existing = merged.get(key);
+
+    merged.set(key, {
+      ...existing,
+      ...normalized,
+      isOnlineOnly: !existing,
+    });
+  }
+
+  return [...merged.values()].sort(
+    (a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime()
+  );
+}
+
+function buildAccountPlayersFromMatches(matches = []) {
+  const playersById = new Map();
+
+  for (const match of matches) {
+    for (const player of match.players ?? []) {
+      if (player?.source !== "user") continue;
+
+      const id = player?.playerId ?? player?.id;
+      if (!id) continue;
+
+      const existing = playersById.get(id);
+
+      playersById.set(id, {
+        id,
+        name: existing?.name ?? player?.name ?? "Unknown player",
+        userId: existing?.userId ?? player?.userId ?? null,
+        source: "user",
+        username: existing?.username ?? player?.username ?? null,
+        isFromMatchHistory: true,
+      });
+    }
+  }
+
+  return [...playersById.values()];
+}
+
+function getCurrentAccountPlayer(authUser, accountPlayers = []) {
+  if (!authUser?.id) return null;
+
+  const expectedPlayerId = `user_${authUser.id}`;
+
+  const existing =
+    accountPlayers.find((player) => Number(player.userId) === Number(authUser.id)) ??
+    accountPlayers.find((player) => player.id === expectedPlayerId) ??
+    null;
+
+  if (existing) {
+    return {
+      ...existing,
+      id: existing.id ?? expectedPlayerId,
+      userId: authUser.id,
+      source: "user",
+      name: authUser.name ?? existing.name,
+      username: authUser.username ?? existing.username ?? null,
+    };
+  }
+
+  return {
+    id: expectedPlayerId,
+    name: authUser.name ?? "Mijn account",
+    userId: authUser.id,
+    source: "user",
+    username: authUser.username ?? null,
+  };
+}
+
+function getFriendPlayers(authUser, accountPlayers = []) {
+  if (!authUser?.id) return accountPlayers;
+
+  return accountPlayers.filter(
+    (player) => Number(player.userId) !== Number(authUser.id)
+  );
 }
 
 function getMedalStyle(place) {
@@ -108,27 +278,28 @@ function getPlaceLabel(place) {
   return `#${place}`;
 }
 
+function getStatsForSection(row, activeSection) {
+  if (activeSection === "dobbelkingen") {
+    return row.gameModeStats?.dobbelkingen ?? getEmptyStats();
+  }
+
+  if (activeSection === "wiezen") {
+    return row.gameModeStats?.wiezen ?? getEmptyStats();
+  }
+
+  if (activeSection === "kleurenwiezen") {
+    return row.gameModeStats?.kleurenwiezen ?? getEmptyStats();
+  }
+
+  return row.generalStats;
+}
+
 function sortPlayers(rows, sortBy, activeSection) {
   const copy = [...rows];
 
   copy.sort((a, b) => {
-    const aStats =
-      activeSection === "dobbelkingen"
-        ? a.gameModeStats?.dobbelkingen ?? getEmptyStats()
-        : activeSection === "wiezen"
-          ? a.gameModeStats?.wiezen ?? getEmptyStats()
-          : activeSection === "kleurenwiezen"
-            ? a.gameModeStats?.kleurenwiezen ?? getEmptyStats()
-            : a.generalStats;
-
-    const bStats =
-      activeSection === "dobbelkingen"
-        ? b.gameModeStats?.dobbelkingen ?? getEmptyStats()
-        : activeSection === "wiezen"
-          ? b.gameModeStats?.wiezen ?? getEmptyStats()
-          : activeSection === "kleurenwiezen"
-            ? b.gameModeStats?.kleurenwiezen ?? getEmptyStats()
-            : b.generalStats;
+    const aStats = getStatsForSection(a, activeSection);
+    const bStats = getStatsForSection(b, activeSection);
 
     if (sortBy === "matchesPlayed") return bStats.matchesPlayed - aStats.matchesPlayed;
     if (sortBy === "wins") return bStats.wins - aStats.wins;
@@ -187,13 +358,11 @@ function StatsGrid({ items }) {
   );
 }
 
-function GeneralSection({ generalStats, insights }) {
+function GeneralSection({ generalStats }) {
   const statItems = [
     { label: "Matches played", value: generalStats.matchesPlayed, highlight: true },
     { label: "Wins", value: generalStats.wins },
     { label: "Win%", value: `${generalStats.winRate.toFixed(1)}%` },
-    { label: "Most played game", value: insights.mostPlayedGame ?? "-" },
-    { label: "Least played game", value: insights.leastPlayedGame ?? "-" },
   ];
 
   return (
@@ -245,24 +414,216 @@ function GameModeSection({ title, stats, extraChildren = null }) {
   );
 }
 
-export function StatsScreen() {
+function PlayerStatsCard({
+  row,
+  place,
+  leaderboardRank = null,
+  activeSection,
+  isOwnAccount = false,
+}) {
+  const {
+    player,
+    generalStats,
+    gameModeStats,
+    dobbelkingenContracts,
+    kleurenwiezenInsights,
+  } = row;
+
+  const medalStyle = getMedalStyle(place);
+
+  const dobbelkingenStats = gameModeStats?.dobbelkingen ?? getEmptyStats();
+  const kleurenwiezenStats = gameModeStats?.kleurenwiezen ?? getEmptyStats();
+  const wiezenStats = gameModeStats?.wiezen ?? getEmptyStats();
+
+  return (
+    <div
+      style={{
+        borderRadius: 18,
+        padding: 14,
+        border: isOwnAccount
+          ? "1px solid rgba(34,197,94,0.38)"
+          : place === 1
+            ? "1px solid rgba(251, 191, 36, 0.34)"
+            : "1px solid rgba(255,255,255,0.08)",
+        background: isOwnAccount
+          ? "rgba(34,197,94,0.10)"
+          : place === 1
+            ? "rgba(217, 119, 6, 0.14)"
+            : "rgba(255,255,255,0.03)",
+        display: "grid",
+        gap: 14,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div
+            style={{
+              minWidth: 44,
+              height: 44,
+              borderRadius: 999,
+              display: "grid",
+              placeItems: "center",
+              fontWeight: 900,
+              ...medalStyle,
+            }}
+          >
+            {isOwnAccount ? "👤" : getPlaceLabel(place)}
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 900, fontSize: 18 }}>
+              {player.name}
+              {isOwnAccount ? " · mijn account" : " · account"}
+            </div>
+            <div style={{ color: "#c8b6a1", fontSize: 13 }}>
+              {isOwnAccount
+                ? `Leaderboard rank #${leaderboardRank ?? "-"}`
+                : `Rank #${place}`}
+              {player.username ? ` · @${player.username}` : ""}
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            borderRadius: 999,
+            padding: "8px 12px",
+            background: "rgba(255,255,255,0.05)",
+            fontWeight: 800,
+            color: "#fde68a",
+          }}
+        >
+          Wins: {generalStats.wins}
+        </div>
+      </div>
+
+      {activeSection === "general" && (
+        <GeneralSection generalStats={generalStats} />
+      )}
+
+      {activeSection === "dobbelkingen" && (
+        <GameModeSection
+          title="Dobbelkingen"
+          stats={dobbelkingenStats}
+          extraChildren={
+            <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ fontWeight: 800, fontSize: 14, color: "#fde68a" }}>
+                Contract insights
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                  gap: 8,
+                }}
+              >
+                <StatPill
+                  label="Most picked contract"
+                  value={dobbelkingenContracts.mostPickedContract ?? "-"}
+                  highlight
+                />
+                <StatPill
+                  label="Least picked contract"
+                  value={dobbelkingenContracts.leastPickedContract ?? "-"}
+                />
+                <StatPill
+                  label="Best contract"
+                  value={dobbelkingenContracts.bestContract ?? "-"}
+                />
+                <StatPill
+                  label="Worst contract"
+                  value={dobbelkingenContracts.worstContract ?? "-"}
+                />
+              </div>
+            </div>
+          }
+        />
+      )}
+
+      {activeSection === "kleurenwiezen" && (
+        <GameModeSection
+          title="Kleurenwiezen"
+          stats={kleurenwiezenStats}
+          extraChildren={
+            <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ fontWeight: 800, fontSize: 14, color: "#fde68a" }}>
+                Contract insights
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                  gap: 8,
+                }}
+              >
+                <StatPill
+                  label="Hoogste gehaalde contract"
+                  value={kleurenwiezenInsights.highestAchievedContract ?? "-"}
+                  highlight
+                />
+              </div>
+            </div>
+          }
+        />
+      )}
+
+      {activeSection === "wiezen" && (
+        <GameModeSection title="Wiezen" stats={wiezenStats} />
+      )}
+    </div>
+  );
+}
+
+export function StatsScreen({ authUser = null }) {
   const { isMobile, width } = useViewport();
+
   const [sortBy, setSortBy] = useState("wins");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [friendSearchTerm, setFriendSearchTerm] = useState("");
   const [activeSection, setActiveSection] = useState("general");
-  const [players, setPlayers] = useState(() => storageService.getPlayers());
-  const [matches, setMatches] = useState(() => storageService.getMatchHistory());
+  const [friendsOpen, setFriendsOpen] = useState(true);
+
+  const [matches, setMatches] = useState([]);
+  const [loadingOnline, setLoadingOnline] = useState(false);
+  const [onlineError, setOnlineError] = useState("");
+
+  async function refreshData() {
+    const localMatches = storageService.getMatchHistory();
+
+    setLoadingOnline(true);
+    setOnlineError("");
+
+    try {
+      const apiMatches = await getMatchesFromApi();
+      const mergedMatches = mergeMatches(localMatches, apiMatches);
+
+      setMatches(mergedMatches);
+    } catch (error) {
+      setMatches(localMatches);
+      setOnlineError(error?.message ?? "Online stats konden niet geladen worden.");
+    } finally {
+      setLoadingOnline(false);
+    }
+  }
 
   useEffect(() => {
-    function refreshData() {
-      setPlayers(storageService.getPlayers());
-      setMatches(storageService.getMatchHistory());
-    }
+    refreshData();
 
     window.addEventListener("smartcardmat:data-changed", refreshData);
+    window.addEventListener("smartcardmat:friends-changed", refreshData);
 
     return () => {
       window.removeEventListener("smartcardmat:data-changed", refreshData);
+      window.removeEventListener("smartcardmat:friends-changed", refreshData);
     };
   }, []);
 
@@ -293,43 +654,76 @@ export function StatsScreen() {
     }
 
     if (["wiezen", "kleurenwiezen"].includes(activeSection)) {
-      if (!["wins", "matchesPlayed", "winRate", "totalScore", "averageScore", "bestScore", "worstScore"].includes(sortBy)) {
+      if (
+        ![
+          "wins",
+          "matchesPlayed",
+          "winRate",
+          "totalScore",
+          "averageScore",
+          "bestScore",
+          "worstScore",
+        ].includes(sortBy)
+      ) {
         setSortBy("wins");
       }
     }
   }, [activeSection, sortBy]);
 
-  const rows = useMemo(() => {
-    const mapped = players.map((player) => ({
-      player,
-      generalStats: getPlayerStats(player.id, matches),
-      gameModeStats: getPlayerStatsByGameMode(player.id, matches),
-      insights: getPlayerGeneralInsights(player.id, matches),
-      dobbelkingenContracts: getDobbelkingenContractInsights(player.id, matches),
-      kleurenwiezenInsights: getKleurenwiezenInsights(player.id, matches),
-    }));
+  const { myRow, myRank, friendRows } = useMemo(() => {
+    const accountPlayers = buildAccountPlayersFromMatches(matches);
+    const currentAccountPlayer = getCurrentAccountPlayer(authUser, accountPlayers);
+    const friends = getFriendPlayers(authUser, accountPlayers);
 
-    const normalizedSearch = searchTerm.trim().toLowerCase();
+    function buildRow(player) {
+      return {
+        player,
+        generalStats: getPlayerStats(player.id, matches),
+        gameModeStats: getPlayerStatsByGameMode(player.id, matches),
+        dobbelkingenContracts: getDobbelkingenContractInsights(player.id, matches),
+        kleurenwiezenInsights: getKleurenwiezenInsights(player.id, matches),
+      };
+    }
 
-    const filtered = mapped.filter(({ player, generalStats, gameModeStats }) => {
-      const matchesForSection =
-        activeSection === "dobbelkingen"
-          ? (gameModeStats?.dobbelkingen?.matchesPlayed ?? 0)
-          : activeSection === "wiezen"
-            ? (gameModeStats?.wiezen?.matchesPlayed ?? 0)
-            : activeSection === "kleurenwiezen"
-              ? (gameModeStats?.kleurenwiezen?.matchesPlayed ?? 0)
-              : generalStats.matchesPlayed;
+    const allRows = accountPlayers.map(buildRow);
+    const sortedAllRows = sortPlayers(allRows, sortBy, activeSection);
 
-      const matchesSearch =
-        normalizedSearch.length === 0 ||
-        player.name.toLowerCase().includes(normalizedSearch);
+    const currentRow = currentAccountPlayer ? buildRow(currentAccountPlayer) : null;
 
-      return matchesForSection > 0 && matchesSearch;
-    });
+    const currentRank = currentRow
+      ? sortedAllRows.findIndex((row) => row.player.id === currentRow.player.id) + 1
+      : null;
 
-    return sortPlayers(filtered, sortBy, activeSection);
-  }, [players, matches, sortBy, searchTerm, activeSection]);
+    const normalizedFriendSearch = friendSearchTerm.trim().toLowerCase();
+
+    const mappedFriends = friends
+      .map(buildRow)
+      .filter(({ player, generalStats, gameModeStats }) => {
+        const statsForSection =
+          activeSection === "dobbelkingen"
+            ? gameModeStats?.dobbelkingen ?? getEmptyStats()
+            : activeSection === "wiezen"
+              ? gameModeStats?.wiezen ?? getEmptyStats()
+              : activeSection === "kleurenwiezen"
+                ? gameModeStats?.kleurenwiezen ?? getEmptyStats()
+                : generalStats;
+
+        const matchesSection = statsForSection.matchesPlayed;
+
+        const matchesSearch =
+          normalizedFriendSearch.length === 0 ||
+          player.name.toLowerCase().includes(normalizedFriendSearch) ||
+          String(player.username ?? "").toLowerCase().includes(normalizedFriendSearch);
+
+        return matchesSection > 0 && matchesSearch;
+      });
+
+    return {
+      myRow: currentRow,
+      myRank: currentRank || null,
+      friendRows: sortPlayers(mappedFriends, sortBy, activeSection),
+    };
+  }, [authUser, matches, sortBy, friendSearchTerm, activeSection]);
 
   const sortOptions =
     activeSection === "general"
@@ -349,27 +743,15 @@ export function StatsScreen() {
             { value: "bestScore", label: "Best score" },
             { value: "worstScore", label: "Worst score" },
           ]
-        : activeSection === "wiezen"
-          ? [
-              { value: "wins", label: "Wins" },
-              { value: "matchesPlayed", label: "Matches" },
-              { value: "winRate", label: "Winrate" },
-            ]
-          : activeSection === "kleurenwiezen"
-            ? [
-                { value: "wins", label: "Wins" },
-                { value: "matchesPlayed", label: "Matches" },
-                { value: "winRate", label: "Winrate" },
-                { value: "totalScore", label: "Total score" },
-                { value: "averageScore", label: "Average score" },
-                { value: "bestScore", label: "Best score" },
-                { value: "worstScore", label: "Worst score" },
-              ]
-            : [
-              { value: "wins", label: "Wins" },
-              { value: "matchesPlayed", label: "Matches" },
-              { value: "winRate", label: "Win%" },
-            ];
+        : [
+            { value: "wins", label: "Wins" },
+            { value: "matchesPlayed", label: "Matches" },
+            { value: "winRate", label: "Winrate" },
+            { value: "totalScore", label: "Total score" },
+            { value: "averageScore", label: "Average score" },
+            { value: "bestScore", label: "Best score" },
+            { value: "worstScore", label: "Worst score" },
+          ];
 
   const sectionTabs = [
     { value: "general", label: "Algemeen" },
@@ -378,44 +760,46 @@ export function StatsScreen() {
     { value: "wiezen", label: "Wiezen" },
   ];
 
-  const emptyMessage =
-    searchTerm.trim().length > 0
-      ? "Geen spelers gevonden."
-      : activeSection === "dobbelkingen"
-        ? "Nog geen spelers met gespeelde Dobbelkingen matches."
-        : activeSection === "wiezen"
-          ? "Nog geen spelers met gespeelde Wiezen matches."
-          : activeSection === "kleurenwiezen"
-            ? "Nog geen spelers met gespeelde Kleurenwiezen matches."
-            : "Nog geen spelers met gespeelde matches.";
-
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <div style={panelStyle}>
-        <div
-          style={{
-            display: "grid",
-            gap: 14,
-            marginBottom: 14,
-          }}
-        >
-          <div>
-            <h2 style={{ margin: 0 }}>Stats</h2>
-            <div style={{ color: "#c8b6a1", marginTop: 4 }}>
-              Overzicht van alle spelerprestaties en leaderboard rankings.
+        <div style={{ display: "grid", gap: 14, marginBottom: 14 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <h2 style={{ margin: 0 }}>Stats</h2>
+              <div style={{ color: "#c8b6a1", marginTop: 4 }}>
+                Alleen echte account-users worden getoond. Guests en lokale profielen
+                tellen niet mee in deze online stats.
+              </div>
             </div>
+
+            <button type="button" onClick={refreshData} style={refreshButtonStyle}>
+              {loadingOnline ? "Refreshing..." : "Refresh stats"}
+            </button>
           </div>
 
-          <div style={{ display: "grid", gap: 10 }}>
-            <div style={{ fontSize: 13, color: "#c8b6a1" }}>Zoek speler</div>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Zoek op spelernaam..."
-              style={inputStyle}
-            />
-          </div>
+          {onlineError ? (
+            <div
+              style={{
+                borderRadius: 14,
+                padding: "10px 12px",
+                background: "rgba(127, 29, 29, 0.55)",
+                border: "1px solid rgba(248, 113, 113, 0.35)",
+                color: "#fee2e2",
+                fontWeight: 700,
+              }}
+            >
+              Online error: {onlineError}
+            </div>
+          ) : null}
 
           <div style={{ display: "grid", gap: 8 }}>
             <div style={{ fontSize: 13, color: "#c8b6a1" }}>Stats section</div>
@@ -424,7 +808,10 @@ export function StatsScreen() {
                 isMobile
                   ? {
                       display: "grid",
-                      gridTemplateColumns: width >= 700 ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))",
+                      gridTemplateColumns:
+                        width >= 700
+                          ? "repeat(3, minmax(0, 1fr))"
+                          : "repeat(2, minmax(0, 1fr))",
                       gap: 8,
                     }
                   : { display: "flex", gap: 8, flexWrap: "wrap" }
@@ -457,14 +844,17 @@ export function StatsScreen() {
           </div>
 
           <div style={{ display: "grid", gap: 8 }}>
-            <div style={{ fontSize: 13, color: "#c8b6a1" }}>Sort by</div>
+            <div style={{ fontSize: 13, color: "#c8b6a1" }}>Sort friends by</div>
 
             <div
               style={
                 isMobile
                   ? {
                       display: "grid",
-                      gridTemplateColumns: width >= 700 ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))",
+                      gridTemplateColumns:
+                        width >= 700
+                          ? "repeat(3, minmax(0, 1fr))"
+                          : "repeat(2, minmax(0, 1fr))",
                       gap: 8,
                     }
                   : { display: "flex", gap: 8, flexWrap: "wrap" }
@@ -497,184 +887,84 @@ export function StatsScreen() {
           </div>
         </div>
 
-        <div style={{ fontWeight: 900, marginBottom: 10 }}>Leaderboard</div>
+        <div style={{ display: "grid", gap: 14 }}>
+          <div style={{ fontWeight: 900, fontSize: 18 }}>Mijn account</div>
 
-        {rows.length === 0 ? (
-          <div style={{ color: "#c8b6a1" }}>{emptyMessage}</div>
-        ) : (
-          <div style={{ display: "grid", gap: 14 }}>
-            {rows.map(
-              ({ player, generalStats, gameModeStats, insights, dobbelkingenContracts, kleurenwiezenInsights }, index) => {
-                const place = index + 1;
-                const medalStyle = getMedalStyle(place);
+          {myRow ? (
+            <PlayerStatsCard
+              row={myRow}
+              place={myRank ?? 1}
+              leaderboardRank={myRank}
+              activeSection={activeSection}
+              isOwnAccount
+            />
+          ) : (
+            <div style={{ color: "#c8b6a1" }}>
+              Log in om je persoonlijke stats te zien.
+            </div>
+          )}
 
-                const dobbelkingenStats = gameModeStats?.dobbelkingen ?? getEmptyStats();
-                const kleurenwiezenStats = gameModeStats?.kleurenwiezen ?? getEmptyStats();
-                const wiezenStats = gameModeStats?.wiezen ?? getEmptyStats();
+          <button
+            type="button"
+            onClick={() => setFriendsOpen((prev) => !prev)}
+            style={{
+              marginTop: 8,
+              borderRadius: 16,
+              padding: "14px 16px",
+              cursor: "pointer",
+              border: "1px solid rgba(251, 191, 36, 0.22)",
+              background: "rgba(255,255,255,0.04)",
+              color: "#f5efe6",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              fontWeight: 900,
+              fontSize: 17,
+            }}
+          >
+            <span>Friends ({friendRows.length})</span>
+            <span style={{ color: "#fde68a" }}>{friendsOpen ? "Open" : "Closed"}</span>
+          </button>
 
-                return (
-                  <div
-                    key={player.id}
-                    style={{
-                      borderRadius: 18,
-                      padding: 14,
-                      border:
-                        place === 1
-                          ? "1px solid rgba(251, 191, 36, 0.34)"
-                          : "1px solid rgba(255,255,255,0.08)",
-                      background:
-                        place === 1
-                          ? "rgba(217, 119, 6, 0.14)"
-                          : "rgba(255,255,255,0.03)",
-                      display: "grid",
-                      gap: 14,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 12,
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                      }}
-                    >
-                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <div
-                          style={{
-                            minWidth: 44,
-                            height: 44,
-                            borderRadius: 999,
-                            display: "grid",
-                            placeItems: "center",
-                            fontWeight: 900,
-                            ...medalStyle,
-                          }}
-                        >
-                          {getPlaceLabel(place)}
-                        </div>
+          {friendsOpen && (
+            <div style={{ display: "grid", gap: 14 }}>
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 13, color: "#c8b6a1" }}>
+                  Search friends
+                </div>
+                <input
+                  type="text"
+                  value={friendSearchTerm}
+                  onChange={(e) => setFriendSearchTerm(e.target.value)}
+                  placeholder="Search by name or username..."
+                  style={{
+                    ...inputStyle,
+                    minWidth: 0,
+                    width: "100%",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
 
-                        <div>
-                          <div style={{ fontWeight: 900, fontSize: 18 }}>
-                            {player.name}
-                          </div>
-                          <div style={{ color: "#c8b6a1", fontSize: 13 }}>
-                            Rank #{place}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div
-                        style={{
-                          borderRadius: 999,
-                          padding: "8px 12px",
-                          background: "rgba(255,255,255,0.05)",
-                          fontWeight: 800,
-                          color: "#fde68a",
-                        }}
-                      >
-                        Wins: {generalStats.wins}
-                      </div>
-                    </div>
-
-                    {activeSection === "general" && (
-                      <GeneralSection
-                        generalStats={generalStats}
-                        insights={insights}
-                      />
-                    )}
-
-                    {activeSection === "dobbelkingen" && (
-                      <GameModeSection
-                        title="Dobbelkingen"
-                        stats={dobbelkingenStats}
-                        extraChildren={
-                          <div style={{ display: "grid", gap: 8 }}>
-                            <div
-                              style={{
-                                fontWeight: 800,
-                                fontSize: 14,
-                                color: "#fde68a",
-                              }}
-                            >
-                              Contract insights
-                            </div>
-
-                            <div
-                              style={{
-                                display: "grid",
-                                gridTemplateColumns:
-                                  "repeat(auto-fit, minmax(160px, 1fr))",
-                                gap: 8,
-                              }}
-                            >
-                              <StatPill
-                                label="Most picked contract"
-                                value={dobbelkingenContracts.mostPickedContract ?? "-"}
-                                highlight
-                              />
-                              <StatPill
-                                label="Least picked contract"
-                                value={dobbelkingenContracts.leastPickedContract ?? "-"}
-                              />
-                              <StatPill
-                                label="Best contract"
-                                value={dobbelkingenContracts.bestContract ?? "-"}
-                              />
-                              <StatPill
-                                label="Worst contract"
-                                value={dobbelkingenContracts.worstContract ?? "-"}
-                              />
-                            </div>
-                          </div>
-                        }
-                      />
-                    )}
-
-                    {activeSection === "kleurenwiezen" && (
-                      <GameModeSection
-                        title="Kleurenwiezen"
-                        stats={kleurenwiezenStats}
-                        extraChildren={
-                          <div style={{ display: "grid", gap: 8 }}>
-                            <div
-                              style={{
-                                fontWeight: 800,
-                                fontSize: 14,
-                                color: "#fde68a",
-                              }}
-                            >
-                              Contract insights
-                            </div>
-
-                            <div
-                              style={{
-                                display: "grid",
-                                gridTemplateColumns:
-                                  "repeat(auto-fit, minmax(160px, 1fr))",
-                                gap: 8,
-                              }}
-                            >
-                              <StatPill
-                                label="Hoogste gehaalde contract"
-                                value={kleurenwiezenInsights.highestAchievedContract ?? "-"}
-                                highlight
-                              />
-                            </div>
-                          </div>
-                        }
-                      />
-                    )}
-
-                    {activeSection === "wiezen" && (
-                      <GameModeSection title="Wiezen" stats={wiezenStats} />
-                    )}
-                  </div>
-                );
-              }
-            )}
-          </div>
-        )}
+              {friendRows.length === 0 ? (
+                <div style={{ color: "#c8b6a1" }}>
+                  {loadingOnline
+                    ? "Stats laden..."
+                    : "Nog geen friends met gespeelde online matches."}
+                </div>
+              ) : (
+                friendRows.map((row, index) => (
+                  <PlayerStatsCard
+                    key={row.player.id}
+                    row={row}
+                    place={index + 1}
+                    activeSection={activeSection}
+                  />
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
