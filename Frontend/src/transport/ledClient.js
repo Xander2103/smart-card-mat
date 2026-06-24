@@ -77,3 +77,7 @@ export const leds = {
     return sendLedCommand(`LED|BRIGHTNESS|${safeValue}`);
   },
 };
+
+if (typeof window !== "undefined") {
+  window.smartMatLedTest = leds;
+}

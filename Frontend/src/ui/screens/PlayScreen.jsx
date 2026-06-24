@@ -26,6 +26,7 @@ import { KleurenwiezenPanel } from "../kleurenwiezen/KleurenwiezenPanel";
 import { KleurenwiezenRoundPanel } from "../kleurenwiezen/KleurenwiezenRoundPanel";
 import { DevCardSimulator } from "./playscreen/DevCardSimulator";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { leds } from "../../transport/ledClient";
 
 export function PlayScreen({
   appState,
@@ -51,6 +52,10 @@ export function PlayScreen({
   onSimulateRandomContract,
 }) {
   const [confirmAction, setConfirmAction] = useState(null);
+  const lastKleurenwiezenAutoConfirmRef = useRef(null);
+  const lastLedBaseRef = useRef(null);
+  const lastLedScanOkRef = useRef(null);
+  const lastLedTrickWinRef = useRef(null);
 
   const modeId = appState.modeId ?? null;
   const isDobbelkingen = modeId === "dobbelkingen";
@@ -151,6 +156,185 @@ export function PlayScreen({
     appState.phase === "KLEURENWIEZEN_SETUP";
   const showGameUi = appState.phase === "PLAYING_TRICK";
   const showDoneUi = appState.phase === "DOBBELKINGEN_DONE";
+
+  useEffect(() => {
+    let key = "";
+    let run = null;
+
+    if (showGameUi) {
+      const seatIndex =
+        typeof currentIndex === "number" && currentIndex >= 0 ? currentIndex : 0;
+
+      const trickLength = activeSlice?.currentTrick?.length ?? 0;
+      const trickHistoryLength = activeSlice?.trickHistory?.length ?? 0;
+      const lastWinner =
+        typeof activeSlice?.lastTrickWinnerIndex === "number"
+          ? activeSlice.lastTrickWinnerIndex
+          : "none";
+
+      key = [
+        "turn",
+        modeId ?? "none",
+        seatIndex,
+        trickLength,
+        trickHistoryLength,
+        lastWinner,
+      ].join("|");
+
+      run = () => leds.turn(seatIndex);
+    } else if (showLobby) {
+      key = `setup|${modeId ?? "none"}|${appState.phase}`;
+      run = () => leds.setup();
+    } else {
+      key = `off|${appState.phase}`;
+      run = () => leds.off();
+    }
+
+    if (lastLedBaseRef.current === key) return;
+
+    lastLedBaseRef.current = key;
+
+    run?.();
+
+    // Belangrijk:
+    // Na scan/trick-win overlays forceren we opnieuw de echte base turn-zone.
+    // Anders kan de fysieke LED blijven hangen op de vorige zone.
+    const t1 = window.setTimeout(() => {
+      run?.();
+    }, 250);
+
+    const t2 = window.setTimeout(() => {
+      run?.();
+    }, 650);
+
+    const t3 = window.setTimeout(() => {
+      run?.();
+    }, 1100);
+
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [
+    showGameUi,
+    showLobby,
+    modeId,
+    currentIndex,
+    appState.phase,
+    activeSlice?.currentTrick?.length,
+    activeSlice?.trickHistory?.length,
+    activeSlice?.lastTrickWinnerIndex,
+  ]);
+
+  useEffect(() => {
+    if (!showGameUi) return;
+
+    const turnCard = gameState?.turnCard;
+    if (!turnCard?.uid || !turnCard?.card) return;
+
+    const zone = Number(turnCard.zone);
+    if (!Number.isFinite(zone) || zone < 1) return;
+
+    const key = [
+      "scan-ok",
+      modeId ?? "none",
+      zone,
+      turnCard.uid,
+      turnCard.card,
+    ].join("|");
+
+    if (lastLedScanOkRef.current === key) return;
+
+    lastLedScanOkRef.current = key;
+    leds.scanOk(zone - 1);
+  }, [
+    showGameUi,
+    modeId,
+    gameState?.turnCard?.zone,
+    gameState?.turnCard?.uid,
+    gameState?.turnCard?.card,
+  ]);
+
+  useEffect(() => {
+    if (!showGameUi) return;
+
+    const winnerIndex = activeSlice?.lastTrickWinnerIndex;
+    const trickKey = activeSlice?.lastTrick?.timestamp ?? activeSlice?.lastTrick?.id;
+
+    if (typeof winnerIndex !== "number" || winnerIndex < 0 || trickKey == null) {
+      return;
+    }
+
+    const key = `trick-win|${modeId ?? "none"}|${winnerIndex}|${trickKey}`;
+
+    if (lastLedTrickWinRef.current === key) return;
+
+    lastLedTrickWinRef.current = key;
+    leds.trickWin(winnerIndex);
+  }, [
+    showGameUi,
+    modeId,
+    activeSlice?.lastTrickWinnerIndex,
+    activeSlice?.lastTrick?.timestamp,
+    activeSlice?.lastTrick?.id,
+  ]);
+
+  useEffect(() => {
+    if (!isKleurenwiezen) return;
+    if (!showGameUi) return;
+    if (!appState.autoConfirm) return;
+
+    const turnCard = gameState?.turnCard;
+    if (!turnCard?.uid || !turnCard?.card) return;
+
+    const currentPlayerKey =
+      typeof activeSlice?.currentPlayerIndex === "number"
+        ? activeSlice.currentPlayerIndex
+        : 0;
+
+    const currentTrickLength = activeSlice?.currentTrick?.length ?? 0;
+    const trickHistoryLength = activeSlice?.trickHistory?.length ?? 0;
+
+    const autoConfirmKey = [
+      "kleurenwiezen",
+      currentPlayerKey,
+      turnCard.zone,
+      turnCard.uid,
+      turnCard.card,
+      currentTrickLength,
+      trickHistoryLength,
+    ].join("|");
+
+    if (lastKleurenwiezenAutoConfirmRef.current === autoConfirmKey) {
+      return;
+    }
+
+    lastKleurenwiezenAutoConfirmRef.current = autoConfirmKey;
+
+    const timer = window.setTimeout(() => {
+      if (typeof onConfirmTurn === "function") {
+        onConfirmTurn();
+        return;
+      }
+
+      dispatchAction?.({ type: "confirm_turn" });
+    }, 120);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [
+    isKleurenwiezen,
+    showGameUi,
+    appState.autoConfirm,
+    gameState?.turnCard,
+    activeSlice?.currentPlayerIndex,
+    activeSlice?.currentTrick,
+    activeSlice?.trickHistory,
+    onConfirmTurn,
+    dispatchAction,
+  ]);
 
   const DISPLAY_ZONES = useMemo(() => [1, 2, 4, 3], []);
   const zonesForGrid = DISPLAY_ZONES.map((z) => zones?.[z - 1] ?? null);
@@ -262,6 +446,7 @@ export function PlayScreen({
       activeSlice?.lastTrick?.timestamp ??
       activeSlice?.trickHistory?.[activeSlice?.trickHistory?.length - 1]?.id ??
       null;
+
     if (typeof winnerIdx !== "number" || !ts) return undefined;
 
     const name = players?.[winnerIdx]?.name ?? `Player ${winnerIdx + 1}`;
@@ -320,6 +505,7 @@ export function PlayScreen({
 
       if (created.length > 0) {
         setFlyingCards((prev) => [...prev, ...created]);
+
         created.forEach((card) => {
           window.setTimeout(() => {
             setFlyingCards((prev) => prev.filter((entry) => entry.id !== card.id));
@@ -355,6 +541,7 @@ export function PlayScreen({
     appState.phase === "CHOOSING_TROEF" ? 520 : 420,
     height - 112
   );
+
   const mobileTopButtonStyle = {
     minHeight: mobileControlsHeight,
     padding: isMobileLandscape ? "6px 8px" : "7px 9px",
@@ -493,14 +680,14 @@ export function PlayScreen({
             style={
               isMobile
                 ? {
-                    minHeight: mobileLobbyHeight,
-                    height: mobileLobbyHeight,
-                    minWidth: 0,
-                    overflowY:
-                      appState.phase === "CHOOSING_TROEF" ? "hidden" : "auto",
-                    overflowX: "hidden",
-                    WebkitOverflowScrolling: "touch",
-                  }
+                  minHeight: mobileLobbyHeight,
+                  height: mobileLobbyHeight,
+                  minWidth: 0,
+                  overflowY:
+                    appState.phase === "CHOOSING_TROEF" ? "hidden" : "auto",
+                  overflowX: "hidden",
+                  WebkitOverflowScrolling: "touch",
+                }
                 : undefined
             }
           >
