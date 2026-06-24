@@ -220,14 +220,10 @@ export function PlayScreen({
 
     lastLedBaseRef.current = key;
 
-    // Nieuwe echte game-state = oude LED timers weg.
     clearLedFxTimers();
 
-    // Dit is de enige normale plek waar de beurt-led gezet wordt.
     leds.turn(seatIndex);
 
-    // Als er geen error is, versterken we dezelfde huidige state.
-    // Geen andere speler, nooit nextTurnIndex.
     if (!appState.lastError) {
       scheduleLedFx(() => leds.turn(seatIndex), 300);
       scheduleLedFx(() => leds.turn(seatIndex), 800);
@@ -248,7 +244,6 @@ export function PlayScreen({
     if (!showGameUi) return;
     if (!appState.lastError) return;
 
-    // Error wint altijd: alle oude timers weg.
     clearLedFxTimers();
 
     const seatIndex =
@@ -259,8 +254,10 @@ export function PlayScreen({
       modeId ?? "none",
       seatIndex,
       appState.lastError,
-      activeSlice?.currentTrick?.length ?? 0,
-      activeSlice?.trickHistory?.length ?? 0,
+      zones?.[0] ?? "z0",
+      zones?.[1] ?? "z1",
+      zones?.[2] ?? "z2",
+      zones?.[3] ?? "z3",
     ].join("|");
 
     if (lastLedErrorRef.current === key) return;
@@ -269,19 +266,18 @@ export function PlayScreen({
 
     leds.error(seatIndex);
 
-    // Hard lock terug naar de speler die volgens de app aan beurt is.
-    scheduleLedFx(() => leds.turn(seatIndex), 100);
-    scheduleLedFx(() => leds.turn(seatIndex), 350);
-    scheduleLedFx(() => leds.turn(seatIndex), 800);
-    scheduleLedFx(() => leds.turn(seatIndex), 1400);
-    scheduleLedFx(() => leds.turn(seatIndex), 2200);
+    scheduleLedFx(() => leds.turn(seatIndex), 650);
+    scheduleLedFx(() => leds.turn(seatIndex), 1100);
+    scheduleLedFx(() => leds.turn(seatIndex), 1800);
   }, [
     showGameUi,
     modeId,
     currentIndex,
     appState.lastError,
-    activeSlice?.currentTrick?.length,
-    activeSlice?.trickHistory?.length,
+    zones?.[0],
+    zones?.[1],
+    zones?.[2],
+    zones?.[3],
   ]);
 
   useEffect(() => {
@@ -311,7 +307,6 @@ export function PlayScreen({
 
     lastLedScanOkRef.current = key;
 
-    // Alleen groen flashen. GEEN turn hier.
     leds.scanOk(playerIndex);
   }, [
     showGameUi,
@@ -322,10 +317,27 @@ export function PlayScreen({
 
   useEffect(() => {
     if (!showGameUi) return;
-    if (appState.lastError) return;
 
-    const winnerIndex = activeSlice?.lastTrickWinnerIndex;
-    const trickKey = activeSlice?.lastTrick?.timestamp ?? activeSlice?.lastTrick?.id;
+    const lastTrickFromHistory =
+      Array.isArray(activeSlice?.trickHistory) && activeSlice.trickHistory.length > 0
+        ? activeSlice.trickHistory[activeSlice.trickHistory.length - 1]
+        : null;
+
+    const winnerIndex =
+      typeof activeSlice?.lastTrickWinnerIndex === "number"
+        ? activeSlice.lastTrickWinnerIndex
+        : typeof lastTrickFromHistory?.winnerIndex === "number"
+          ? lastTrickFromHistory.winnerIndex
+          : typeof lastTrickFromHistory?.winnerPlayerIndex === "number"
+            ? lastTrickFromHistory.winnerPlayerIndex
+            : null;
+
+    const trickKey =
+      activeSlice?.lastTrick?.timestamp ??
+      activeSlice?.lastTrick?.id ??
+      lastTrickFromHistory?.timestamp ??
+      lastTrickFromHistory?.id ??
+      activeSlice?.trickHistory?.length;
 
     if (typeof winnerIndex !== "number" || winnerIndex < 0 || trickKey == null) {
       return;
@@ -337,43 +349,25 @@ export function PlayScreen({
 
     lastLedTrickWinRef.current = key;
 
-    // Alleen win flashen. GEEN turn hier.
+    clearLedFxTimers();
+
     leds.trickWin(winnerIndex);
+
+    const seatIndex =
+      typeof currentIndex === "number" && currentIndex >= 0
+        ? currentIndex
+        : winnerIndex;
+
+    scheduleLedFx(() => leds.turn(seatIndex), 900);
+    scheduleLedFx(() => leds.turn(seatIndex), 1400);
   }, [
     showGameUi,
     modeId,
-    appState.lastError,
+    currentIndex,
     activeSlice?.lastTrickWinnerIndex,
     activeSlice?.lastTrick?.timestamp,
     activeSlice?.lastTrick?.id,
-  ]);
-
-  useEffect(() => {
-    if (!showGameUi) return;
-    if (!appState.lastError) return;
-
-    const seatIndex =
-      typeof currentIndex === "number" && currentIndex >= 0 ? currentIndex : 0;
-
-    clearLedFxTimers();
-
-    // App-state is hier de waarheid.
-    // Bij elke error/zonewijziging zetten we LED terug naar dezelfde speler.
-    leds.turn(seatIndex);
-
-    scheduleLedFx(() => leds.turn(seatIndex), 100);
-    scheduleLedFx(() => leds.turn(seatIndex), 300);
-    scheduleLedFx(() => leds.turn(seatIndex), 700);
-    scheduleLedFx(() => leds.turn(seatIndex), 1200);
-    scheduleLedFx(() => leds.turn(seatIndex), 2000);
-  }, [
-    showGameUi,
-    currentIndex,
-    appState.lastError,
-    zones?.[0],
-    zones?.[1],
-    zones?.[2],
-    zones?.[3],
+    activeSlice?.trickHistory,
   ]);
 
   useEffect(() => {
@@ -776,14 +770,14 @@ export function PlayScreen({
             style={
               isMobile
                 ? {
-                  minHeight: mobileLobbyHeight,
-                  height: mobileLobbyHeight,
-                  minWidth: 0,
-                  overflowY:
-                    appState.phase === "CHOOSING_TROEF" ? "hidden" : "auto",
-                  overflowX: "hidden",
-                  WebkitOverflowScrolling: "touch",
-                }
+                    minHeight: mobileLobbyHeight,
+                    height: mobileLobbyHeight,
+                    minWidth: 0,
+                    overflowY:
+                      appState.phase === "CHOOSING_TROEF" ? "hidden" : "auto",
+                    overflowX: "hidden",
+                    WebkitOverflowScrolling: "touch",
+                  }
                 : undefined
             }
           >
