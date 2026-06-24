@@ -58,6 +58,7 @@ export function PlayScreen({
   const lastLedScanOkRef = useRef(null);
   const lastLedErrorRef = useRef(null);
   const lastLedTrickWinRef = useRef(null);
+  const lastAutoConfirmedPhysicalCardRef = useRef(null);
   const ledFxTimersRef = useRef([]);
 
   function clearLedFxTimers() {
@@ -316,75 +317,31 @@ export function PlayScreen({
   ]);
 
   useEffect(() => {
-    if (!showGameUi) return;
-
-    const lastTrickFromHistory =
-      Array.isArray(activeSlice?.trickHistory) && activeSlice.trickHistory.length > 0
-        ? activeSlice.trickHistory[activeSlice.trickHistory.length - 1]
-        : null;
-
-    const winnerIndex =
-      typeof activeSlice?.lastTrickWinnerIndex === "number"
-        ? activeSlice.lastTrickWinnerIndex
-        : typeof lastTrickFromHistory?.winnerIndex === "number"
-          ? lastTrickFromHistory.winnerIndex
-          : typeof lastTrickFromHistory?.winnerPlayerIndex === "number"
-            ? lastTrickFromHistory.winnerPlayerIndex
-            : null;
-
-    const trickKey =
-      activeSlice?.lastTrick?.timestamp ??
-      activeSlice?.lastTrick?.id ??
-      lastTrickFromHistory?.timestamp ??
-      lastTrickFromHistory?.id ??
-      activeSlice?.trickHistory?.length;
-
-    if (typeof winnerIndex !== "number" || winnerIndex < 0 || trickKey == null) {
-      return;
-    }
-
-    const key = `trick-win|${modeId ?? "none"}|${winnerIndex}|${trickKey}`;
-
-    if (lastLedTrickWinRef.current === key) return;
-
-    lastLedTrickWinRef.current = key;
-
-    clearLedFxTimers();
-
-    leds.trickWin(winnerIndex);
-
-    const seatIndex =
-      typeof currentIndex === "number" && currentIndex >= 0
-        ? currentIndex
-        : winnerIndex;
-
-    scheduleLedFx(() => leds.turn(seatIndex), 900);
-    scheduleLedFx(() => leds.turn(seatIndex), 1400);
-  }, [
-    showGameUi,
-    modeId,
-    currentIndex,
-    activeSlice?.lastTrickWinnerIndex,
-    activeSlice?.lastTrick?.timestamp,
-    activeSlice?.lastTrick?.id,
-    activeSlice?.trickHistory,
-  ]);
-
-  useEffect(() => {
     if (!isKleurenwiezen) return;
     if (!showGameUi) return;
     if (!appState.autoConfirm) return;
 
     const turnCard = gameState?.turnCard;
-    if (!turnCard?.uid || !turnCard?.card) return;
+
+    if (!turnCard?.uid || !turnCard?.card) {
+      lastAutoConfirmedPhysicalCardRef.current = null;
+      return;
+    }
+
+    const physicalCardKey = [
+      turnCard.zone ?? "no-zone",
+      turnCard.uid,
+      turnCard.card,
+    ].join("|");
+
+    if (lastAutoConfirmedPhysicalCardRef.current === physicalCardKey) {
+      return;
+    }
 
     const currentPlayerKey =
       typeof activeSlice?.currentPlayerIndex === "number"
         ? activeSlice.currentPlayerIndex
         : 0;
-
-    const currentTrickLength = activeSlice?.currentTrick?.length ?? 0;
-    const trickHistoryLength = activeSlice?.trickHistory?.length ?? 0;
 
     const autoConfirmKey = [
       "kleurenwiezen",
@@ -392,8 +349,6 @@ export function PlayScreen({
       turnCard.zone,
       turnCard.uid,
       turnCard.card,
-      currentTrickLength,
-      trickHistoryLength,
     ].join("|");
 
     if (lastKleurenwiezenAutoConfirmRef.current === autoConfirmKey) {
@@ -401,6 +356,7 @@ export function PlayScreen({
     }
 
     lastKleurenwiezenAutoConfirmRef.current = autoConfirmKey;
+    lastAutoConfirmedPhysicalCardRef.current = physicalCardKey;
 
     const timer = window.setTimeout(() => {
       if (typeof onConfirmTurn === "function") {
@@ -420,8 +376,6 @@ export function PlayScreen({
     appState.autoConfirm,
     gameState?.turnCard,
     activeSlice?.currentPlayerIndex,
-    activeSlice?.currentTrick,
-    activeSlice?.trickHistory,
     onConfirmTurn,
     dispatchAction,
   ]);
@@ -530,14 +484,21 @@ export function PlayScreen({
   const [trickToast, setTrickToast] = useState(null);
   const [flashWinnerIndex, setFlashWinnerIndex] = useState(null);
 
-  useEffect(() => {
+   useEffect(() => {
     const winnerIdx = activeSlice?.lastTrickWinnerIndex;
     const ts =
       activeSlice?.lastTrick?.timestamp ??
       activeSlice?.trickHistory?.[activeSlice?.trickHistory?.length - 1]?.id ??
+      activeSlice?.trickHistory?.length ??
       null;
 
     if (typeof winnerIdx !== "number" || !ts) return undefined;
+
+    const key = `trick-toast-led|${modeId ?? "none"}|${winnerIdx}|${ts}`;
+
+    if (lastLedTrickWinRef.current === key) return undefined;
+
+    lastLedTrickWinRef.current = key;
 
     const name = players?.[winnerIdx]?.name ?? `Player ${winnerIdx + 1}`;
 
@@ -549,6 +510,18 @@ export function PlayScreen({
 
     setFlashWinnerIndex(winnerIdx);
 
+    clearLedFxTimers();
+
+    // Forceer goud lang genoeg zichtbaar, ook als turn-led kort probeert te overschrijven.
+    leds.trickWin(winnerIdx);
+    scheduleLedFx(() => leds.trickWin(winnerIdx), 150);
+    scheduleLedFx(() => leds.trickWin(winnerIdx), 350);
+    scheduleLedFx(() => leds.trickWin(winnerIdx), 700);
+
+    // Pas daarna terug naar winnaar, want die start normaal de volgende slag.
+    scheduleLedFx(() => leds.turn(winnerIdx), 1600);
+    scheduleLedFx(() => leds.turn(winnerIdx), 2200);
+
     const t1 = window.setTimeout(() => setTrickToast(null), 1200);
     const t2 = window.setTimeout(() => setFlashWinnerIndex(null), 900);
 
@@ -557,6 +530,7 @@ export function PlayScreen({
       window.clearTimeout(t2);
     };
   }, [
+    modeId,
     activeSlice?.lastTrick,
     activeSlice?.lastTrickWinnerIndex,
     activeSlice?.trickHistory,
