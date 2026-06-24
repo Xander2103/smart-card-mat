@@ -53,9 +53,30 @@ export function PlayScreen({
 }) {
   const [confirmAction, setConfirmAction] = useState(null);
   const lastKleurenwiezenAutoConfirmRef = useRef(null);
+
   const lastLedBaseRef = useRef(null);
   const lastLedScanOkRef = useRef(null);
+  const lastLedErrorRef = useRef(null);
   const lastLedTrickWinRef = useRef(null);
+  const ledFxTimersRef = useRef([]);
+
+  function clearLedFxTimers() {
+    for (const timer of ledFxTimersRef.current) {
+      window.clearTimeout(timer);
+    }
+
+    ledFxTimersRef.current = [];
+  }
+
+  function scheduleLedFx(callback, delay) {
+    const timer = window.setTimeout(() => {
+      ledFxTimersRef.current = ledFxTimersRef.current.filter((item) => item !== timer);
+      callback();
+    }, delay);
+
+    ledFxTimersRef.current.push(timer);
+    return timer;
+  }
 
   const modeId = appState.modeId ?? null;
   const isDobbelkingen = modeId === "dobbelkingen";
@@ -158,70 +179,66 @@ export function PlayScreen({
   const showDoneUi = appState.phase === "DOBBELKINGEN_DONE";
 
   useEffect(() => {
-    let key = "";
-    let run = null;
+    if (!showGameUi && !showLobby) {
+      clearLedFxTimers();
 
-    if (showGameUi) {
-      const seatIndex =
-        typeof currentIndex === "number" && currentIndex >= 0 ? currentIndex : 0;
+      const key = `off|${appState.phase}`;
+      if (lastLedBaseRef.current === key) return;
 
-      const trickLength = activeSlice?.currentTrick?.length ?? 0;
-      const trickHistoryLength = activeSlice?.trickHistory?.length ?? 0;
-      const lastWinner =
-        typeof activeSlice?.lastTrickWinnerIndex === "number"
-          ? activeSlice.lastTrickWinnerIndex
-          : "none";
-
-      key = [
-        "turn",
-        modeId ?? "none",
-        seatIndex,
-        trickLength,
-        trickHistoryLength,
-        lastWinner,
-      ].join("|");
-
-      run = () => leds.turn(seatIndex);
-    } else if (showLobby) {
-      key = `setup|${modeId ?? "none"}|${appState.phase}`;
-      run = () => leds.setup();
-    } else {
-      key = `off|${appState.phase}`;
-      run = () => leds.off();
+      lastLedBaseRef.current = key;
+      leds.off();
+      return;
     }
+
+    if (showLobby) {
+      clearLedFxTimers();
+
+      const key = `setup|${modeId ?? "none"}|${appState.phase}`;
+      if (lastLedBaseRef.current === key) return;
+
+      lastLedBaseRef.current = key;
+      leds.setup();
+      return;
+    }
+
+    if (!showGameUi) return;
+
+    const seatIndex =
+      typeof currentIndex === "number" && currentIndex >= 0 ? currentIndex : 0;
+
+    const key = [
+      "turn",
+      modeId ?? "none",
+      seatIndex,
+      activeSlice?.currentTrick?.length ?? 0,
+      activeSlice?.trickHistory?.length ?? 0,
+      activeSlice?.lastTrickWinnerIndex ?? "none",
+      appState.lastError ? "error" : "ok",
+    ].join("|");
 
     if (lastLedBaseRef.current === key) return;
 
     lastLedBaseRef.current = key;
 
-    run?.();
+    // Nieuwe echte game-state = oude LED timers weg.
+    clearLedFxTimers();
 
-    // Belangrijk:
-    // Na scan/trick-win overlays forceren we opnieuw de echte base turn-zone.
-    // Anders kan de fysieke LED blijven hangen op de vorige zone.
-    const t1 = window.setTimeout(() => {
-      run?.();
-    }, 250);
+    // Dit is de enige normale plek waar de beurt-led gezet wordt.
+    leds.turn(seatIndex);
 
-    const t2 = window.setTimeout(() => {
-      run?.();
-    }, 650);
-
-    const t3 = window.setTimeout(() => {
-      run?.();
-    }, 1100);
-
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
-    };
+    // Als er geen error is, versterken we dezelfde huidige state.
+    // Geen andere speler, nooit nextTurnIndex.
+    if (!appState.lastError) {
+      scheduleLedFx(() => leds.turn(seatIndex), 300);
+      scheduleLedFx(() => leds.turn(seatIndex), 800);
+    }
   }, [
     showGameUi,
     showLobby,
     modeId,
     currentIndex,
     appState.phase,
+    appState.lastError,
     activeSlice?.currentTrick?.length,
     activeSlice?.trickHistory?.length,
     activeSlice?.lastTrickWinnerIndex,
@@ -229,35 +246,83 @@ export function PlayScreen({
 
   useEffect(() => {
     if (!showGameUi) return;
+    if (!appState.lastError) return;
 
-    const turnCard = gameState?.turnCard;
-    if (!turnCard?.uid || !turnCard?.card) return;
+    // Error wint altijd: alle oude timers weg.
+    clearLedFxTimers();
 
-    const zone = Number(turnCard.zone);
-    if (!Number.isFinite(zone) || zone < 1) return;
+    const seatIndex =
+      typeof currentIndex === "number" && currentIndex >= 0 ? currentIndex : 0;
 
     const key = [
-      "scan-ok",
+      "error",
       modeId ?? "none",
-      zone,
-      turnCard.uid,
-      turnCard.card,
+      seatIndex,
+      appState.lastError,
+      activeSlice?.currentTrick?.length ?? 0,
+      activeSlice?.trickHistory?.length ?? 0,
+    ].join("|");
+
+    if (lastLedErrorRef.current === key) return;
+
+    lastLedErrorRef.current = key;
+
+    leds.error(seatIndex);
+
+    // Hard lock terug naar de speler die volgens de app aan beurt is.
+    scheduleLedFx(() => leds.turn(seatIndex), 100);
+    scheduleLedFx(() => leds.turn(seatIndex), 350);
+    scheduleLedFx(() => leds.turn(seatIndex), 800);
+    scheduleLedFx(() => leds.turn(seatIndex), 1400);
+    scheduleLedFx(() => leds.turn(seatIndex), 2200);
+  }, [
+    showGameUi,
+    modeId,
+    currentIndex,
+    appState.lastError,
+    activeSlice?.currentTrick?.length,
+    activeSlice?.trickHistory?.length,
+  ]);
+
+  useEffect(() => {
+    if (!showGameUi) return;
+    if (appState.lastError) return;
+
+    const pile = activeSlice?.pile ?? [];
+    if (!Array.isArray(pile) || pile.length === 0) return;
+
+    const lastPlay = pile[pile.length - 1];
+    const playerIndex = lastPlay?.playerIndex;
+    const card = lastPlay?.cardCode ?? lastPlay?.card;
+    const uid = lastPlay?.uid;
+
+    if (typeof playerIndex !== "number" || playerIndex < 0 || !card) return;
+
+    const key = [
+      "scan-ok-played",
+      modeId ?? "none",
+      playerIndex,
+      uid ?? "no-uid",
+      card,
+      pile.length,
     ].join("|");
 
     if (lastLedScanOkRef.current === key) return;
 
     lastLedScanOkRef.current = key;
-    leds.scanOk(zone - 1);
+
+    // Alleen groen flashen. GEEN turn hier.
+    leds.scanOk(playerIndex);
   }, [
     showGameUi,
     modeId,
-    gameState?.turnCard?.zone,
-    gameState?.turnCard?.uid,
-    gameState?.turnCard?.card,
+    appState.lastError,
+    activeSlice?.pile,
   ]);
 
   useEffect(() => {
     if (!showGameUi) return;
+    if (appState.lastError) return;
 
     const winnerIndex = activeSlice?.lastTrickWinnerIndex;
     const trickKey = activeSlice?.lastTrick?.timestamp ?? activeSlice?.lastTrick?.id;
@@ -271,13 +336,44 @@ export function PlayScreen({
     if (lastLedTrickWinRef.current === key) return;
 
     lastLedTrickWinRef.current = key;
+
+    // Alleen win flashen. GEEN turn hier.
     leds.trickWin(winnerIndex);
   }, [
     showGameUi,
     modeId,
+    appState.lastError,
     activeSlice?.lastTrickWinnerIndex,
     activeSlice?.lastTrick?.timestamp,
     activeSlice?.lastTrick?.id,
+  ]);
+
+  useEffect(() => {
+    if (!showGameUi) return;
+    if (!appState.lastError) return;
+
+    const seatIndex =
+      typeof currentIndex === "number" && currentIndex >= 0 ? currentIndex : 0;
+
+    clearLedFxTimers();
+
+    // App-state is hier de waarheid.
+    // Bij elke error/zonewijziging zetten we LED terug naar dezelfde speler.
+    leds.turn(seatIndex);
+
+    scheduleLedFx(() => leds.turn(seatIndex), 100);
+    scheduleLedFx(() => leds.turn(seatIndex), 300);
+    scheduleLedFx(() => leds.turn(seatIndex), 700);
+    scheduleLedFx(() => leds.turn(seatIndex), 1200);
+    scheduleLedFx(() => leds.turn(seatIndex), 2000);
+  }, [
+    showGameUi,
+    currentIndex,
+    appState.lastError,
+    zones?.[0],
+    zones?.[1],
+    zones?.[2],
+    zones?.[3],
   ]);
 
   useEffect(() => {
